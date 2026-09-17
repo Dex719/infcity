@@ -53,8 +53,8 @@ export const LANDMARKS = {
   RADIUS: 5,
   /** Радиус, в котором не могут стоять два ландмарка разных типов (AC-4.2). */
   ADJACENCY_RADIUS: 1,
-  /** Включённые типы; Should-ландмарки добавляются по мере реализации (FR-4.6). */
-  ENABLED: ['baiterek', 'khan-shatyr'],
+  /** Включённые типы (FR-4.6): все пять реализованы процедурно в `scene/landmarks/`. */
+  ENABLED: ['baiterek', 'khan-shatyr', 'nur-alem', 'pyramid', 'ak-orda'],
   /** Ландмарки, гарантированно попадающие в стартовое окно (FR-4.1). */
   FIXED: [
     { id: 'baiterek', gx: 0, gy: -1 },

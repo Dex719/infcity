@@ -143,6 +143,13 @@ export class App extends Emitter<AppEvents> {
     this.tick(Math.min(dt, WORLD.MAX_DT));
   }
 
+  /** Телепорт окна на чанк `(gx, gy)` с полной сборкой (debug/e2e, скриншоты ландмарков). */
+  centerOn(gx: number, gy: number): void {
+    this.pan.resetTo(0, 0);
+    this.chunkWindow.setCenter(gx, gy);
+    this.chunkWindow.update(this.chunkWindow.size * this.chunkWindow.size);
+  }
+
   stats(): AppStats {
     const frame = this.renderer.stats;
     const cw = this.chunkWindow.stats;

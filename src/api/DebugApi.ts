@@ -9,6 +9,7 @@ export interface DebugApi {
   dumpWindow(): ChunkDescriptor[];
   stats(): AppStats;
   pan(dxPx: number, dyPx: number): void;
+  centerOn(gx: number, gy: number): void;
   step(dt: number): void;
   pause(): void;
   resume(): void;
@@ -31,6 +32,7 @@ export function installDebugApi(app: App, target: Window = window): DebugApi {
     dumpWindow: () => app.chunkWindow.dump(),
     stats: () => app.stats(),
     pan: (dx, dy) => app.pan.panByPixels(dx, dy),
+    centerOn: (gx, gy) => app.centerOn(gx, gy),
     step: (dt) => app.step(dt),
     pause: () => app.pause(),
     resume: () => app.resume(),

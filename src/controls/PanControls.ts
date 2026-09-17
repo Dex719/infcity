@@ -59,6 +59,15 @@ export class PanControls extends Emitter<PanEvents> {
     input.on('dragend', () => this.onDragEnd());
   }
 
+  /** Мгновенно поставить корень в позицию (после `ChunkWindow.setCenter`, debug API). */
+  resetTo(x = 0, z = 0): void {
+    this.root.position.set(x, 0, z);
+    this.target.copy(this.root.position);
+    this.targetAtDragStart.copy(this.target);
+    this.previousTarget.copy(this.target);
+    this.velocity.set(0, 0, 0);
+  }
+
   /** Программное панорамирование на `dx, dy` пикселей (debug API, e2e). */
   panByPixels(dx: number, dy: number): void {
     const rect = this.input.canvas.getBoundingClientRect();

@@ -1,0 +1,76 @@
+import { LANDMARKS } from '@/config';
+import { Templates } from '@/scene/procedural/GeometryBatch';
+import type { LandmarkContext } from './index';
+
+const LAWN_Y = 0.2;
+
+/**
+ * Байтерек (FR-4.4): белый ствол, расширяющаяся кверху решётчатая «крона» из распорок,
+ * золотой шар на вершине, круглая площадь с фонтанами и аллеей. Высота — `LANDMARKS.HEIGHT.baiterek`.
+ */
+export function buildBaiterek(ctx: LandmarkContext): void {
+  const b = ctx.opaque;
+  const m = ctx.m;
+  const total = LANDMARKS.HEIGHT.baiterek; // 50
+  const sphereR = total * 0.14; // 7
+  const sphereY = total - sphereR; // 43
+  const crownTop = sphereY - sphereR * 0.35; // ≈ 40.5
+  const crownBottom = total * 0.56; // 28
+  const white = m.color('white');
+  const gold = m.color('gold');
+
+  // Площадь: светлый камень, кольцевая аллея, газоны по углам.
+  b.plane(0, LAWN_Y, 0, 46, 46, m.color('stone-light'));
+  for (const [x, z] of [
+    [-18, -18],
+    [18, -18],
+    [-18, 18],
+    [18, 18],
+  ] as const) {
+    b.plane(x, LAWN_Y + 0.02, z, 9, 9, m.color('grass'));
+    ctx.props.tree(x, z, 1.1);
+    ctx.props.tree(x + 3, z - 3, 0.8);
+  }
+  b.place(Templates.cylinder16, 0, LAWN_Y + 0.01, 0, 15, 0.04, 15, m.color('sand'));
+  ctx.props.fountain(0, -19, 3);
+  ctx.props.fountain(0, 19, 3);
+  ctx.props.fountain(-19, 0, 3);
+  ctx.props.fountain(19, 0, 3);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+    ctx.props.lamp(Math.cos(a) * 13, Math.sin(a) * 13, 4);
+  }
+  ctx.props.bench(8, 9, Math.PI / 4);
+  ctx.props.bench(-8, 9, -Math.PI / 4);
+
+  // Постамент и ствол.
+  b.place(Templates.cylinder16, 0, 0.8, 0, 9, 1.6, 9, white);
+  b.place(Templates.cylinder16, 0, 2.1, 0, 6.5, 1, 6.5, white);
+  b.place(Templates.taper, 0, 2.6 + (crownBottom - 2.6) / 2, 0, 2.6, crownBottom - 2.6, 2.6, white);
+
+  // Крона: чаша + 16 наклонных рёбер от ствола к ободу.
+  const crownH = crownTop - crownBottom;
+  b.place(
+    Templates.flare,
+    0,
+    crownBottom + crownH / 2,
+    0,
+    sphereR * 1.25,
+    crownH,
+    sphereR * 1.25,
+    white,
+  );
+  const rimR = sphereR * 1.3;
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const x = Math.cos(a);
+    const z = Math.sin(a);
+    b.strut(x * 1.4, crownBottom - 6, z * 1.4, x * rimR, crownTop + 1.5, z * rimR, 0.35, white);
+    b.strut(x * rimR, crownTop + 1.5, z * rimR, x * 1.2, crownTop - 2, z * 1.2, 0.22, white);
+  }
+  b.place(Templates.cylinder16, 0, crownTop + 1.5, 0, rimR + 0.3, 0.5, rimR + 0.3, white);
+  b.place(Templates.cylinder16, 0, crownTop + 0.6, 0, rimR * 0.9, 0.35, rimR * 0.9, white);
+
+  // Золотой шар.
+  b.place(Templates.sphere16, 0, sphereY, 0, sphereR, sphereR, sphereR, gold);
+}

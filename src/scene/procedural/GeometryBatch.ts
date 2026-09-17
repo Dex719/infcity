@@ -7,6 +7,7 @@ import {
   Matrix3,
   Matrix4,
   PlaneGeometry,
+  Quaternion,
   SphereGeometry,
   Vector3,
   type Color,
@@ -56,11 +57,21 @@ export const Templates = {
   sphere16: templateFrom(new SphereGeometry(1, 16, 12)),
   /** Плоскость 1×1 в XZ, нормаль вверх. */
   planeXZ: templateFrom(new PlaneGeometry(1, 1).rotateX(-Math.PI / 2)),
+  /** Конус 24 граней (шатёр). */
+  cone24: templateFrom(new ConeGeometry(1, 1, 24)),
+  /** Усечённый конус, сужающийся кверху (верх 0.6, низ 1), 16 граней. */
+  taper: templateFrom(new CylinderGeometry(0.6, 1, 1, 16)),
+  /** Расширяющаяся кверху чаша (верх 1, низ 0.35), 16 граней. */
+  flare: templateFrom(new CylinderGeometry(1, 0.35, 1, 16)),
 } as const;
 
 const tmpMatrix = new Matrix4();
 const tmpNormal = new Matrix3();
 const tmpScale = new Vector3();
+const tmpA = new Vector3();
+const tmpB = new Vector3();
+const tmpQuat = new Quaternion();
+const UP = new Vector3(0, 1, 0);
 
 /**
  * Накопитель геометрии с вершинными цветами (design → Prefabs): все статические детали
@@ -182,6 +193,49 @@ export class GeometryBatch {
   /** Горизонтальная плоскость `w × d` с центром `(x, y, z)`. */
   plane(x: number, y: number, z: number, w: number, d: number, color: Color): void {
     this.place(Templates.planeXZ, x, y, z, w, 1, d, color);
+  }
+
+  /** Брус квадратного сечения `thickness` между точками A и B (решётки, ванты, распорки). */
+  strut(
+    ax: number,
+    ay: number,
+    az: number,
+    bx: number,
+    by: number,
+    bz: number,
+    thickness: number,
+    color: Color,
+  ): void {
+    tmpA.set(ax, ay, az);
+    tmpB.set(bx, by, bz);
+    const length = tmpA.distanceTo(tmpB);
+    if (length <= 0) {
+      return;
+    }
+    tmpB.sub(tmpA).divideScalar(length);
+    tmpQuat.setFromUnitVectors(UP, tmpB);
+    tmpA.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+    tmpMatrix.compose(tmpA, tmpQuat, tmpScale.set(thickness, length, thickness));
+    this.add(Templates.box, tmpMatrix, color);
+  }
+
+  /** Шаблон с полным поворотом (Эйлер XYZ в радианах) и масштабом. */
+  placeRotated(
+    template: Template,
+    x: number,
+    y: number,
+    z: number,
+    sx: number,
+    sy: number,
+    sz: number,
+    rx: number,
+    ry: number,
+    rz: number,
+    color: Color,
+  ): void {
+    tmpQuat.setFromEuler({ x: rx, y: ry, z: rz, order: 'XYZ' } as never);
+    tmpMatrix.compose(tmpA.set(x, y, z), tmpQuat, tmpScale.set(sx, sy, sz));
+    this.add(template, tmpMatrix, color);
   }
 
   get vertices(): number {

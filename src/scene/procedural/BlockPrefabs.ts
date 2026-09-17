@@ -1,4 +1,5 @@
-import { CHUNK_LAYOUT, LANDMARKS } from '@/config';
+import { CHUNK_LAYOUT } from '@/config';
+import { buildLandmark } from '@/scene/landmarks';
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
 import { mulberry32 } from '@/world/Hash';
@@ -72,7 +73,9 @@ export function buildBlock(descriptor: ChunkDescriptor, m: Materials): BlockGeom
       stadium(ctx);
       break;
     case 'landmark':
-      landmarkPlaceholder(ctx, descriptor);
+      if (descriptor.landmark !== null) {
+        buildLandmark(descriptor.landmark, { opaque, glass, props, m, rng });
+      }
       break;
   }
   return { opaque, glass };
@@ -348,13 +351,4 @@ function stadium(ctx: Ctx): void {
   }
   ctx.props.lamp(-22, -22);
   ctx.props.lamp(22, -22);
-}
-
-/** Временный плейсхолдер ландмарка до `scene/landmarks/*` (TSK-034/035). */
-function landmarkPlaceholder(ctx: Ctx, descriptor: ChunkDescriptor): void {
-  lawn(ctx, 0, 0, 46, 46, 'stone-light');
-  const h = descriptor.landmark === null ? 30 : LANDMARKS.HEIGHT[descriptor.landmark];
-  ctx.b.box(0, h / 2, 0, 10, h, 10, ctx.m.color('gold'));
-  ctx.props.fountain(-14, 14, 3);
-  ctx.props.fountain(14, -14, 3);
 }

@@ -77,8 +77,8 @@ describe('LandmarkPlanner — редкие ландмарки (AC-4.2)', () => {
   });
 
   it('при 2 включённых типах доля пропорционально ниже: 1/100…1/55', () => {
-    const planner = new LandmarkPlanner(777);
-    expect(planner.enabledIds).toEqual(LANDMARKS.ENABLED);
+    const planner = new LandmarkPlanner(777, ['baiterek', 'khan-shatyr']);
+    expect(new LandmarkPlanner(777).enabledIds).toEqual(LANDMARKS.ENABLED);
     const placed = collect(planner, ORIGIN, ORIGIN, SIZE);
     const share = placed.length / (SIZE * SIZE);
     expect(share).toBeGreaterThanOrEqual(1 / 100);
@@ -86,7 +86,12 @@ describe('LandmarkPlanner — редкие ландмарки (AC-4.2)', () => {
   });
 
   it('включение новых типов не сдвигает уже существующие ландмарки', () => {
-    const two = collect(new LandmarkPlanner(777), ORIGIN, ORIGIN, SIZE);
+    const two = collect(
+      new LandmarkPlanner(777, ['baiterek', 'khan-shatyr']),
+      ORIGIN,
+      ORIGIN,
+      SIZE,
+    );
     const five = collect(new LandmarkPlanner(777, [...LANDMARK_IDS]), ORIGIN, ORIGIN, SIZE);
     const fiveKeys = new Map(five.map((p) => [`${String(p.gx)},${String(p.gy)}`, p.id]));
     let kept = 0;
