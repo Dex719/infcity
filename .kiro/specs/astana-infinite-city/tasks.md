@@ -351,6 +351,11 @@
   - Deliverables: visual-эталоны, `e2e/perf.spec.ts` (пик ≤ 400 k), qa-evidence (AC-17.5…17.7), статусы
   - Acceptance: все проверки зелёные
 
+- [x] **TSK-099**: Гранёный шар Байтерека (волна 3)
+  - Requirement: FR-17.8, AC-17.8
+  - Deliverables: `Templates.icoFlat`, `GeometryBatch.addFacets/placeFacets`, `landmarks/Baiterek.ts` (шар из 320 панелей двух оттенков золота, обода), unit в `tests/scene/props.test.ts`, эталоны `landmark-baiterek.png`/`astana-start.png`
+  - Acceptance: AC-17.8, Байтерек ≤ 9 000 вершин, e2e зелёные
+
 ---
 
 ## Dependency Graph
@@ -499,5 +504,6 @@ graph TD
 | TSK-096 | Complete | 2026-09-18: buildCloud — средний тон shade('white', 0.93), 3 клочка blobLow по краям; ≥ 10 объёмов, 3 цвета (tests/mobs/cloud.test.ts) |
 | TSK-097 | Complete | 2026-09-18: ≥ 3 детали волны 2 на каждый из 12 ландмарков (мачты, скамейки, кольца мощения, киоски, обелиски, будки, сады на подиумах, скульптуры, окна минаретов, вентиляция, антенны, флаги); порог ×1,35, Нур Алем ужат до ≤ 9 000 |
 | TSK-098 | Complete | 2026-09-18: эталоны пересозданы, e2e 34/34, unit 186/186, perf: пик 375 k треугольников из 400 k, ≤ 104 draw calls; qa-evidence AC-17.5…17.7 |
+| TSK-099 | Complete | 2026-09-18: Templates.icoFlat (икосаэдр detail 3, 320 граней, плоские нормали), GeometryBatch.addFacets/placeFacets (грани попеременно двух цветов), шар Байтерека — панели gold / shade(gold, 0.78) + обода по экватору и меридиану; unit (грани, нормали, 2 цвета, отказ для индексированных шаблонов); Байтерек 8 954 вершин (≤ 9 000, снято одно кольцо мощения); эталоны обновлены, e2e 34/34, perf-пик 378 k из 400 k |
 
 **Статусы:** Pending / In Progress / Complete. Обновлять вместе с чекбоксами.

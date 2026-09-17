@@ -2,7 +2,7 @@ import type { BufferGeometry } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
-import { GeometryBatch } from '@/scene/procedural/GeometryBatch';
+import { GeometryBatch, Templates } from '@/scene/procedural/GeometryBatch';
 import { Props } from '@/scene/procedural/Props';
 import paletteJson from '../../public/assets/palette.json';
 
@@ -88,6 +88,58 @@ describe('Props.tree — объёмные кроны (FR-17.1, AC-17.1)', () => 
     const small = extent(build((p) => p.tree(0, 0, 0.8, 0)).geometry);
     const big = extent(build((p) => p.tree(0, 0, 1.3, 0)).geometry);
     expect(big.height).toBeGreaterThan(small.height * 1.4);
+  });
+});
+
+describe('Гранёный шар — панели с плоскими нормалями (FR-17.8, AC-17.8)', () => {
+  it('icoFlat: ≥ 300 граней, нормали вершин каждой грани совпадают, два цвета попеременно', () => {
+    const batch = new GeometryBatch();
+    batch.placeFacets(
+      Templates.icoFlat,
+      0,
+      0,
+      0,
+      7,
+      7,
+      7,
+      materials.color('gold'),
+      materials.shade('gold', 0.78),
+    );
+    expect(batch.parts).toBe(1);
+    const geometry = batch.build();
+    const position = geometry.getAttribute('position');
+    const normal = geometry.getAttribute('normal');
+    const faces = position.count / 3;
+    expect(faces).toBeGreaterThanOrEqual(300);
+    for (let face = 0; face < faces; face++) {
+      const i = face * 3;
+      for (let v = 1; v < 3; v++) {
+        expect(normal.getX(i + v)).toBeCloseTo(normal.getX(i), 5);
+        expect(normal.getY(i + v)).toBeCloseTo(normal.getY(i), 5);
+        expect(normal.getZ(i + v)).toBeCloseTo(normal.getZ(i), 5);
+      }
+    }
+    expect(distinctColors(geometry)).toBe(2);
+    // Соседние грани — разных цветов (индекс % 2).
+    const color = geometry.getAttribute('color');
+    expect(color.getX(0)).not.toBeCloseTo(color.getX(3), 5);
+  });
+
+  it('индексированный шаблон отвергается', () => {
+    const batch = new GeometryBatch();
+    expect(() =>
+      batch.placeFacets(
+        Templates.sphereLow,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        materials.color('gold'),
+        materials.color('white'),
+      ),
+    ).toThrow();
   });
 });
 

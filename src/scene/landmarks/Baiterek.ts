@@ -94,8 +94,35 @@ export function buildBaiterek(ctx: LandmarkContext): void {
   b.place(Templates.cylinder16, 0, crownTop + 1.5, 0, rimR + 0.3, 0.5, rimR + 0.3, white);
   b.place(Templates.cylinder16, 0, crownTop + 0.6, 0, rimR * 0.9, 0.35, rimR * 0.9, white);
 
-  // Золотой шар.
-  b.place(Templates.sphere16, 0, sphereY, 0, sphereR, sphereR, sphereR, gold);
+  // Золотой шар (FR-17.8): гранёный — 320 треугольных панелей двух оттенков золота,
+  // металлические обода по экватору и меридиану, как у настоящей панельной конструкции.
+  b.placeFacets(
+    Templates.icoFlat,
+    0,
+    sphereY,
+    0,
+    sphereR,
+    sphereR,
+    sphereR,
+    gold,
+    m.shade('gold', 0.78),
+    0.3,
+  );
+  const rim = m.shade('gold', 0.6);
+  b.place(Templates.cylinder16, 0, sphereY, 0, sphereR + 0.12, 0.28, sphereR + 0.12, rim);
+  b.placeRotated(
+    Templates.cylinder16,
+    0,
+    sphereY,
+    0,
+    sphereR + 0.12,
+    0.28,
+    sphereR + 0.12,
+    Math.PI / 2,
+    0,
+    0,
+    rim,
+  );
 
   // Детали итерации 3 (FR-17.3): стеклянная шахта лифта, клумбы-«лепестки», прожекторы, изгороди.
   const shaftH = crownBottom - 2.6;
@@ -139,5 +166,4 @@ export function buildBaiterek(ctx: LandmarkContext): void {
     ctx.props.bench(Math.cos(a) * 14.6, Math.sin(a) * 14.6, -a + Math.PI / 2);
   }
   b.place(Templates.cylinder16, 0, LAWN_Y + 0.03, 0, 18.5, 0.03, 18.5, white);
-  b.place(Templates.cylinder16, 0, LAWN_Y + 0.05, 0, 17.8, 0.03, 17.8, m.color('stone-light'));
 }

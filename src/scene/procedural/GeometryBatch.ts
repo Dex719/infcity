@@ -5,6 +5,7 @@ import {
   ConeGeometry,
   CylinderGeometry,
   Euler,
+  IcosahedronGeometry,
   Matrix3,
   Matrix4,
   PlaneGeometry,
@@ -40,6 +41,13 @@ export function templateFrom(geometry: BufferGeometry): Template {
   return { positions, normals, indices };
 }
 
+/** Плоские нормали: у неиндексированной геометрии `computeVertexNormals` считает нормаль на грань. */
+function flatShaded(geometry: BufferGeometry): BufferGeometry {
+  const flat = geometry.index === null ? geometry : geometry.toNonIndexed();
+  flat.computeVertexNormals();
+  return flat;
+}
+
 /** Низкополигональные шаблоны (единичный размер, центр в начале координат). */
 export const Templates = {
   /** Куб 1×1×1. */
@@ -60,6 +68,11 @@ export const Templates = {
   blobLow: templateFrom(new SphereGeometry(1, 6, 4)),
   /** Усечённый конус 8 граней (стволы деревьев — дешевле `taper` вдвое, FR-17.4). */
   taper8: templateFrom(new CylinderGeometry(0.6, 1, 1, 8)),
+  /**
+   * Гранёный шар: икосаэдр detail 3 — 320 треугольных панелей (20 × 4²) с плоскими нормалями
+   * (неиндексированная геометрия, нормаль на грань). Шар Байтерека (FR-17.8).
+   */
+  icoFlat: templateFrom(flatShaded(new IcosahedronGeometry(1, 3))),
   /** Сфера r=1, 16×12 (шар Байтерека, Нур Алем). */
   sphere16: templateFrom(new SphereGeometry(1, 16, 12)),
   /** Плоскость 1×1 в XZ, нормаль вверх. */
@@ -125,6 +138,50 @@ export class GeometryBatch {
       this.indices.push(base + index);
     }
     this.vertexCount += p.length / 3;
+  }
+
+  /**
+   * Как `add`, но грани красятся попеременно двумя цветами (индекс грани % 2) — панели
+   * гранёного шара читаются отдельно при любом освещении (FR-17.8). Шаблон должен быть
+   * неиндексированным (три вершины на грань), иначе цвета «поплывут» по общим вершинам.
+   */
+  addFacets(template: Template, matrix: Matrix4, colorA: Color, colorB: Color): void {
+    const base = this.vertexCount;
+    this.add(template, matrix, colorA);
+    if (template.indices.length !== template.positions.length / 3) {
+      throw new Error('addFacets: шаблон должен быть неиндексированным');
+    }
+    const faces = template.positions.length / 9;
+    for (let face = 0; face < faces; face++) {
+      if (face % 2 === 0) {
+        continue;
+      }
+      for (let v = 0; v < 3; v++) {
+        const offset = (base + face * 3 + v) * 3;
+        this.colors[offset] = colorB.r;
+        this.colors[offset + 1] = colorB.g;
+        this.colors[offset + 2] = colorB.b;
+      }
+    }
+  }
+
+  /** Гранёный шаблон с масштабом, поворотом вокруг Y и двумя чередующимися цветами граней. */
+  placeFacets(
+    template: Template,
+    x: number,
+    y: number,
+    z: number,
+    sx: number,
+    sy: number,
+    sz: number,
+    colorA: Color,
+    colorB: Color,
+    rotationY = 0,
+  ): void {
+    tmpMatrix.makeRotationY(rotationY);
+    tmpMatrix.scale(tmpScale.set(sx, sy, sz));
+    tmpMatrix.setPosition(x, y, z);
+    this.addFacets(template, tmpMatrix, colorA, colorB);
   }
 
   /**
