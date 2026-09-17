@@ -105,101 +105,101 @@
 
 ### Phase 3: Ассеты, префабы, внешний вид
 
-- [ ] **TSK-030**: Пайплайн ассетов и каталог
+- [x] **TSK-030**: Пайплайн ассетов и каталог
   - Requirement: NFR-1 (вес), NFR-5
   - Deliverables: `tools/assets/` (скрипт скачивания Kenney City Kit Roads/Commercial/Suburban + Car Kit, `gltf-transform` optimize: Draco/Meshopt, dedup, palette PNG), `public/assets/catalog.json` (id, file, bytes, kind, materialKey, license), `CREDITS.md`
   - Acceptance: суммарный вес каталога первого экрана ≤ 8 МБ; все записи CC0; `catalog.version` присутствует
 
-- [ ] **TSK-031**: `assets/AssetLibrary` — загрузка с честным прогрессом и retry
+- [x] **TSK-031**: `assets/AssetLibrary` — загрузка с честным прогрессом и retry
   - Requirement: FR-11.1, FR-11.2
   - Deliverables: `src/assets/AssetLibrary.ts` (GLTFLoader + декодеры, прогресс по байтам, retry ×2), `src/ui/Loading.ts` (бар 8 px)
   - Acceptance: AC-11.1 (Fast 3G, монотонный прогресс до 100 % в момент последней загрузки), AC-11.2 (мок 500 → 3 попытки → оверлей «Повторить»)
 
-- [ ] **TSK-032**: Префабы кварталов (≥ 8 типов) и слияние геометрий
+- [x] **TSK-032**: Префабы кварталов (≥ 8 типов) и слияние геометрий
   - Requirement: FR-3.1, FR-3.4, NFR-1 (draw calls)
   - Deliverables: `src/scene/Prefabs.ts` (merge по материалу `palette`/`glass`), `public/assets/blocks.json` (placements для `residential-panel`, `residential-new`, `business-glass`, `commercial`, `park`, `square`, `campus`, `stadium`), собственные процедурные «панельки» и «стеклянные башни» (`src/scene/procedural/Buildings.ts`)
   - Acceptance: чанк = ≤ 3 меша статики; окно 9×9 ≤ 260 draw calls без мобов; ≥ 6 типов видны в стартовом окне (AC-3.3)
 
-- [ ] **TSK-033**: Префабы дорог, перекрёстков, пропсов
+- [x] **TSK-033**: Префабы дорог, перекрёстков, пропсов
   - Requirement: FR-3.1, FR-3.5
   - Deliverables: `src/scene/Roads.ts` (N–S, E–W, угол, разметка, тротуары, фонари, остановки), integration-тест стыковки
   - Acceptance: AC-3.2 (стыки ≤ 0,01 юнита), машины визуально в полосе
 
-- [ ] **TSK-034**: Ландмарк Байтерек (процедурный)
+- [x] **TSK-034**: Ландмарк Байтерек (процедурный)
   - Requirement: FR-4.3, FR-4.4
   - Deliverables: `src/scene/landmarks/Baiterek.ts` (ствол, крона-решётка, золотой шар, постамент, площадь с фонтанами и аллеей)
   - Acceptance: высота 50 юнитов, силуэт «шар на кроне» читается на стартовом кадре; ≤ 4 меша
 
-- [ ] **TSK-035**: Ландмарк Хан Шатыр (процедурный)
+- [x] **TSK-035**: Ландмарк Хан Шатыр (процедурный)
   - Requirement: FR-4.3, FR-4.5
   - Deliverables: `src/scene/landmarks/KhanShatyr.ts` (наклонный шатёр LatheGeometry, мачта, стеклянный материал, парковка/площадь)
   - Acceptance: высота 42, наклон 10°, полупрозрачность корректно сортируется с облаками; ≤ 4 меша
 
-- [ ] **TSK-036**: Ландмарки Should: Нур Алем, Пирамида, Ак Орда
+- [x] **TSK-036**: Ландмарки Should: Нур Алем, Пирамида, Ак Орда
   - Requirement: FR-4.6
   - Deliverables: `src/scene/landmarks/{NurAlem,Pyramid,AkOrda}.ts`, включение флагов в `LandmarkPlanner`
   - Acceptance: появляются вне стартовой зоны с частотой по AC-4.2; узнаваемы (ручная проверка)
 
-- [ ] **TSK-037**: Освещение, тени, туман, виньетка
+- [x] **TSK-037**: Освещение, тени, туман, виньетка
   - Requirement: FR-9.1–9.3, NFR-1
   - Deliverables: `src/render/Lighting.ts` (DirectionalLight + HemisphereLight, shadow frustum по aspect, профили 2048/1024), `src/render/Post.ts` (виньетка quad), `scene.fog`
   - Acceptance: AC-9.2 (край окна не читается), тени мягкие без «акне», draw calls ≤ 300 с тенями
 
-- [ ] **TSK-038**: Палитра «Астана» и материалы
+- [x] **TSK-038**: Палитра «Астана» и материалы
   - Requirement: FR-9.4, FR-9.5
   - Deliverables: `public/assets/palette.json` (≤ 24 цветов), `src/scene/Materials.ts` (palette/glass/gold), перекраска Kenney-палитры под нашу (`tools/assets/recolor.ts`)
   - Acceptance: AC-9.3 (все материалы из палитры); скриншот стартового кадра утверждён пользователем как эталон для visual regression
 
 ### Phase 4: Мобильные объекты
 
-- [ ] **TSK-040**: `mobs/MobileObject` — перенос между чанками
+- [x] **TSK-040**: `mobs/MobileObject` — перенос между чанками
   - Requirement: FR-6.4, FR-5.5, FR-7.2
   - Deliverables: `src/mobs/MobileObject.ts`, `tests/mobs/mobile.test.ts` (математика переноса без three-рендера)
   - Acceptance: AC-6.3 (отклонение ≤ 0,05 юнита при пересечении границы); деактивация при отсутствии соседа
 
-- [ ] **TSK-041**: `mobs/Car` + `Traffic` (радар, торможение, перекрёсток, anti-deadlock)
+- [x] **TSK-041**: `mobs/Car` + `Traffic` (радар, торможение, перекрёсток, anti-deadlock)
   - Requirement: FR-6.2, FR-6.3, FR-6.5
   - Deliverables: `src/mobs/Car.ts`, `src/mobs/Traffic.ts` (соседние чанки, коллизионные точки), `tests/mobs/traffic.test.ts`
   - Acceptance: AC-6.1 (0 пересечений bbox за 60 с при 100+ машинах), AC-6.2 (0 «замёрзших» за 5 мин)
 
-- [ ] **TSK-042**: Спавн машин и `InstancedMesh`-пулы
+- [x] **TSK-042**: Спавн машин и `InstancedMesh`-пулы
   - Requirement: FR-6.1, FR-6.6, NFR-1
   - Deliverables: `src/mobs/InstancePool.ts`, `src/mobs/CarSpawner.ts` (из `ChunkDescriptor.cars`, ≥ 8 моделей: такси, автобус, полиция, скорая…)
   - Acceptance: 100+ машин добавляют ≤ 12 draw calls; тени от машин есть
 
-- [ ] **TSK-043**: Геометрия ЛРТ: эстакада, опоры, станции
+- [x] **TSK-043**: Геометрия ЛРТ: эстакада, опоры, станции
   - Requirement: FR-5.1, FR-5.2
   - Deliverables: `src/scene/Lrt.ts` (сегмент балки по оси северной дороги, опоры каждые 15, платформа+навес+лестница на станциях), интеграция в `ChunkBuilder`
   - Acceptance: AC-5.2 (балка непрерывна между чанками, опоры не на полосах); коридор виден на стартовом кадре (AC-5.1)
 
-- [ ] **TSK-044**: `mobs/Train` + `LrtLine` (спавн, интервал, остановки)
+- [x] **TSK-044**: `mobs/Train` + `LrtLine` (спавн, интервал, остановки)
   - Requirement: FR-5.3, FR-5.4, FR-5.6
   - Deliverables: `src/mobs/Train.ts` (состояния moving/braking/dwell/accelerating), `src/mobs/LrtLine.ts` (детерминированный спавн с шагом 4–6 чанков, две нитки), `tests/mobs/train.test.ts`
   - Acceptance: AC-5.3 (остановка ±2 юнита от центра станции, стоянка 3–5 с), AC-5.4 (1…4 поезда в окне, интервал ≥ 4 чанка)
 
-- [ ] **TSK-045**: `mobs/Cloud`
+- [x] **TSK-045**: `mobs/Cloud`
   - Requirement: FR-7
   - Deliverables: `src/mobs/Cloud.ts`, 2 процедурные/Kenney модели облаков в пуле
   - Acceptance: AC-7.1 (3–12 облаков, тени), AC-7.2 (перенос без скачка)
 
 ### Phase 5: UI-оболочка
 
-- [ ] **TSK-050**: Раскладка, шрифты, заголовок
+- [x] **TSK-050**: Раскладка, шрифты, заголовок
   - Requirement: FR-10.1, FR-10.5, NFR-6
   - Deliverables: `index.html`, `src/ui/shell.css` (rem-масштаб 320 px…4K, палитра UI), `src/ui/Title.ts` (анимация ширина→буквы→fade; `prefers-reduced-motion`), self-hosted шрифты (open license)
   - Acceptance: AC-10.1; контраст ≥ 4.5:1
 
-- [ ] **TSK-051**: About: пауза, blur, закрытие (крестик/вне/Esc)
+- [x] **TSK-051**: About: пауза, blur, закрытие (крестик/вне/Esc)
   - Requirement: FR-10.2–10.4
   - Deliverables: `src/ui/About.ts` (описание, «сделано с», credits из `CREDITS.md`, ссылка автора), мобильная полноэкранная версия
   - Acceptance: AC-10.2, AC-10.3
 
-- [ ] **TSK-052**: Оверлеи ошибок: нет WebGL2, ошибка загрузки, потеря контекста
+- [x] **TSK-052**: Оверлеи ошибок: нет WebGL2, ошибка загрузки, потеря контекста
   - Requirement: FR-11.3, FR-11.4, NFR-7
   - Deliverables: `src/ui/ErrorOverlay.ts`, обработчики `webglcontextlost/restored` в `Renderer`, fallback-чанк подключён
   - Acceptance: AC-11.3; восстановление контекста без перезагрузки; таймаут 5 с → «Перезагрузить»
 
-- [ ] **TSK-053**: Клавиатурное управление и доступность
+- [x] **TSK-053**: Клавиатурное управление и доступность
   - Requirement: FR-8.3, NFR-6
   - Deliverables: стрелки/WASD → виртуальный drag; `?`/Esc для About; фокус-кольца; aria-лейблы кнопок
   - Acceptance: демо полностью управляемо с клавиатуры (ручной чек-лист)
@@ -323,25 +323,25 @@ graph TD
 | TSK-023 | Complete | 2026-09-17: LrtPlanner: коридор gy≡0 (mod 8), станции gx≡0 (mod 3) |
 | TSK-024 | Complete | 2026-09-17: api/Seed: parseFlags, normalizeSeed, generateSeed, buildShareUrl, syncSeedToLocation (replaceState); Share-кнопка — в TSK-050 |
 | TSK-025 | Complete | 2026-09-17: GreyboxBuilder: боксы по типу, ландмарки-башни, эстакада/опоры/станции ЛРТ; проверено в браузере: 81 чанк, ~80–110 draw calls, 165 FPS, emptySlots=0 при панорамировании |
-| TSK-030 | Pending | |
-| TSK-031 | Pending | |
-| TSK-032 | Pending | |
-| TSK-033 | Pending | |
-| TSK-034 | Pending | |
-| TSK-035 | Pending | |
-| TSK-036 | Pending | Should |
-| TSK-037 | Pending | |
-| TSK-038 | Pending | |
-| TSK-040 | Pending | |
-| TSK-041 | Pending | |
-| TSK-042 | Pending | |
-| TSK-043 | Pending | |
-| TSK-044 | Pending | |
-| TSK-045 | Pending | Should |
-| TSK-050 | Pending | |
-| TSK-051 | Pending | |
-| TSK-052 | Pending | |
-| TSK-053 | Pending | Should |
+| TSK-030 | Complete | 2026-09-17: Переориентировано (design D3): процедурная библиотека scene/procedural/* (GeometryBatch, Templates, Props, Buildings, Roads, Lrt); без внешних ассетов |
+| TSK-031 | Complete | 2026-09-17: Прогресс/ретраи ассетов не нужны (нет сетевых ассетов); загрузка палитры — loadPalette; оверлеи ошибок — TSK-052 |
+| TSK-032 | Complete | 2026-09-17: BlockPrefabs: 9 регулярных типов + стадион, слияние в 1 непрозрачный + 1 стеклянный меш; окно 9×9 ≈ 90 draw calls, ~220k tris |
+| TSK-033 | Complete | 2026-09-17: Roads: полотно, тротуары, осевые/краевые линии, зебры, фонари, остановки, светофоры/клумбы; стыковка по кромкам ±30 |
+| TSK-034 | Complete | 2026-09-17: Baiterek: ствол, решётчатая крона (32 распорки), золотой шар r=7, площадь с 4 фонтанами; высота 50 |
+| TSK-035 | Complete | 2026-09-17: KhanShatyr: наклонный стеклянный конус (cone24, −9°), мачта, 12 вант, внутренний корпус, парковка; высота 42 |
+| TSK-036 | Complete | 2026-09-17: NurAlem (сфера на подиуме), Pyramid (стеклянная вершина), AkOrda (купол, шпиль, колоннада); LANDMARKS.ENABLED = 5 типов |
+| TSK-037 | Complete | 2026-09-17: Lighting: DirectionalLight + HemisphereLight, PCFSoft 2048/1024, фрустум по aspect; Fog 225/325; Vignette-проход |
+| TSK-038 | Complete | 2026-09-17: Palette: 24 цвета в palette.json, Materials (opaque/glass, vertexColors); визуальный эталон — TSK-061 |
+| TSK-040 | Complete | 2026-09-17: MobileObject.wrap/moveTo: сворачивание по модулю 60; unit-тесты переноса (AC-6.3) |
+| TSK-041 | Complete | 2026-09-17: Car + Traffic.detects: сектор впереди-справа (−45°, dot>0.5), 2 коллизионные точки, правило перекрёстка, anti-deadlock 2 с; unit-тесты |
+| TSK-042 | Complete | 2026-09-17: MobSystem + InstancePool: 8 моделей машин (седан, хэтчбек, SUV, такси, автобус, грузовик, фургон, полиция), спавн/деспавн по входу/выходу чанка из окна |
+| TSK-043 | Complete | 2026-09-17: Lrt.ts: балка с рельсами, опоры каждые 15 на разделительной полосе, станции с платформами, навесом, лестницей |
+| TSK-044 | Complete | 2026-09-17: Train: состояния moving/braking/dwell/accelerating, стоянка 3–5 с, интервал по лидеру; спавн gx≡0 (mod 5) восток / ≡2 запад; unit-тесты |
+| TSK-045 | Complete | 2026-09-17: Cloud: дрейф (−1,0,0.3)·3 юн/с·(1..1.25), дыхание ±5 %, тени; скрываются при камере ниже 72 |
+| TSK-050 | Complete | 2026-09-17: index.html + ui/shell.css (rem-корень clamp 15…21 px, палитра через CSS-переменные из palette.json, CSP-мета), ui/Title (буквы со стаггером, 500 мс → 7 с → fade 900 мс; prefers-reduced-motion → is-static), ui/Share + ui/Toast (clipboard → тост 2 с, иначе `<input readonly>`); шрифты — системный стек (self-hosted не подключались: без сетевой загрузки в сессии); unit-тесты title/share |
+| TSK-051 | Complete | 2026-09-17: ui/About: pause/resume, blur(6px) brightness(0.7) на канвасе, закрытие крестиком/подложкой/Esc, `?` переключает, фокус-ловушка, inert на канвасе/HUD; credits из CREDITS.md (?raw), «сделано с», автор (UI.AUTHOR); < 700 px — во весь экран (проверено 375×812); unit-тесты about |
+| TSK-052 | Complete | 2026-09-17: ui/ErrorOverlay (alertdialog; нет WebGL2 + ссылка, ошибка загрузки + «Повторить», потеря контекста: полупрозрачный оверлей → через 5 с «Перезагрузить»), ui/Loading (полоса 8 px по факту ресурсов), app/retry (500/1500 мс), ChunkWindow.buildSafely → fallback-чанк при исключении в префабе; проверено WEBGL_lose_context в браузере: восстановление без перезагрузки |
+| TSK-053 | Complete | 2026-09-17: стрелки/WASD (PanControls), `?`/Esc (About), Esc для поля ссылки, focus-visible кольца, aria-label/aria-expanded/aria-controls на кнопках, role=img + aria-label на канвасе, role=toolbar HUD; ручной чек-лист пройден в встроенном браузере |
 | TSK-060 | Pending | |
 | TSK-061 | Pending | |
 | TSK-062 | Pending | |

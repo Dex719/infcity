@@ -223,6 +223,7 @@ describe('CONFIG', () => {
       'CHUNK_LAYOUT',
       'RENDER',
       'ASSETS',
+      'UI',
     ]);
   });
 

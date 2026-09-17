@@ -4,9 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'"
+    />
+    <meta
       name="description"
       content="Бесконечный low-poly город Астаны: детерминированная генерация по seed, ЛРТ, трафик и облака."
     />
+    <meta name="color-scheme" content="light" />
     <title>Astana Infinite</title>
     <style>
       /* Цвет фона выставляется из palette.json в main.ts — хардкод цветов вне палитры запрещён. */
@@ -26,6 +31,16 @@
   </head>
   <body>
     <canvas id="app"></canvas>
+    <div
+      id="loading"
+      role="progressbar"
+      aria-label="Загрузка города"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+    >
+      <div id="loading-bar"></div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

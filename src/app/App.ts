@@ -36,6 +36,7 @@ export interface AppStats {
   cameraHeight: number;
   builds: number;
   cacheHits: number;
+  buildErrors: number;
   generatorErrors: number;
   mobs: MobStats;
 }
@@ -169,6 +170,7 @@ export class App extends Emitter<AppEvents> {
       cameraHeight: this.rig.currentHeight,
       builds: cw.builds,
       cacheHits: cw.cacheHits,
+      buildErrors: cw.buildErrors,
       generatorErrors: this.generator.errors,
       mobs: this.mobs.stats(),
     };

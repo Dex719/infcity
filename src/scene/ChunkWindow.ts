@@ -45,6 +45,7 @@ export class ChunkWindow {
   private readonly queue: Slot[] = [];
   private buildsTotal = 0;
   private cacheHits = 0;
+  private buildErrorsTotal = 0;
 
   constructor(
     readonly generator: Generator,
@@ -93,7 +94,7 @@ export class ChunkWindow {
       }
       const descriptor = slot.node.descriptor;
       const cached = this.built.get(slot.key);
-      const node = cached ?? this.builder.build(descriptor);
+      const node = cached ?? this.buildSafely(descriptor);
       if (cached === undefined) {
         this.buildsTotal++;
         this.remember(slot.key, node);
@@ -102,6 +103,20 @@ export class ChunkWindow {
       built++;
     }
     return built;
+  }
+
+  /**
+   * Сборка чанка с защитой от исключений в префабах (NFR-7): при ошибке чанк собирается
+   * как парковый fallback, ошибка считается и логируется; приложение не падает.
+   */
+  private buildSafely(descriptor: ChunkDescriptor): ChunkNode {
+    try {
+      return this.builder.build(descriptor);
+    } catch (error: unknown) {
+      this.buildErrorsTotal++;
+      console.error(`chunk ${descriptor.key}: build failed, using fallback`, error);
+      return this.builder.build(Generator.fallbackDescriptor(descriptor.gx, descriptor.gy));
+    }
   }
 
   /** Слоты, в которых ещё плейсхолдер (AC-1.2). */
@@ -153,12 +168,19 @@ export class ChunkWindow {
     );
   }
 
-  get stats(): { builds: number; cacheHits: number; cached: number; queued: number } {
+  get stats(): {
+    builds: number;
+    cacheHits: number;
+    cached: number;
+    queued: number;
+    buildErrors: number;
+  } {
     return {
       builds: this.buildsTotal,
       cacheHits: this.cacheHits,
       cached: this.built.size,
       queued: this.queue.length,
+      buildErrors: this.buildErrorsTotal,
     };
   }
 

@@ -21,8 +21,13 @@ export const STRINGS = {
     seedHint: 'Одинаковый seed всегда даёт один и тот же город — ссылкой можно поделиться.',
     madeWithHeading: 'Сделано с',
     creditsHeading: 'Источники и лицензии',
-    creditsHint: 'Модели — CC0, ландмарки и ЛРТ собраны процедурно.',
+    creditsHint: 'Здания, ландмарки, ЛРТ, машины и облака собраны процедурно, без внешних моделей.',
     authorLabel: 'Автор',
+    madeWith: [
+      { name: 'three.js', url: 'https://threejs.org' },
+      { name: 'TypeScript', url: 'https://www.typescriptlang.org' },
+      { name: 'Vite', url: 'https://vite.dev' },
+    ],
   },
 
   /** Кнопки и интерактивные элементы (FR-10, NFR-6 — используются и как aria-label). */
@@ -33,6 +38,15 @@ export const STRINGS = {
     retry: 'Повторить',
     reload: 'Перезагрузить',
     copy: 'Скопировать',
+    shareFallbackClose: 'Скрыть ссылку',
+  },
+
+  /** Подписи для скринридеров (NFR-6). */
+  aria: {
+    canvas:
+      'Интерактивная 3D-сцена: бесконечный город Астаны. Перетаскивайте или используйте стрелки.',
+    hud: 'Управление демо',
+    shareInput: 'Ссылка на этот город',
   },
 
   /** Короткие всплывающие уведомления (FR-2.3). */
@@ -60,6 +74,9 @@ export const STRINGS = {
     contextTitle: 'Графика перезапускается',
     contextBody:
       'Браузер сбросил WebGL-контекст. Если картинка не вернулась, перезагрузите страницу.',
+    contextTimeoutBody:
+      'Контекст WebGL не восстановился. Перезагрузите страницу, чтобы продолжить.',
+    webglLink: 'Проверить поддержку WebGL 2',
     versionMismatch: 'Город обновился: ссылка сделана в другой версии генератора.',
   },
 } as const;

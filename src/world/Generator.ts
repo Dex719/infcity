@@ -108,7 +108,7 @@ export class Generator {
     } catch (error: unknown) {
       this.errors++;
       this.lastError = error;
-      descriptor = Generator.fallback(gx, gy, key);
+      descriptor = Generator.fallbackDescriptor(gx, gy);
     }
     if (this.descriptors.size >= MAX_CACHED) {
       this.descriptors.clear();
@@ -213,11 +213,12 @@ export class Generator {
     };
   }
 
-  private static fallback(gx: number, gy: number, key: string): ChunkDescriptor {
+  /** Запасной парковый чанк без машин и облака (NFR-7); используется и сборщиком сцены. */
+  static fallbackDescriptor(gx: number, gy: number): ChunkDescriptor {
     return {
       gx,
       gy,
-      key,
+      key: Generator.key(gx, gy),
       block: 'park',
       landmark: null,
       rotation: 0,

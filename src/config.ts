@@ -295,6 +295,26 @@ export const ASSETS = {
 /**
  * Агрегат всех групп: `import { CONFIG } from '@/config'` в любом модуле (TSK-002).
  */
+/** UI-оболочка: тайминги заголовка и тостов, брейкпоинт мобильного About (FR-10, design C13). */
+export const UI = {
+  /** Задержка появления заголовка после `started`, мс (AC-10.1). */
+  TITLE_DELAY_MS: 500,
+  /** Сколько заголовок держится на экране до исчезновения, мс (AC-10.1). */
+  TITLE_HOLD_MS: 7000,
+  /** Длительность плавного исчезновения заголовка, мс. */
+  TITLE_FADE_MS: 900,
+  /** Шаг задержки появления букв заголовка, мс. */
+  TITLE_LETTER_STAGGER_MS: 45,
+  /** Длительность показа тоста, мс (AC-2.3). */
+  TOAST_MS: 2000,
+  /** Ширина экрана, ниже которой About раскрывается на весь экран, px (FR-10.4). */
+  MOBILE_BREAKPOINT_PX: 700,
+  /** Автор демо для окна About (ссылка пустая — выводится только имя). */
+  AUTHOR: { name: 'r.madiyev', url: '' },
+  /** Страница проверки поддержки WebGL 2 для заставки без WebGL (FR-11.3). */
+  WEBGL_HELP_URL: 'https://get.webgl.org/webgl2/',
+} as const;
+
 export const CONFIG = {
   WORLD,
   GEN,
@@ -309,4 +329,5 @@ export const CONFIG = {
   CHUNK_LAYOUT,
   RENDER,
   ASSETS,
+  UI,
 } as const;

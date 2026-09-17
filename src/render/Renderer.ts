@@ -1,4 +1,4 @@
-import { Color, NoToneMapping, PCFSoftShadowMap, SRGBColorSpace, WebGLRenderer } from 'three';
+import { Color, NoToneMapping, PCFShadowMap, SRGBColorSpace, WebGLRenderer } from 'three';
 import type { Camera, Scene } from 'three';
 import type { Profile } from './Profile';
 
@@ -12,7 +12,7 @@ export interface FrameStats {
 
 /**
  * Обёртка над `WebGLRenderer` (design C12): DPR по профилю, sRGB-вывод без tone mapping
- * (цвета палитры должны совпадать с `palette.json`), тени PCFSoft, события контекста.
+ * (цвета палитры должны совпадать с `palette.json`), тени PCF, события контекста.
  */
 export class Renderer {
   readonly gl: WebGLRenderer;
@@ -32,7 +32,8 @@ export class Renderer {
     this.gl.outputColorSpace = SRGBColorSpace;
     this.gl.toneMapping = NoToneMapping;
     this.gl.shadowMap.enabled = profile.shadows;
-    this.gl.shadowMap.type = PCFSoftShadowMap;
+    // PCFSoftShadowMap удалён в three r186 — мягкие тени даёт PCFShadowMap + radius.
+    this.gl.shadowMap.type = PCFShadowMap;
     this.gl.autoClear = true;
     this.gl.setPixelRatio(Math.min(window.devicePixelRatio, profile.maxDpr));
   }

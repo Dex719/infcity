@@ -1,0 +1,433 @@
+/*
+ * Оболочка UI (design C13, FR-10, NFR-6).
+ * Цвета — CSS-переменные, которые `ui/theme.ts` подставляет из `palette.json` (FR-9.4);
+ * значения ниже дублируют палитру по умолчанию, чтобы оверлеи ошибок читались до её загрузки.
+ * Типографика масштабируется от окна: rem-корень 15…21 px (FR-10.5, 320 px … 4K).
+ */
+:root {
+  --c-sky: #a9dcf5;
+  --c-white: #f4f4f2;
+  --c-stone-light: #e8e2d6;
+  --c-sand: #ded2b4;
+  --c-roof-dark: #4a4f57;
+  --c-asphalt: #5c6166;
+  --c-gold: #d9a441;
+  --c-flag-blue: #00afca;
+  --c-glass-navy: #3f6fa8;
+  --c-accent-red: #d94f43;
+
+  --ui-ink: var(--c-roof-dark);
+  --ui-paper: var(--c-white);
+  --ui-accent: var(--c-glass-navy);
+  --ui-focus: var(--c-flag-blue);
+  --ui-font:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --ui-radius: 0.75rem;
+  --ui-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.18);
+  --hud-size: 2.75rem;
+  --motion-fast: 160ms;
+  --motion-title: 900ms;
+
+  font-size: clamp(15px, 0.85rem + 0.35vw, 21px);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#app {
+  transition: filter 200ms ease;
+}
+
+#app.is-dimmed {
+  filter: blur(6px) brightness(0.7);
+}
+
+:where(button, a, input, [tabindex]):focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Загрузка (FR-11.1) ---------- */
+#loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.12);
+  z-index: 70;
+  transition: opacity 300ms ease;
+}
+
+#loading.is-done {
+  opacity: 0;
+}
+
+#loading-bar {
+  height: 100%;
+  width: 0;
+  background: var(--c-flag-blue);
+  transition: width 200ms ease;
+}
+
+/* ---------- Заголовок (FR-10.1) ---------- */
+.title {
+  position: fixed;
+  inset: 12vh 0 auto 0;
+  display: grid;
+  justify-items: center;
+  padding: 0 1rem;
+  text-align: center;
+  pointer-events: none;
+  z-index: 20;
+  color: var(--ui-ink);
+  font-family: var(--ui-font);
+  transition: opacity var(--motion-title) ease;
+}
+
+.title.is-leaving {
+  opacity: 0;
+}
+
+.title__heading {
+  margin: 0;
+  font-weight: 700;
+  font-size: clamp(2rem, 7vw, 6rem);
+  letter-spacing: 0.06em;
+  line-height: 1.05;
+  text-shadow:
+    0 0.1rem 1.5rem var(--c-white),
+    0 0 0.35rem var(--c-white);
+  clip-path: inset(0 50% 0 50%);
+  transition: clip-path var(--motion-title) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.title.is-visible .title__heading {
+  clip-path: inset(0 0 0 0);
+}
+
+.title__letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.35em);
+  transition:
+    opacity 500ms ease,
+    transform 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: calc(var(--i, 0) * 45ms + 250ms);
+}
+
+.title.is-visible .title__letter {
+  opacity: 1;
+  transform: none;
+}
+
+.title__subtitle {
+  margin: 0.6rem 0 0;
+  font-size: clamp(0.9rem, 1.6vw, 1.4rem);
+  opacity: 0;
+  text-shadow: 0 0 0.6rem var(--c-white);
+  transition: opacity 700ms ease 1100ms;
+}
+
+.title.is-visible .title__subtitle {
+  opacity: 0.95;
+}
+
+/* Без анимации: мгновенный показ (NFR-6). */
+.title.is-static,
+.title.is-static .title__heading,
+.title.is-static .title__letter,
+.title.is-static .title__subtitle {
+  transition: none;
+  clip-path: none;
+}
+
+.title.is-static .title__letter,
+.title.is-static .title__subtitle {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- HUD (FR-10.2, FR-2.3) ---------- */
+.hud {
+  position: fixed;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  display: flex;
+  gap: 0.5rem;
+  z-index: 30;
+}
+
+.hud__btn,
+.about__close {
+  width: var(--hud-size);
+  height: var(--hud-size);
+  border: 0;
+  border-radius: 50%;
+  background: var(--ui-paper);
+  color: var(--ui-ink);
+  font: 700 1.25rem/1 var(--ui-font);
+  box-shadow: var(--ui-shadow);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition:
+    transform var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+.hud__btn:hover,
+.about__close:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.35rem 1.2rem rgba(0, 0, 0, 0.22);
+}
+
+.hud__btn:active,
+.about__close:active {
+  transform: scale(0.96);
+}
+
+.hud__icon {
+  display: block;
+  line-height: 1;
+}
+
+/* Поле со ссылкой, когда буфер обмена недоступен (AC-2.3). */
+.share-fallback {
+  position: fixed;
+  top: calc(max(0.75rem, env(safe-area-inset-top)) + var(--hud-size) + 0.5rem);
+  right: max(0.75rem, env(safe-area-inset-right));
+  left: max(0.75rem, env(safe-area-inset-left));
+  max-width: 28rem;
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  background: var(--ui-paper);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  z-index: 30;
+  font-family: var(--ui-font);
+}
+
+.share-fallback__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--c-asphalt);
+  border-radius: 0.5rem;
+  font: 0.95rem var(--ui-font);
+  color: var(--ui-ink);
+  background: var(--ui-paper);
+}
+
+.share-fallback__close,
+.error__btn {
+  padding: 0.5rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ui-accent);
+  color: var(--ui-paper);
+  font: 600 0.95rem var(--ui-font);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ---------- Тост (AC-2.3) ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  transform: translate(-50%, 0.5rem);
+  max-width: min(90vw, 30rem);
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  background: var(--ui-ink);
+  color: var(--ui-paper);
+  font: 0.95rem/1.35 var(--ui-font);
+  text-align: center;
+  box-shadow: var(--ui-shadow);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 35;
+  transition:
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ---------- About (FR-10.2–10.4) ---------- */
+.about-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.35);
+  overscroll-behavior: contain;
+}
+
+.about {
+  box-sizing: border-box;
+  width: min(36rem, 100%);
+  max-height: min(85vh, 100%);
+  overflow: auto;
+  padding: 1.5rem 1.75rem 1.75rem;
+  background: var(--ui-paper);
+  color: var(--ui-ink);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  font: 1rem/1.55 var(--ui-font);
+}
+
+.about__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.about__heading {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+.about h3 {
+  margin: 1.25rem 0 0.4rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-asphalt);
+}
+
+.about p {
+  margin: 0.5rem 0;
+}
+
+.about__hint {
+  color: var(--c-asphalt);
+}
+
+.about a {
+  color: var(--ui-accent);
+  text-underline-offset: 0.15em;
+}
+
+.about__list {
+  margin: 0.3rem 0;
+  padding-left: 1.2rem;
+}
+
+.about__list li + li {
+  margin-top: 0.25rem;
+}
+
+.about__author {
+  margin-top: 1.25rem;
+}
+
+/* ---------- Оверлей ошибок (FR-11.2–11.4) ---------- */
+.error {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: var(--c-stone-light);
+  color: var(--ui-ink);
+  font: 1rem/1.55 var(--ui-font);
+  text-align: center;
+}
+
+.error--translucent {
+  background: rgba(232, 226, 214, 0.85);
+}
+
+.error__card {
+  max-width: 32rem;
+  outline: none;
+}
+
+.error__title {
+  margin: 0 0 0.75rem;
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.error__body {
+  margin: 0;
+}
+
+.error__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.error__link {
+  color: var(--ui-accent);
+  align-self: center;
+}
+
+/* ---------- Мобильный About: весь экран, крупные кнопки (FR-10.4) ---------- */
+@media (max-width: 699px) {
+  :root {
+    --hud-size: 3.25rem;
+  }
+
+  .about-backdrop {
+    padding: 0;
+    place-items: stretch;
+  }
+
+  .about {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem
+      calc(1.25rem + env(safe-area-inset-bottom));
+    font-size: 1.1rem;
+  }
+
+  .share-fallback {
+    flex-direction: column;
+  }
+}
+
+/* ---------- Меньше движения (NFR-6) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #app,
+  .toast,
+  .hud__btn,
+  .about__close,
+  #loading,
+  #loading-bar,
+  .title,
+  .title__heading,
+  .title__letter,
+  .title__subtitle {
+    transition: none;
+  }
+
+  .title__heading {
+    clip-path: none;
+  }
+
+  .title__letter,
+  .title__subtitle {
+    opacity: 1;
+    transform: none;
+  }
+}

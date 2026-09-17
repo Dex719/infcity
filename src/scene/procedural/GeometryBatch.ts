@@ -4,6 +4,7 @@ import {
   BufferGeometry,
   ConeGeometry,
   CylinderGeometry,
+  Euler,
   Matrix3,
   Matrix4,
   PlaneGeometry,
@@ -71,6 +72,7 @@ const tmpScale = new Vector3();
 const tmpA = new Vector3();
 const tmpB = new Vector3();
 const tmpQuat = new Quaternion();
+const tmpEuler = new Euler();
 const UP = new Vector3(0, 1, 0);
 
 /**
@@ -233,7 +235,7 @@ export class GeometryBatch {
     rz: number,
     color: Color,
   ): void {
-    tmpQuat.setFromEuler({ x: rx, y: ry, z: rz, order: 'XYZ' } as never);
+    tmpQuat.setFromEuler(tmpEuler.set(rx, ry, rz, 'XYZ'));
     tmpMatrix.compose(tmpA.set(x, y, z), tmpQuat, tmpScale.set(sx, sy, sz));
     this.add(template, tmpMatrix, color);
   }
