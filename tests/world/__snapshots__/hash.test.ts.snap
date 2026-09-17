@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`hash32 > значения зафиксированы: одинаковы в Node и браузере (NFR-3) 1`] = `
+[
+  1068384250,
+  821336582,
+  3507041747,
+]
+`;

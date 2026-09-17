@@ -26,8 +26,8 @@ export const WORLD = {
   BUILD_PER_FRAME: 2,
   /** Потолок шага симуляции в секундах: защита от скачка после паузы (FR-8.5, D8). */
   MAX_DT: 0.05,
-  /** Радиус зоны вокруг (0,0) без случайных ландмарков — там фиксированные (FR-4.1). */
-  START_ZONE_RADIUS: 3,
+  /** Радиус зоны вокруг (0,0) без случайных ландмарков — всё стартовое окно, там фиксированные (FR-4.1). */
+  START_ZONE_RADIUS: 4,
 } as const;
 
 /** Seed и версионирование генератора (FR-2, NFR-3). */
@@ -44,10 +44,17 @@ export const GEN = {
 
 /** Ландмарки: фиксированные и случайные (FR-4, design C4). */
 export const LANDMARKS = {
-  /** Вероятность кандидата в ландмарки на чанк ≈ 1/30 (FR-4.2). */
-  PROBABILITY: 1 / 30,
-  /** Радиус окрестности в чанках для правила «побеждает минимальный хеш» (FR-4.2). */
-  RADIUS: 6,
+  /**
+   * Вероятность кандидата в ландмарки на чанк ДЛЯ КАЖДОГО ТИПА (FR-4.2, design C4).
+   * Итоговая плотность ≈ N·(1−e^(−p·(2R+1)²))/(2R+1)² ≈ N/150 при N включённых типах.
+   */
+  PROBABILITY: 1 / 74,
+  /** Радиус подавления одинаковых ландмарков: Чебышёв ≤ R исключён → дистанция ≥ 6 (AC-4.2). */
+  RADIUS: 5,
+  /** Радиус, в котором не могут стоять два ландмарка разных типов (AC-4.2). */
+  ADJACENCY_RADIUS: 1,
+  /** Включённые типы; Should-ландмарки добавляются по мере реализации (FR-4.6). */
+  ENABLED: ['baiterek', 'khan-shatyr'],
   /** Ландмарки, гарантированно попадающие в стартовое окно (FR-4.1). */
   FIXED: [
     { id: 'baiterek', gx: 1, gy: -1 },
@@ -64,9 +71,21 @@ export const LANDMARKS = {
 } as const satisfies {
   PROBABILITY: number;
   RADIUS: number;
+  ADJACENCY_RADIUS: number;
+  ENABLED: readonly LandmarkId[];
   FIXED: readonly { id: LandmarkId; gx: number; gy: number }[];
   HEIGHT: Record<LandmarkId, number>;
 };
+
+/** Кварталы: редкие типы и варианты дорог (FR-3, design C3). */
+export const BLOCKS = {
+  /** Стадион — уникальный тип: правило редкости как у ландмарков (FR-3, «не чаще 1 на 40»). */
+  STADIUM: { PROBABILITY: 1 / 45, RADIUS: 4 },
+  /** Число вариантов префабов прямой дороги (design → Data Models). */
+  ROAD_VARIANTS: 2,
+  /** Число вариантов перекрёстка. */
+  INTERSECTION_VARIANTS: 3,
+} as const;
 
 /** Коридоры и станции надземного ЛРТ (FR-5, design C5/C7). */
 export const LRT = {
@@ -110,6 +129,8 @@ export const TRAFFIC = {
   P_CAR: { desktop: 0.35, mobile: 0.2 },
   /** Полос движения в чанке: по две на каждой из двух дорог (FR-6.1). */
   LANES: 4,
+  /** Число моделей в пуле машин; индекс модели в дескрипторе — 0..MODEL_POOL-1 (FR-6.6). */
+  MODEL_POOL: 8,
   /** Максимальная скорость машины, юн/с (design C10). */
   MAX_SPEED: 15,
   /** Ускорение и торможение, юн/с²: эквивалент 0.0075 юн/кадр² при 60 FPS (design C10, D8). */
@@ -134,6 +155,8 @@ export const TRAFFIC = {
 export const CLOUD = {
   /** Вероятность облака на чанк (FR-7.1). */
   PROBABILITY: 0.3,
+  /** Число моделей облаков в пуле. */
+  MODELS: 2,
   /** Высота слоя облаков, юниты (FR-7.1). */
   ALTITUDE: 60,
   /** Базовая скорость дрейфа, юн/с (FR-7.1). */
@@ -264,6 +287,7 @@ export const CONFIG = {
   WORLD,
   GEN,
   LANDMARKS,
+  BLOCKS,
   LRT,
   TRAIN,
   TRAFFIC,

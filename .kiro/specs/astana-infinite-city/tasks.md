@@ -29,17 +29,17 @@
 
 ### Phase 0: Setup
 
-- [ ] **TSK-001**: Инициализировать репозиторий и тулчейн
+- [x] **TSK-001**: Инициализировать репозиторий и тулчейн
   - Requirement: NFR-4
   - Deliverables: `package.json` (Vite, TS strict, three ≥ r184, vitest, playwright, eslint, prettier), `tsconfig.json`, `vite.config.ts`, `.gitignore`, `.editorconfig`, `README.md` (запуск), `git init` + первый коммит
   - Acceptance: `npm run dev/build/test/lint` работают; пустая страница с канвасом открывается
 
-- [ ] **TSK-002**: Скелет папок и конфиг
+- [x] **TSK-002**: Скелет папок и конфиг
   - Requirement: NFR-4, design «Config»
   - Deliverables: `src/{app,world,scene,mobs,controls,render,ui,assets,api}/`, `src/config.ts` (все константы из design), `public/assets/palette.json`, `src/ui/strings.ru.ts`
   - Acceptance: импорт `config` из любого модуля; нет магических чисел в коде фазы 1
 
-- [ ] **TSK-003**: CI (lint → unit → build)
+- [x] **TSK-003**: CI (lint → unit → build)
   - Requirement: NFR-4
   - Deliverables: `.github/workflows/ci.yml`
   - Acceptance: пайплайн зелёный на пустом проекте
@@ -309,9 +309,9 @@ graph TD
 
 | Task | Status | Notes |
 |---|---|---|
-| TSK-001 | In Progress | Opus агент, wave 0 (2026-09-17) |
-| TSK-002 | In Progress | Opus агент, wave 0 |
-| TSK-003 | In Progress | Opus агент, wave 0 |
+| TSK-001 | Complete | 2026-09-17, three r186, vite 8, vitest 5; коммит chore: init toolchain |
+| TSK-002 | Complete | 2026-09-17, config.ts + palette.json + strings.ru.ts, 32 unit-тестов |
+| TSK-003 | Complete | 2026-09-17, ci.yml lint→test→build |
 | TSK-010 | Pending | |
 | TSK-011 | Pending | |
 | TSK-012 | Pending | |

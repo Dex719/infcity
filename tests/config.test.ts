@@ -25,7 +25,7 @@ describe('WORLD', () => {
   });
 
   it('стартовая зона фиксированных ландмарков умещается в окне (FR-4.1)', () => {
-    expect(WORLD.START_ZONE_RADIUS).toBeLessThan((WORLD.WINDOW_SIZE - 1) / 2);
+    expect(WORLD.START_ZONE_RADIUS).toBeLessThanOrEqual((WORLD.WINDOW_SIZE - 1) / 2);
   });
 
   it('за кадр собирается меньше чанков, чем появляется при сдвиге на ряд', () => {
@@ -167,10 +167,16 @@ describe('Ландмарки и геометрия чанка', () => {
     expect(Math.abs(first.gx - second.gx) + Math.abs(first.gy - second.gy)).toBeGreaterThan(1);
   });
 
-  it('вероятность ландмарка попадает в целевую вилку 1/25…1/40 (AC-4.2)', () => {
-    expect(LANDMARKS.PROBABILITY).toBeLessThanOrEqual(1 / 25);
-    expect(LANDMARKS.PROBABILITY).toBeGreaterThanOrEqual(1 / 40);
-    expect(LANDMARKS.RADIUS).toBeGreaterThan(0);
+  it('плотность ландмарков при всех типах попадает в вилку 1/25…1/40 (AC-4.2)', () => {
+    const area = (2 * LANDMARKS.RADIUS + 1) ** 2;
+    const perType = (1 - Math.exp(-LANDMARKS.PROBABILITY * area)) / area;
+    const total = perType * LANDMARK_IDS.length;
+    expect(total).toBeLessThanOrEqual(1 / 25);
+    expect(total).toBeGreaterThanOrEqual(1 / 40);
+    expect(LANDMARKS.RADIUS + 1).toBe(6);
+    for (const id of LANDMARKS.ENABLED) {
+      expect(LANDMARK_IDS).toContain(id);
+    }
   });
 
   it('квартал, дороги и тротуары умещаются в чанк (design C7)', () => {
@@ -207,6 +213,7 @@ describe('CONFIG', () => {
       'WORLD',
       'GEN',
       'LANDMARKS',
+      'BLOCKS',
       'LRT',
       'TRAIN',
       'TRAFFIC',
