@@ -39,14 +39,17 @@ export function buildRoads(
     // Русло (FR-14): только полосы дорог — набережная E–W и мост N–S; воду и берега строит квартал.
     batch.plane(0, 0, AXIS, WORLD.CHUNK_SIZE, ROAD_W, asphalt);
     batch.plane(AXIS, 0, 0, ROAD_W, WORLD.CHUNK_SIZE, asphalt);
-    // Перила моста и опоры в воду.
+    // Мост: плита настила под полотном (верх чуть ниже асфальта — без z-fighting),
+    // перила по краям, опоры целиком под плитой, фонари на перилах.
+    const concrete = m.color('concrete');
+    batch.box(AXIS, -0.45, blockCenter, ROAD_W, 0.86, blockSize, concrete);
     const rail = m.color('white');
     for (const x of [AXIS - ROAD_W / 2 + 0.25, AXIS + ROAD_W / 2 - 0.25]) {
       batch.box(x, 0.6, blockCenter, 0.2, 1.2, blockSize, rail);
       batch.box(x, 1.25, blockCenter, 0.3, 0.12, blockSize, m.color('steel'));
     }
     for (let z = blockMin + 6; z < HALF; z += 12) {
-      batch.box(AXIS, -1.2, z, ROAD_W - 1, 2.4, 2.2, m.color('concrete'));
+      batch.box(AXIS, -1.7, z, ROAD_W - 3, 1.7, 2.0, concrete);
       props.lamp(AXIS - ROAD_W / 2 + 0.9, z, 4.5);
       props.lamp(AXIS + ROAD_W / 2 - 0.9, z, 4.5);
     }
@@ -101,9 +104,12 @@ export function buildRoads(
   if (roads.ns === 'b' && !river) {
     props.busStop(blockMin + 1.3, blockMin + 34, Math.PI / 2);
   }
-  const treeStep = roads.ew === 'b' ? 9 : 14;
-  for (let t = blockMin + 3; t < HALF - 2; t += treeStep) {
-    props.tree(t, blockMin + 1.1, 0.6, 1);
+  // На набережной деревьев нет — только фонари и скамейки (см. BlockPrefabs.river).
+  if (!river) {
+    const treeStep = roads.ew === 'b' ? 9 : 14;
+    for (let t = blockMin + 3; t < HALF - 2; t += treeStep) {
+      props.tree(t, blockMin + 1.1, 0.6, 1);
+    }
   }
   if (!river) {
     const treeStepNs = roads.ns === 'b' ? 9 : 14;

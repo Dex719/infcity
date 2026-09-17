@@ -433,6 +433,6 @@ graph TD
 | TSK-086 | Complete | 2026-09-17: 7 новых ландмарков в scene/landmarks/*, LANDMARKS 12 типов (P=1/180, R=5), эталоны landmark-*.png |
 | TSK-087 | Complete | 2026-09-17: 12 моделей (bus-astana, yandex-econom/business/premier, suv-white, sedan-blue), MODEL_POOL 12, GEN.VERSION 2, палитра +black +yellow |
 | TSK-088 | Complete | 2026-09-17: RiverPlanner (ряды 6 mod 12), квартал `river` (вода, набережная, лодки), мост N–S (перила, опоры), веса берегов (левый — стекло/ТЦ, правый — панельки); unit-тесты river.test, эталон astana-river.png |
-| TSK-089 | Complete | 2026-09-17: CLOUD.SPEED 4, эталоны пересозданы, qa-evidence.md раздел «Итерация 2», README/CREDITS |
+| TSK-089 | Complete | 2026-09-17: CLOUD.SPEED 4, эталоны пересозданы, qa-evidence.md раздел «Итерация 2», README/CREDITS. 2026-09-18: BUG-6 (опоры моста в плоскости настила, деревья/двойные фонари на набережной) — исправлен, эталоны обновлены |
 
 **Статусы:** Pending / In Progress / Complete. Обновлять вместе с чекбоксами.

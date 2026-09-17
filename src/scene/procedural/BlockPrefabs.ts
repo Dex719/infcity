@@ -372,12 +372,10 @@ function river(ctx: Ctx): void {
   // Набережная: настил, парапет, фонари, скамейки.
   ctx.b.plane(-5, CURB_Y, -23.4, 60, 3.2, stone);
   ctx.b.box(-5, CURB_Y + 0.5, -21.9, 60, 1, 0.3, ctx.m.color('white'));
-  for (let x = -30; x <= 20; x += 10) {
-    ctx.props.lamp(x, -23.2, 4);
-  }
-  ctx.props.bench(-14, -23.6, 0);
-  ctx.props.bench(6, -23.6, 0);
-  ctx.props.bench(16, -23.6, 0);
+  // Фонари набережной ставит Roads (ряд у дороги); здесь — только скамейки у парапета.
+  ctx.props.bench(-14, -23.2, 0);
+  ctx.props.bench(6, -23.2, 0);
+  ctx.props.bench(16, -23.2, 0);
   // Лодки на воде.
   for (const [x, z, rot] of [
     [8, 6, 0.4],
