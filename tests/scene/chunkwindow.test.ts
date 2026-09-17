@@ -50,7 +50,7 @@ describe('ChunkWindow (FR-1, design C6)', () => {
     expect(builder.builds).toBe(81);
     const center = cw.chunkAt(0, 0);
     expect(center?.descriptor.key).toBe('0,0');
-    expect(cw.chunkAt(1, -1)?.descriptor.landmark).toBe('baiterek');
+    expect(cw.chunkAt(0, -1)?.descriptor.landmark).toBe('baiterek');
   });
 
   it('очередь сборки идёт от центра к краям', () => {

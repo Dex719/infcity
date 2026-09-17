@@ -1,4 +1,4 @@
-import { Clock, DirectionalLight, HemisphereLight, Scene } from 'three';
+import { DirectionalLight, HemisphereLight, Scene } from 'three';
 import { RENDER, WORLD } from '@/config';
 import type { AppFlags } from '@/api/Seed';
 import { CameraRig } from '@/controls/CameraRig';
@@ -54,7 +54,7 @@ export class App extends Emitter<AppEvents> {
   readonly chunkWindow: ChunkWindow;
   readonly flags: AppFlags;
 
-  private readonly clock = new Clock(false);
+  private lastFrameTime = 0;
   private paused = false;
   private started = false;
   private pausedByVisibility = false;
@@ -101,8 +101,8 @@ export class App extends Emitter<AppEvents> {
     this.chunkWindow.setCenter(0, 0);
     // Стартовое окно собираем целиком до первого кадра: пустых слотов быть не должно.
     this.chunkWindow.update(this.chunkWindow.size * this.chunkWindow.size);
-    this.clock.start();
-    this.fpsWindowStart = performance.now();
+    this.lastFrameTime = performance.now();
+    this.fpsWindowStart = this.lastFrameTime;
     this.loop();
     this.emit('started', undefined);
   }
@@ -112,7 +112,6 @@ export class App extends Emitter<AppEvents> {
       return;
     }
     this.paused = true;
-    this.clock.stop();
     cancelAnimationFrame(this.rafHandle);
     this.emit('pause', undefined);
   }
@@ -122,7 +121,7 @@ export class App extends Emitter<AppEvents> {
       return;
     }
     this.paused = false;
-    this.clock.start();
+    this.lastFrameTime = performance.now();
     this.loop();
     this.emit('resume', undefined);
   }
@@ -165,7 +164,9 @@ export class App extends Emitter<AppEvents> {
       return;
     }
     this.rafHandle = requestAnimationFrame(this.loop);
-    const dt = Math.min(this.clock.getDelta(), WORLD.MAX_DT);
+    const now = performance.now();
+    const dt = Math.min((now - this.lastFrameTime) / 1000, WORLD.MAX_DT);
+    this.lastFrameTime = now;
     this.tick(dt);
     this.countFps();
   };

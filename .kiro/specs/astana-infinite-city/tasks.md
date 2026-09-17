@@ -85,7 +85,7 @@
 
 - [ ] **TSK-022**: `world/LandmarkPlanner`
   - Requirement: FR-4.1, FR-4.2, FR-4.6
-  - Deliverables: `src/world/LandmarkPlanner.ts` (фиксированные `(1,-1)` Байтерек, `(-2,1)` Хан Шатыр; правило «минимальный хеш в радиусе 6»; feature-флаги ландмарков), `tests/world/landmarks.test.ts`
+  - Deliverables: `src/world/LandmarkPlanner.ts` (фиксированные `(0,-1)` Байтерек, `(0,1)` Хан Шатыр; правило «минимальный хеш в радиусе 6»; feature-флаги ландмарков), `tests/world/landmarks.test.ts`
   - Acceptance: AC-4.1 (100 seed), AC-4.2 (доля 1/25…1/40, дистанция ≥ 6)
 
 - [ ] **TSK-023**: `world/LrtPlanner`
