@@ -68,4 +68,21 @@ export function buildNorthernLights(ctx: LandmarkContext): void {
   }
   ctx.props.spotlight(-22.5, 12, Math.atan2(22.5, -12));
   ctx.props.spotlight(22.5, 12, Math.atan2(-22.5, -12));
+  // Волна 2 (FR-17.7): сад на подиуме, фонари, велопарковка.
+  const podiumTop = 3;
+  for (const x of [-10, 10]) {
+    ctx.props.hedge(x, 9, 14, 0.6, 0, podiumTop);
+    ctx.props.hedge(x, 13.5, 14, 0.6, 0, podiumTop);
+  }
+  ctx.props.bush(-17, 11.2, 1, podiumTop);
+  ctx.props.bush(17, 11.2, 1, podiumTop);
+  for (const [x, z] of [
+    [-22.5, -7],
+    [22.5, -7],
+    [-22.5, 4],
+    [22.5, 4],
+  ] as const) {
+    ctx.props.lamp(x, z, 3.5);
+  }
+  ctx.props.bollards(-14, 16.6, -8, 16.6, 4);
 }

@@ -55,6 +55,19 @@ describe('Props.tree — объёмные кроны (FR-17.1, AC-17.1)', () => 
     expect(distinctColors(geometry)).toBeGreaterThanOrEqual(3);
   });
 
+  it('цветущее: розовая крона и белые цветы поверх зелени (FR-17.5, AC-17.5)', () => {
+    const { parts, geometry } = build((p) => p.tree(2, 2, 1, 3));
+    expect(parts).toBeGreaterThanOrEqual(5);
+    // Круг, ствол, розовый, белый, зелёный — не менее 5 цветов.
+    expect(distinctColors(geometry)).toBeGreaterThanOrEqual(5);
+  });
+
+  it('куст — один объём на уровне газона (AC-17.5)', () => {
+    const { parts, geometry } = build((p) => p.bush(0, 0, 1));
+    expect(parts).toBe(1);
+    expect(extent(geometry).height).toBeLessThan(2);
+  });
+
   it('тополь: крона выше 2,5 своей ширины', () => {
     const { geometry } = build((p) => p.tree(0, 0, 1, 2));
     const { width, height } = extent(geometry);

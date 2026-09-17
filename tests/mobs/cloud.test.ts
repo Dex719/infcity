@@ -36,11 +36,11 @@ describe('Облака — три силуэта с тенью (FR-17.2, AC-17.2
     expect(CLOUD.MODELS).toBe(3);
   });
 
-  it('каждая модель — ≥ 7 объёмов и два цвета (белый и подложка)', () => {
+  it('каждая модель — ≥ 10 объёмов и три тона (верх, средний, подложка) — AC-17.2, AC-17.6', () => {
     for (let variant = 0; variant < CLOUD.MODELS; variant++) {
       const c = cloud(variant);
-      expect(c.parts, `variant ${String(variant)}`).toBeGreaterThanOrEqual(7);
-      expect(c.colors, `variant ${String(variant)}`).toBeGreaterThanOrEqual(2);
+      expect(c.parts, `variant ${String(variant)}`).toBeGreaterThanOrEqual(10);
+      expect(c.colors, `variant ${String(variant)}`).toBeGreaterThanOrEqual(3);
     }
   });
 

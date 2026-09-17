@@ -84,4 +84,20 @@ export function buildKazMunayGas(ctx: LandmarkContext): void {
   }
   b.box(0, wingH + 0.9, -2, 12.6, 0.5, wingD * 0.8 + 0.6, m.color('gold'));
   ctx.props.canopy(0, 13.5, 8, 2.6, 4);
+  // Волна 2 (FR-17.7): флаги у арки, фонари, изгороди под аркой, столбики.
+  for (const x of [-10, 10, -16, 16]) {
+    ctx.props.flagpole(x, 15.5, 8);
+  }
+  for (const [x, z] of [
+    [-8, 23],
+    [8, 23],
+    [-22, 12],
+    [22, 12],
+  ] as const) {
+    ctx.props.lamp(x, z, 3.5);
+  }
+  ctx.props.hedge(-4.5, -2, 0.7, 14);
+  ctx.props.hedge(4.5, -2, 0.7, 14);
+  ctx.props.bollards(-5, 10, 5, 10, 4);
+  ctx.props.bollards(-5, -14.5, 5, -14.5, 4);
 }

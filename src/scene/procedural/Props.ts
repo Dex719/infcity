@@ -87,6 +87,33 @@ export class Props {
       return;
     }
     const a = treeAngle(x, z);
+    if (kind === 3) {
+      // Цветущее (FR-17.5): розовая крона, белые цветы сверху, зелёный бок.
+      const rb = 1.7 * scale;
+      const cb = trunkH + rb - 0.3;
+      b.place(Templates.blob, x, cb, z, rb, rb * 0.8, rb, m.shade('accent-red', 1.6));
+      b.place(
+        Templates.blobLow,
+        x + Math.cos(a) * rb * 0.5,
+        cb + rb * 0.25,
+        z + Math.sin(a) * rb * 0.5,
+        rb * 0.65,
+        rb * 0.5,
+        rb * 0.65,
+        m.color('white'),
+      );
+      b.place(
+        Templates.blobLow,
+        x - Math.cos(a) * rb * 0.55,
+        cb - rb * 0.1,
+        z - Math.sin(a) * rb * 0.55,
+        rb * 0.6,
+        rb * 0.55,
+        rb * 0.6,
+        m.shade('grass', 0.85),
+      );
+      return;
+    }
     const r = 1.9 * scale;
     const cy = trunkH + r - 0.3;
     b.place(Templates.blob, x, cy, z, r, r * 0.85, r, m.color('grass'));
@@ -112,19 +139,40 @@ export class Props {
     );
   }
 
-  /** Живая изгородь `w × d` (FR-17.3): тёмная подложка и светлый верх. */
-  hedge(x: number, z: number, w: number, d: number, rot = 0): void {
-    this.batch.box(x, HEDGE_BASE_Y + 0.45, z, w, 0.9, d, this.m.shade('grass', 0.75), rot);
-    this.batch.box(x, HEDGE_BASE_Y + 0.95, z, w - 0.3, 0.2, d - 0.3, this.m.color('grass'), rot);
+  /** Живая изгородь `w × d` (FR-17.3): тёмная подложка и светлый верх; `baseY` — для садов на подиумах. */
+  hedge(x: number, z: number, w: number, d: number, rot = 0, baseY = HEDGE_BASE_Y): void {
+    this.batch.box(x, baseY + 0.45, z, w, 0.9, d, this.m.shade('grass', 0.75), rot);
+    this.batch.box(x, baseY + 0.95, z, w - 0.3, 0.2, d - 0.3, this.m.color('grass'), rot);
+  }
+
+  /** Куст: один объём кроны на уровне газона (FR-17.5). */
+  bush(x: number, z: number, scale = 1, baseY = HEDGE_BASE_Y): void {
+    const r = 0.9 * scale;
+    this.batch.place(
+      Templates.blobLow,
+      x,
+      baseY + r * 0.55,
+      z,
+      r,
+      r * 0.7,
+      r,
+      this.m.shade('grass', 0.8),
+    );
   }
 
   /** Круглая клумба: каменный бордюр и цветной «ковёр». */
-  flowerBed(x: number, z: number, radius: number, color: PaletteKey = 'accent-red'): void {
+  flowerBed(
+    x: number,
+    z: number,
+    radius: number,
+    color: PaletteKey = 'accent-red',
+    baseY = HEDGE_BASE_Y,
+  ): void {
     const b = this.batch;
     b.place(
-      Templates.cylinder16,
+      Templates.cylinder8,
       x,
-      HEDGE_BASE_Y + 0.2,
+      baseY + 0.2,
       z,
       radius,
       0.4,
@@ -134,7 +182,7 @@ export class Props {
     b.place(
       Templates.cylinder8,
       x,
-      HEDGE_BASE_Y + 0.42,
+      baseY + 0.42,
       z,
       radius - 0.4,
       0.3,
@@ -170,14 +218,14 @@ export class Props {
     }
   }
 
-  /** Ряд столбиков от `(x1, z1)` до `(x2, z2)`. */
+  /** Ряд столбиков от `(x1, z1)` до `(x2, z2)` (боксы — 12 треугольников на столбик). */
   bollards(x1: number, z1: number, x2: number, z2: number, count: number): void {
     const steel = this.m.color('steel');
     for (let i = 0; i < count; i++) {
       const t = count === 1 ? 0.5 : i / (count - 1);
       const x = x1 + (x2 - x1) * t;
       const z = z1 + (z2 - z1) * t;
-      this.batch.place(Templates.cylinder8, x, HEDGE_BASE_Y + 0.45, z, 0.16, 0.9, 0.16, steel);
+      this.batch.box(x, HEDGE_BASE_Y + 0.45, z, 0.28, 0.9, 0.28, steel);
     }
   }
 

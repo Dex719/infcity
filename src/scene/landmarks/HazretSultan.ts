@@ -89,4 +89,31 @@ export function buildHazretSultan(ctx: LandmarkContext): void {
   ctx.props.flowerBed(8, 22.5, 1.5, 'accent-red');
   ctx.props.bollards(-9, 20.2, -3, 20.2, 3);
   ctx.props.bollards(3, 20.2, 9, 20.2, 3);
+  // Волна 2 (FR-17.7): окна-щели минаретов, клумбы двора, фонари дорожки.
+  for (const [x, z] of [
+    [-19, -19],
+    [19, -19],
+    [-19, 19],
+    [19, 19],
+  ] as const) {
+    for (const y of [10, 18, 26]) {
+      b.box(x - Math.sign(x) * 1.35, y, z, 0.1, 2.2, 0.6, navy);
+    }
+  }
+  for (const [x, z] of [
+    [-20, -11],
+    [20, -11],
+    [-20, 11],
+    [20, 11],
+  ] as const) {
+    ctx.props.flowerBed(x, z, 1.4, 'gold');
+  }
+  for (const [x, z] of [
+    [-3.5, 24.2],
+    [3.5, 24.2],
+    [-20, 24],
+    [20, 24],
+  ] as const) {
+    ctx.props.lamp(x, z, 3.5);
+  }
 }

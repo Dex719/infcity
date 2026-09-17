@@ -75,4 +75,21 @@ export function buildAbuDhabiPlaza(ctx: LandmarkContext): void {
   ctx.props.hedge(12, 22.2, 10, 1);
   ctx.props.hedge(-22.2, 8, 1, 10);
   ctx.props.hedge(22.2, -8, 1, 10);
+  // Волна 2 (FR-17.7): сад на подиуме, фонари, столбики у входа.
+  const podiumTop = 6.6;
+  ctx.props.hedge(11, -7.5, 12, 0.6, 0, podiumTop);
+  ctx.props.hedge(11, -0.5, 12, 0.6, 0, podiumTop);
+  ctx.props.hedge(5, -4, 0.6, 6, 0, podiumTop);
+  ctx.props.hedge(17, -4, 0.6, 6, 0, podiumTop);
+  ctx.props.flowerBed(8, -4, 1.4, 'accent-red', podiumTop);
+  ctx.props.flowerBed(14, -4, 1.4, 'gold', podiumTop);
+  for (const [x, z] of [
+    [-22, 0],
+    [22, 0],
+    [-4, 23.5],
+    [4, 23.5],
+  ] as const) {
+    ctx.props.lamp(x, z, 3.5);
+  }
+  ctx.props.bollards(-3, 24.6, 3, 24.6, 3);
 }

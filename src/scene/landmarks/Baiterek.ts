@@ -126,4 +126,18 @@ export function buildBaiterek(ctx: LandmarkContext): void {
     ctx.props.hedge(x, z - Math.sign(z) * 4.8, 9, 0.8);
     ctx.props.hedge(x - Math.sign(x) * 4.8, z, 0.8, 9);
   }
+  // Волна 2 (FR-17.7): мачты освещения, кольцо скамеек, кольца мощения.
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const x = Math.cos(a) * 21.5;
+    const z = Math.sin(a) * 21.5;
+    b.box(x, 7, z, 0.35, 14, 0.35, m.color('steel'));
+    b.box(x, 14.2, z, 1.6, 0.5, 1.6, white);
+  }
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 16;
+    ctx.props.bench(Math.cos(a) * 14.6, Math.sin(a) * 14.6, -a + Math.PI / 2);
+  }
+  b.place(Templates.cylinder16, 0, LAWN_Y + 0.03, 0, 18.5, 0.03, 18.5, white);
+  b.place(Templates.cylinder16, 0, LAWN_Y + 0.05, 0, 17.8, 0.03, 17.8, m.color('stone-light'));
 }

@@ -82,4 +82,24 @@ export function buildAstanaOpera(ctx: LandmarkContext): void {
     ctx.props.hedge(s * 16.2, -4, 0.8, 26);
     ctx.props.hedge(s * 22.6, -4, 0.8, 26);
   }
+  // Волна 2 (FR-17.7): скульптуры на углах крыши, фонари, изгороди у фонтанов.
+  for (const [x, z] of [
+    [-13.5, 6.5],
+    [13.5, 6.5],
+    [-13.5, -14.5],
+    [13.5, -14.5],
+  ] as const) {
+    b.box(x, bodyH + 1.6, z, 0.8, 2, 0.8, gold);
+    b.place(Templates.sphereLow, x, bodyH + 2.95, z, 0.42, 0.42, 0.42, gold);
+  }
+  for (const [x, z] of [
+    [-19.5, 13.5],
+    [19.5, 13.5],
+    [-23.5, -21],
+    [23.5, -21],
+  ] as const) {
+    ctx.props.lamp(x, z, 3.5);
+  }
+  ctx.props.hedge(-16, 23.2, 6, 0.6);
+  ctx.props.hedge(16, 23.2, 6, 0.6);
 }

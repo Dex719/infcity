@@ -79,4 +79,22 @@ export function buildAkOrda(ctx: LandmarkContext): void {
   }
   ctx.props.flowerBed(-7, 15, 1.6, 'accent-red');
   ctx.props.flowerBed(7, 15, 1.6, 'accent-red');
+  // Волна 2 (FR-17.7): регулярный сад, фонари, будки охраны у ворот.
+  for (const x of [-16, 16]) {
+    ctx.props.hedge(x, 12.5, 6, 0.7);
+    ctx.props.hedge(x, 21.5, 6, 0.7);
+    ctx.props.hedge(x + (x < 0 ? 3.3 : -3.3), 17, 0.7, 9.7);
+  }
+  for (const [x, z] of [
+    [-13, 24],
+    [13, 24],
+    [-22, 6],
+    [22, 6],
+  ] as const) {
+    ctx.props.lamp(x, z, 3.5);
+  }
+  for (const x of [-9, 9]) {
+    b.box(x, 1.4, 24, 1.8, 2.8, 1.8, white);
+    b.box(x, 2.9, 24, 2.2, 0.3, 2.2, blue);
+  }
 }

@@ -114,8 +114,8 @@ function scatterTrees(ctx: Ctx, count: number, avoid: (x: number, z: number) => 
     }
     const scale = between(ctx.rng, 0.8, 1.3);
     const roll = ctx.rng();
-    // Тот же бросок, что и раньше: хвойное / тополь / лиственное (FR-17.1).
-    ctx.props.tree(x, z, scale, roll < 0.25 ? 1 : roll < 0.4 ? 2 : 0);
+    // Тот же бросок, что и раньше: хвойное / тополь / цветущее / лиственное (FR-17.1, FR-17.5).
+    ctx.props.tree(x, z, scale, roll < 0.25 ? 1 : roll < 0.4 ? 2 : roll < 0.5 ? 3 : 0);
     placed++;
   }
 }
@@ -174,6 +174,19 @@ function residentialPanel(ctx: Ctx): void {
   ctx.props.lamp(20, 20);
   ctx.props.bench(4, 5, 0);
   ctx.props.bench(-4, 5, 0);
+  // Благоустройство (FR-17.5): кусты у подъездов, изгороди у площадки, столбики у въезда.
+  for (const [x, z] of [
+    [-9, -19],
+    [9, -19],
+    [-9, 19],
+    [9, 19],
+  ] as const) {
+    ctx.props.bush(x, z, 1.1);
+  }
+  const yardZ = layout === 0 ? 0 : -1;
+  ctx.props.hedge(-5.4, yardZ, 0.6, 6);
+  ctx.props.hedge(5.4, yardZ, 0.6, 6);
+  ctx.props.bollards(-3, 22.5, 3, 22.5, 4);
 }
 
 function residentialNew(ctx: Ctx): void {
@@ -206,6 +219,13 @@ function residentialNew(ctx: Ctx): void {
   }
   ctx.props.lamp(0, 0);
   ctx.props.lamp(-20, 20);
+  // Благоустройство (FR-17.5): изгороди вдоль газона, кусты, клумба.
+  ctx.props.hedge(14, 4.6, 14, 0.6);
+  ctx.props.hedge(6.6, 12, 0.6, 14);
+  ctx.props.bush(20, 6, 1);
+  ctx.props.bush(-20, -20, 1.1);
+  ctx.props.bush(20, -20, 0.9);
+  ctx.props.flowerBed(-20, 5, 1.5, 'gold');
 }
 
 function businessGlass(ctx: Ctx): void {
@@ -228,6 +248,12 @@ function businessGlass(ctx: Ctx): void {
       insideRect(x, z, main.x, main.z, main.w, main.d, 3) ||
       insideRect(x, z, annex.x, annex.z, annex.w, annex.d, 3),
   );
+  // Благоустройство (FR-17.5): планеры у входа, ряд столбиков, кусты.
+  ctx.props.flowerBed(-5, 9, 1.4, 'accent-red');
+  ctx.props.flowerBed(-12, 9, 1.4, 'accent-red');
+  ctx.props.bollards(-4, 22.5, 4, 22.5, 5);
+  ctx.props.bush(20, 0, 1);
+  ctx.props.bush(-20, 0, 1);
 }
 
 function commercial(ctx: Ctx): void {
@@ -259,6 +285,12 @@ function commercial(ctx: Ctx): void {
   ctx.props.lamp(20, 3);
   ctx.props.tree(16, -14, 1.1);
   ctx.props.tree(20, -8, 0.9);
+  // Благоустройство (FR-17.5): ограждение парковки, изгородь, кусты.
+  ctx.props.bollards(-12, -2.6, 20, -2.6, 4);
+  ctx.props.bollards(-12, 6.6, 20, 6.6, 4);
+  ctx.props.hedge(12, -12, 12, 0.8);
+  ctx.props.bush(-20, -20, 1);
+  ctx.props.bush(20, -20, 1);
 }
 
 function park(ctx: Ctx): void {
@@ -276,6 +308,22 @@ function park(ctx: Ctx): void {
   ctx.props.lamp(8, 8);
   ctx.props.lamp(-8, 8);
   ctx.props.lamp(8, -8);
+  // Благоустройство (FR-17.5): кусты вдоль аллей, клумбы, столбики у входов.
+  for (const [x, z] of [
+    [-14, 3.5],
+    [14, -3.5],
+    [3.5, 14],
+    [-3.5, -14],
+    [-14, -3.5],
+  ] as const) {
+    ctx.props.bush(x, z, 1.2);
+  }
+  ctx.props.flowerBed(10, 4.2, 1.5, 'accent-red');
+  ctx.props.flowerBed(-10, -4.2, 1.5, 'gold');
+  for (const s of [-1, 1]) {
+    ctx.props.bollards(s * 22.5, -2.4, s * 22.5, 2.4, 2);
+    ctx.props.bollards(-2.4, s * 22.5, 2.4, s * 22.5, 2);
+  }
 }
 
 function square(ctx: Ctx): void {
@@ -302,6 +350,13 @@ function square(ctx: Ctx): void {
   ctx.props.bench(10, 8, 0);
   ctx.props.lamp(-12, 0);
   ctx.props.lamp(12, 0);
+  // Благоустройство (FR-17.5): клумбы вокруг памятника, столбики по краям площади.
+  ctx.props.flowerBed(-6, 6, 1.4, 'accent-red');
+  ctx.props.flowerBed(6, 6, 1.4, 'accent-red');
+  ctx.props.flowerBed(0, 9, 1.4, 'gold');
+  ctx.props.flowerBed(0, -10, 1.4, 'gold');
+  ctx.props.bollards(-6, 22.5, 6, 22.5, 4);
+  ctx.props.bollards(-6, -22.5, 6, -22.5, 4);
 }
 
 function campus(ctx: Ctx): void {
@@ -324,6 +379,14 @@ function campus(ctx: Ctx): void {
   ctx.props.bench(8, 9, 0);
   ctx.props.bench(14, 15, Math.PI / 2);
   ctx.props.lamp(20, 20);
+  // Благоустройство (FR-17.5): изгороди у фасада, клумбы, кусты.
+  ctx.props.hedge(-9, -1.8, 16, 0.6);
+  ctx.props.hedge(13, -1.8, 14, 0.6);
+  ctx.props.flowerBed(8, 19, 1.4, 'accent-red');
+  ctx.props.flowerBed(-4, 19, 1.4, 'gold');
+  ctx.props.bush(21, -21, 1);
+  ctx.props.bush(-21, -21, 1);
+  ctx.props.bush(21, 6, 1.1);
 }
 
 /** Торговый центр (FR-15.1): корпус с вывеской и парковка перед входом. */
@@ -347,6 +410,12 @@ function mall(ctx: Ctx): void {
   ctx.props.lamp(20, 22);
   ctx.props.tree(-22, -20, 1.0);
   ctx.props.tree(22, -20, 1.0);
+  // Благоустройство (FR-17.5): изгороди между корпусом и парковкой, клумбы у входа, столбики.
+  ctx.props.hedge(-12.5, 7.6, 13, 0.7);
+  ctx.props.hedge(12.5, 7.6, 13, 0.7);
+  ctx.props.flowerBed(-4, 7.6, 1.3, 'accent-red');
+  ctx.props.flowerBed(4, 7.6, 1.3, 'accent-red');
+  ctx.props.bollards(-6, 22.5, 6, 22.5, 4);
 }
 
 function market(ctx: Ctx): void {
@@ -365,6 +434,11 @@ function market(ctx: Ctx): void {
   ctx.props.tree(20, -6, 0.9);
   ctx.props.lamp(20, 20);
   ctx.props.lamp(-20, 20);
+  // Благоустройство (FR-17.5): столбики между павильоном и рядами, кусты, клумба.
+  ctx.props.bollards(-14, 1, 10, 1, 5);
+  ctx.props.bush(-21, 8, 1);
+  ctx.props.bush(-21, 16, 1.1);
+  ctx.props.flowerBed(17, 5, 1.4, 'gold');
 }
 
 /**
@@ -405,4 +479,11 @@ function stadium(ctx: Ctx): void {
   }
   ctx.props.lamp(-22, -22);
   ctx.props.lamp(22, -22);
+  // Благоустройство (FR-17.5): изгороди по бокам, столбики, флагштоки у входа.
+  ctx.props.hedge(-23.5, 0, 0.7, 14);
+  ctx.props.hedge(23.5, 0, 0.7, 14);
+  ctx.props.bollards(-8, -19, 8, -19, 4);
+  ctx.props.bollards(-8, 24, 8, 24, 4);
+  ctx.props.flagpole(-16, -22, 8);
+  ctx.props.flagpole(16, -22, 8);
 }

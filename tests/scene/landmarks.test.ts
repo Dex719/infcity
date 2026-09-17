@@ -45,10 +45,12 @@ const ITERATION_2_BLOCK_MAX: Readonly<Record<string, number>> = {
 
 /** Абсолютный потолок вершин ландмарка (FR-17.4). */
 const LANDMARK_CAP = 9_000;
-/** Рост регулярного квартала относительно итерации 2 (FR-17.4). */
-const BLOCK_GROWTH_CAP = 1.6;
-/** Минимальный рост ландмарка после детализации (AC-17.3). */
-const LANDMARK_GROWTH_FLOOR = 1.15;
+/** Абсолютный потолок вершин регулярного квартала (FR-17.4, уточнение волны 2). */
+const BLOCK_CAP = 7_000;
+/** Минимальный рост регулярного типа после благоустройства (AC-17.7). */
+const BLOCK_GROWTH_FLOOR = 1.05;
+/** Минимальный рост ландмарка после двух волн детализации (AC-17.3). */
+const LANDMARK_GROWTH_FLOOR = 1.35;
 
 function landmarkVertices(id: LandmarkId): number {
   const opaque = new GeometryBatch();
@@ -79,8 +81,8 @@ describe('Ландмарки — детализация в бюджете (FR-17
   });
 });
 
-describe('Кварталы — рост вершин после детализации деревьев (FR-17.4)', () => {
-  it(`ни один регулярный тип не вырос больше чем в ${String(BLOCK_GROWTH_CAP)} раза`, () => {
+describe('Кварталы — благоустройство в бюджете (FR-17.4, FR-17.5, AC-17.7)', () => {
+  it(`каждый регулярный тип (кроме river) вырос ≥ ×${String(BLOCK_GROWTH_FLOOR)} и не превышает ${String(BLOCK_CAP)} вершин`, () => {
     const maxByType = new Map<string, number>();
     for (const descriptor of new Generator('astana').describeWindow(0, 0, 21)) {
       if (descriptor.landmark !== null) {
@@ -95,8 +97,12 @@ describe('Кварталы — рост вершин после детализа
       const base = ITERATION_2_BLOCK_MAX[type];
       if (base === undefined) {
         violations.push(`${type}: нет базового значения итерации 2`);
-      } else if (max > base * BLOCK_GROWTH_CAP) {
-        violations.push(`${type}: ${String(max)} > ${String(base)} × ${String(BLOCK_GROWTH_CAP)}`);
+      } else if (max > BLOCK_CAP) {
+        violations.push(`${type}: ${String(max)} > ${String(BLOCK_CAP)}`);
+      } else if (type !== 'river' && max < base * BLOCK_GROWTH_FLOOR) {
+        violations.push(
+          `${type}: ${String(max)} < ${String(base)} × ${String(BLOCK_GROWTH_FLOOR)}`,
+        );
       }
     }
     expect(violations).toEqual([]);

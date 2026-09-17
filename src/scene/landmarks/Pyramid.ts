@@ -101,4 +101,27 @@ export function buildPyramid(ctx: LandmarkContext): void {
     ctx.props.spotlight(s * 23.5, -14, Math.atan2(-s * 23.5, 14));
     ctx.props.spotlight(s * 23.5, 14, Math.atan2(-s * 23.5, -14));
   }
+  // Волна 2 (FR-17.7): обелиски, клумбы у лестниц, фонари.
+  for (const [x, z] of [
+    [-22.5, -8],
+    [22.5, -8],
+    [-22.5, 8],
+    [22.5, 8],
+  ] as const) {
+    ctx.props.monument(x, z, 4);
+  }
+  ctx.props.flowerBed(-10, 21.5, 1.3, 'gold');
+  ctx.props.flowerBed(10, 21.5, 1.3, 'gold');
+  ctx.props.flowerBed(21.5, -10, 1.3, 'accent-red');
+  ctx.props.flowerBed(21.5, 10, 1.3, 'accent-red');
+  for (const [x, z] of [
+    [-12, 23.5],
+    [12, 23.5],
+    [-12, -23.5],
+    [12, -23.5],
+    [-19, -19],
+    [19, -19],
+  ] as const) {
+    ctx.props.lamp(x, z, 3.5);
+  }
 }

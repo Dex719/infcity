@@ -91,4 +91,22 @@ export function buildNurAlem(ctx: LandmarkContext): void {
   }
   ctx.props.flowerBed(-10, 18, 1.5, 'accent-red');
   ctx.props.flowerBed(10, 18, 1.5, 'accent-red');
+  // Волна 2 (FR-17.7): кольца мощения площади, фонари вокруг подиума, киоски.
+  b.place(Templates.cylinder16, 0, LAWN_Y + 0.03, 0, 19.5, 0.03, 19.5, white);
+  b.place(Templates.cylinder16, 0, LAWN_Y + 0.05, 0, 18.6, 0.03, 18.6, m.color('sand'));
+  for (const [x, z] of [
+    [-10, 15],
+    [10, 15],
+    [-16, 9],
+    [16, 9],
+    [-16, -9],
+    [16, -9],
+  ] as const) {
+    ctx.props.lamp(x, z, 3.5);
+  }
+  for (const x of [-22, 22]) {
+    b.box(x, 1.3, 12, 2.4, 2.6, 2.4, white);
+    b.box(x, 2.8, 12, 3, 0.3, 3, m.color('flag-blue'));
+    g.box(x, 1.4, 13.26, 1.8, 1.2, 0.1, m.color('glass-teal'));
+  }
 }

@@ -61,4 +61,31 @@ export function buildTransportTower(ctx: LandmarkContext): void {
   ] as const) {
     ctx.props.spotlight(x, z, Math.atan2(-x, -2 - z));
   }
+  // Волна 2 (FR-17.7): антенная группа, фонари, клумбы.
+  for (const x of [-3.5, 3.5]) {
+    b.box(x, total + 0.2, -2, 0.25, 2.4, 0.25, m.color('steel'));
+    b.placeRotated(
+      Templates.cylinder8,
+      x,
+      total + 1.6,
+      -2,
+      0.6,
+      0.15,
+      0.6,
+      Math.PI / 2,
+      0,
+      0,
+      m.color('white'),
+    );
+  }
+  for (const [x, z] of [
+    [-8, 18],
+    [8, 18],
+    [-8, -18],
+    [8, -18],
+  ] as const) {
+    ctx.props.lamp(x, z, 3.5);
+  }
+  ctx.props.flowerBed(-20, 4, 1.4, 'gold');
+  ctx.props.flowerBed(20, 4, 1.4, 'gold');
 }

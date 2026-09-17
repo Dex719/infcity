@@ -105,4 +105,14 @@ export function buildKhanShatyr(ctx: LandmarkContext): void {
   ctx.props.flowerBed(23, -5, 1.4, 'accent-red');
   b.place(Templates.cylinder16, apexX * 1.05, total - 1.4, 0, 1.6, 0.3, 1.6, m.color('gold'));
   b.place(Templates.cylinder16, apexX * 1.05, total - 3.2, 0, 1.2, 0.25, 1.2, m.color('gold'));
+  // Волна 2 (FR-17.7): вывеска портала, изгороди вокруг подиума, фонари парковки.
+  for (let i = 0; i < 4; i++) {
+    b.box(-4.5 + i * 3, 9.6, rz + 4.5, 2.2, 1.2, 0.5, m.color('gold'));
+  }
+  for (let k = 0; k < 4; k++) {
+    const a = Math.PI / 4 + (k * Math.PI) / 2;
+    ctx.props.hedge(Math.cos(a) * (rx + 1.8), Math.sin(a) * (rz + 1.8), 5, 0.7, -a);
+  }
+  ctx.props.lamp(-22, 24, 4);
+  ctx.props.lamp(22, 24, 4);
 }

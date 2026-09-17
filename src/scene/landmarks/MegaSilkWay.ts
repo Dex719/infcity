@@ -100,4 +100,15 @@ export function buildMegaSilkWay(ctx: LandmarkContext): void {
   ctx.props.busStop(-23.5, -16, Math.PI / 2);
   ctx.props.hedge(-14, 7.6, 14, 0.8);
   ctx.props.hedge(14, 7.6, 14, 0.8);
+  // Волна 2 (FR-17.7): мачты освещения парковки, ограждения тележек, вентиляция на крыше.
+  for (const x of [-11.25, 2.25, 15.75]) {
+    b.box(x, 4.5, 15, 0.3, 9, 0.3, m.color('steel'));
+    b.box(x, 9.1, 15, 2.6, 0.3, 0.6, white);
+  }
+  ctx.props.bollards(-21, 9.5, -17, 9.5, 3);
+  ctx.props.bollards(17, 9.5, 21, 9.5, 3);
+  for (let i = 0; i < 6; i++) {
+    const x = body.x - body.w / 2 + 3.7 + i * 7.3;
+    b.box(x, h + 3.4, -19.5, 1.6, 0.8, 1.6, m.color('steel'));
+  }
 }

@@ -229,12 +229,37 @@ export function buildCloud(b: GeometryBatch, m: Materials, variant: number): voi
     return;
   }
   const white = m.color('white');
+  const mid = m.shade('white', 0.93);
   const shadow = m.shade('white', 0.82);
   shape.top.forEach(([x, y, z, r], i) => {
-    b.place(i < 2 ? Templates.sphereLow : Templates.blob, x, y, z, r, r * 0.65, r, white);
+    b.place(
+      i < 2 ? Templates.sphereLow : Templates.blob,
+      x,
+      y,
+      z,
+      r,
+      r * 0.65,
+      r,
+      i >= 5 ? mid : white,
+    );
   });
   for (const [x, y, z, r] of shape.base) {
     b.place(Templates.blobLow, x, y, z, r, r * 0.3, r, shadow);
+  }
+  // Клочки по краям силуэта (FR-17.6): у самых дальних верхних объёмов, чуть ниже.
+  const edges = [...shape.top].sort((p, q) => Math.abs(q[0]) - Math.abs(p[0])).slice(0, 3);
+  for (const [x, y, z, r] of edges) {
+    const dir = Math.sign(x) || 1;
+    b.place(
+      Templates.blobLow,
+      x + dir * r * 0.9,
+      y - 0.3,
+      z + 0.4,
+      r * 0.5,
+      r * 0.3,
+      r * 0.5,
+      white,
+    );
   }
 }
 
