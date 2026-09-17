@@ -25,8 +25,9 @@ export interface ShareOptions {
 }
 
 /**
- * Кнопка «Поделиться» (FR-2.3, AC-2.3): копирует ссылку с seed и показывает тост;
- * если буфер обмена недоступен — раскрывает поле `<input readonly>` с выделенной ссылкой.
+ * Кнопка «Поделиться» (FR-2.3, AC-2.3) внутри окна About: копирует ссылку с seed и показывает
+ * тост; если буфер обмена недоступен — раскрывает под кнопкой поле `<input readonly>`
+ * с выделенной ссылкой.
  */
 export class ShareControl {
   readonly button: HTMLButtonElement;
@@ -34,19 +35,12 @@ export class ShareControl {
   readonly input: HTMLInputElement;
 
   constructor(
-    hud: HTMLElement,
-    parent: HTMLElement,
+    container: HTMLElement,
     private readonly options: ShareOptions,
   ) {
-    this.button = el('button', 'hud__btn hud__btn--share');
+    this.button = el('button', 'about__share', STRINGS.buttons.share);
     this.button.type = 'button';
     this.button.id = 'share';
-    this.button.setAttribute('aria-label', STRINGS.buttons.share);
-    this.button.title = STRINGS.buttons.share;
-    const icon = el('span', 'hud__icon', '⇪');
-    icon.setAttribute('aria-hidden', 'true');
-    this.button.appendChild(icon);
-    hud.appendChild(this.button);
 
     this.fallback = el('div', 'share-fallback');
     this.fallback.id = 'share-fallback';
@@ -59,7 +53,7 @@ export class ShareControl {
     close.type = 'button';
     close.addEventListener('click', () => this.hideFallback());
     this.fallback.append(this.input, close);
-    parent.appendChild(this.fallback);
+    container.append(this.button, this.fallback);
 
     this.button.addEventListener('click', () => {
       void this.share();
@@ -107,6 +101,7 @@ export class ShareControl {
   private readonly onKey = (event: KeyboardEvent): void => {
     if (event.key === 'Escape' && this.fallbackVisible) {
       event.preventDefault();
+      event.stopImmediatePropagation();
       this.hideFallback();
     }
   };

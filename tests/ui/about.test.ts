@@ -15,19 +15,17 @@ function setup(): {
   about: About;
   host: { pause: ReturnType<typeof vi.fn>; resume: ReturnType<typeof vi.fn> };
   canvas: HTMLElement;
-  hud: HTMLElement;
 } {
   document.body.replaceChildren();
   const canvas = document.createElement('canvas');
-  const hud = document.createElement('div');
-  document.body.append(canvas, hud);
+  document.body.append(canvas);
   const host = { pause: vi.fn(), resume: vi.fn() };
-  const about = new About(hud, document.body, host, canvas, {
+  const about = new About(document.body, host, canvas, {
     credits: CREDITS,
     author: { name: 'author', url: 'https://example.test/author' },
-    inertWhileOpen: [canvas, hud],
+    inertWhileOpen: [canvas],
   });
-  return { about, host, canvas, hud };
+  return { about, host, canvas };
 }
 
 function key(name: string, init: KeyboardEventInit = {}): void {
@@ -51,27 +49,28 @@ describe('About — открытие/закрытие (FR-10.2, FR-10.3, AC-10.2
   it('открытие ставит паузу, размывает канвас и переводит фокус в диалог', () => {
     const { about, host, canvas } = setup();
     expect(about.backdrop.hidden).toBe(true);
-    about.button.click();
+    about.open();
     expect(about.isOpen).toBe(true);
     expect(host.pause).toHaveBeenCalledTimes(1);
     expect(canvas.classList.contains('is-dimmed')).toBe(true);
     expect(about.backdrop.hidden).toBe(false);
-    expect(about.button.getAttribute('aria-expanded')).toBe('true');
     expect(document.activeElement).toBe(about.closeButton);
     expect(about.dialog.getAttribute('role')).toBe('dialog');
     expect(about.dialog.getAttribute('aria-modal')).toBe('true');
   });
 
-  it('крестик снимает размытие, возобновляет симуляцию и возвращает фокус на кнопку', () => {
+  it('крестик снимает размытие, возобновляет симуляцию и возвращает фокус туда, где он был', () => {
     const { about, host, canvas } = setup();
-    about.button.focus();
+    const anchor = document.createElement('button');
+    document.body.appendChild(anchor);
+    anchor.focus();
     about.open();
     about.closeButton.click();
     expect(about.isOpen).toBe(false);
     expect(host.resume).toHaveBeenCalledTimes(1);
     expect(canvas.classList.contains('is-dimmed')).toBe(false);
     expect(about.backdrop.hidden).toBe(true);
-    expect(document.activeElement).toBe(about.button);
+    expect(document.activeElement).toBe(anchor);
   });
 
   it('клик по подложке закрывает, клик внутри диалога — нет', () => {

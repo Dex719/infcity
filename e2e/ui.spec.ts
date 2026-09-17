@@ -16,7 +16,7 @@ test.describe('UI-оболочка (FR-2, FR-10)', () => {
     page,
   }) => {
     await gotoApp(page);
-    await page.locator('#about-button').click();
+    await page.keyboard.press('Shift+?');
     await expect(page.locator('#about')).toBeVisible();
     expect((await readStats(page)).paused).toBe(true);
     const gridBefore = (await readStats(page)).gridCoords;
@@ -42,7 +42,7 @@ test.describe('UI-оболочка (FR-2, FR-10)', () => {
     }) => {
       await page.setViewportSize(viewport);
       await gotoApp(page);
-      await page.locator('#about-button').click();
+      await page.keyboard.press('Shift+?');
       const dialog = page.locator('#about');
       await expect(dialog).toBeVisible();
       const box = await dialog.boundingBox();
@@ -55,9 +55,11 @@ test.describe('UI-оболочка (FR-2, FR-10)', () => {
       }
       const close = dialog.getByRole('button', { name: 'Закрыть' });
       await expect(close).toBeInViewport();
+      const share = page.locator('#share');
+      await share.scrollIntoViewIfNeeded();
+      await expect(share).toBeInViewport();
       await close.click();
       await expect(dialog).toBeHidden();
-      await expect(page.locator('#share')).toBeInViewport();
     });
   }
 
@@ -69,6 +71,7 @@ test.describe('UI-оболочка (FR-2, FR-10)', () => {
     test.skip(browserName !== 'chromium', 'права на буфер обмена выдаются только в Chromium');
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await gotoApp(page);
+    await page.keyboard.press('Shift+?');
     await page.locator('#share').click();
     const toast = page.locator('#toast');
     await expect(toast).toBeVisible();

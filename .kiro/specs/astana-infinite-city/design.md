@@ -203,6 +203,7 @@ suppress      = ∃ соседняя клетка (радиус 1) с win_t' д�
 - DOM-оверлей над `<canvas>`: `#title` (анимация: ширина → буквы → fade, `prefers-reduced-motion` → без анимации), `#about-button`, `#about` (popup, blur/brightness на канвасе через CSS-фильтр, `App.pause()`), `#loading` (бар 8 px), `#share` (кнопка/тост), `#error` (оверлей WebGL/загрузка/контекст), `#debug`.
 - `Seed`: парсинг `?seed`, нормализация (`[a-z0-9_-]{1,64}`, иначе `fnv1a(seed).toString(36)`), генерация 8-символьного seed, `history.replaceState`, `navigator.clipboard.writeText` с фолбэком на `<input readonly>`.
 - Тексты — `ui/strings.ru.ts` (готовность к локализации).
+- Изменение 2026-09-18 (запрос пользователя «убери кнопки справа сверху»): экранного HUD нет; About открывается клавишей `?`, кнопка «Поделиться» и поле-фолбэк живут внутри About (`About.actions`); подсказка о клавише — в подзаголовке заставки и в тексте About.
 - Реализация (2026-09-17): `ui/Shell` собирает `Title`, `Toast`, `Share`, `About`, подписывается на `renderer.onContext` (потеря контекста → пауза + полупрозрачный `ErrorOverlay`, через `ASSETS.CONTEXT_RESTORE_TIMEOUT_MS` — «Перезагрузить»); `ui/Loading` — полоса из `index.html`; цвета UI — CSS-переменные `--c-*`, которые `ui/theme.ts` подставляет из `palette.json`; шрифты — системный стек (`system-ui`), self-hosted шрифты не подключены; CSP задана мета-тегом (`connect-src` дополнен `ws:`/`wss:` для dev-сервера).
 
 ---

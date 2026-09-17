@@ -9,8 +9,9 @@ Mega Silk Way, «Северное сияние», Транспортная ба�
 облака, зимний режим.
 
 Без бэкенда: TypeScript + Vite + three.js, сборка кладётся в `dist/` и раздаётся как статика.
-Демо публикуется GitHub Actions на GitHub Pages: `https://<owner>.github.io/<repo>/`
+Демо: **https://dex719.github.io/infcity/** — публикуется GitHub Actions на GitHub Pages
 (workflow `.github/workflows/deploy.yml`, ассеты кэшируются по хешу в имени файла).
+Репозиторий: https://github.com/Dex719/infcity.
 
 ## Запуск
 

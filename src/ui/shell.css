@@ -164,17 +164,7 @@
   transform: none;
 }
 
-/* ---------- HUD (FR-10.2, FR-2.3) ---------- */
-.hud {
-  position: fixed;
-  top: max(0.75rem, env(safe-area-inset-top));
-  right: max(0.75rem, env(safe-area-inset-right));
-  display: flex;
-  gap: 0.5rem;
-  z-index: 30;
-}
-
-.hud__btn,
+/* ---------- Кнопки About (FR-10.2, FR-2.3) — экранного HUD нет ---------- */
 .about__close {
   width: var(--hud-size);
   height: var(--hud-size);
@@ -192,38 +182,44 @@
     box-shadow var(--motion-fast) ease;
 }
 
-.hud__btn:hover,
 .about__close:hover {
   transform: translateY(-1px);
   box-shadow: 0 0.35rem 1.2rem rgba(0, 0, 0, 0.22);
 }
 
-.hud__btn:active,
 .about__close:active {
   transform: scale(0.96);
 }
 
-.hud__icon {
+.about__icon {
   display: block;
   line-height: 1;
 }
 
+.about__actions {
+  display: grid;
+  gap: 0.6rem;
+  margin: 1rem 0 0.25rem;
+}
+
+.about__share,
+.share-fallback__close,
+.error__btn {
+  padding: 0.7rem 1.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ui-accent);
+  color: var(--ui-paper);
+  font: 600 1rem var(--ui-font);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 /* Поле со ссылкой, когда буфер обмена недоступен (AC-2.3). */
 .share-fallback {
-  position: fixed;
-  top: calc(max(0.75rem, env(safe-area-inset-top)) + var(--hud-size) + 0.5rem);
-  right: max(0.75rem, env(safe-area-inset-right));
-  left: max(0.75rem, env(safe-area-inset-left));
-  max-width: 28rem;
-  margin-left: auto;
   display: flex;
   gap: 0.5rem;
-  padding: 0.6rem;
-  background: var(--ui-paper);
-  border-radius: var(--ui-radius);
-  box-shadow: var(--ui-shadow);
-  z-index: 30;
-  font-family: var(--ui-font);
+  align-items: center;
 }
 
 .share-fallback__input {
@@ -237,16 +233,9 @@
   background: var(--ui-paper);
 }
 
-.share-fallback__close,
-.error__btn {
+.share-fallback__close {
   padding: 0.5rem 1rem;
-  border: 0;
-  border-radius: 999px;
-  background: var(--ui-accent);
-  color: var(--ui-paper);
-  font: 600 0.95rem var(--ui-font);
-  cursor: pointer;
-  white-space: nowrap;
+  font-size: 0.95rem;
 }
 
 /* ---------- Тост (AC-2.3) ---------- */
@@ -418,6 +407,7 @@
 
   .share-fallback {
     flex-direction: column;
+    align-items: stretch;
   }
 }
 

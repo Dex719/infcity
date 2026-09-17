@@ -11,7 +11,7 @@ export interface AboutOptions {
   /** Текст `CREDITS.md`: строки `- …` становятся пунктами списка. */
   readonly credits: string;
   readonly author?: { readonly name: string; readonly url: string };
-  /** Элементы, недоступные для фокуса и кликов, пока попап открыт (канвас, HUD). */
+  /** Элементы, недоступные для фокуса и кликов, пока попап открыт (канвас). */
   readonly inertWhileOpen?: readonly HTMLElement[];
   readonly onOpen?: () => void;
   readonly onClose?: () => void;
@@ -48,38 +48,26 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
- * Попап «О проекте» (FR-10.2–10.4, NFR-6): кнопка «?», диалог с описанием, «сделано с»,
- * credits и автором. Открытие ставит симуляцию на паузу и размывает канвас; закрытие —
- * крестик, клик по подложке, Esc; `?` переключает. Фокус удерживается внутри диалога.
+ * Попап «О проекте» (FR-10.2–10.4, NFR-6): открывается клавишей `?` (кнопок на экране нет —
+ * по запросу пользователя, итерация 2), закрывается крестиком, кликом по подложке, Esc.
+ * Открытие ставит симуляцию на паузу и размывает канвас; фокус удерживается внутри диалога.
+ * Внизу диалога — контейнер `actions` для кнопки «Поделиться».
  */
 export class About {
-  readonly button: HTMLButtonElement;
   readonly backdrop: HTMLElement;
   readonly dialog: HTMLElement;
   readonly closeButton: HTMLButtonElement;
+  /** Контейнер действий (кнопка «Поделиться», поле-фолбэк). */
+  readonly actions: HTMLElement;
   private opened = false;
   private lastFocus: HTMLElement | null = null;
 
   constructor(
-    hud: HTMLElement,
     parent: HTMLElement,
     private readonly host: AboutHost,
     private readonly canvas: HTMLElement,
     private readonly options: AboutOptions,
   ) {
-    this.button = el('button', 'hud__btn hud__btn--about');
-    this.button.type = 'button';
-    this.button.id = 'about-button';
-    this.button.setAttribute('aria-label', STRINGS.buttons.about);
-    this.button.setAttribute('aria-haspopup', 'dialog');
-    this.button.setAttribute('aria-expanded', 'false');
-    this.button.setAttribute('aria-controls', 'about');
-    this.button.title = STRINGS.buttons.about;
-    const glyph = el('span', 'hud__icon', '?');
-    glyph.setAttribute('aria-hidden', 'true');
-    this.button.appendChild(glyph);
-    hud.appendChild(this.button);
-
     this.backdrop = el('div', 'about-backdrop');
     this.backdrop.id = 'about-backdrop';
     this.backdrop.hidden = true;
@@ -98,16 +86,18 @@ export class About {
     this.closeButton.type = 'button';
     this.closeButton.setAttribute('aria-label', STRINGS.buttons.close);
     this.closeButton.title = STRINGS.buttons.close;
-    const cross = el('span', 'hud__icon', '×');
+    const cross = el('span', 'about__icon', '×');
     cross.setAttribute('aria-hidden', 'true');
     this.closeButton.appendChild(cross);
     header.append(heading, this.closeButton);
 
+    this.actions = el('div', 'about__actions');
     const body = el('div', 'about__body');
     body.append(
       el('p', undefined, STRINGS.about.intro),
       el('p', undefined, STRINGS.about.controls),
       el('p', 'about__hint', STRINGS.about.seedHint),
+      this.actions,
       el('h3', undefined, STRINGS.about.madeWithHeading),
       About.list(STRINGS.about.madeWith.map((item) => ({ text: item.name, url: item.url }))),
       el('h3', undefined, STRINGS.about.creditsHeading),
@@ -120,7 +110,6 @@ export class About {
     this.backdrop.appendChild(this.dialog);
     parent.appendChild(this.backdrop);
 
-    this.button.addEventListener('click', () => this.toggle());
     this.closeButton.addEventListener('click', () => this.close());
     this.backdrop.addEventListener('click', (event) => {
       if (event.target === this.backdrop) {
@@ -143,7 +132,6 @@ export class About {
     this.host.pause();
     this.canvas.classList.add('is-dimmed');
     document.body.classList.add('about-open');
-    this.button.setAttribute('aria-expanded', 'true');
     for (const node of this.options.inertWhileOpen ?? []) {
       node.inert = true;
     }
@@ -161,11 +149,10 @@ export class About {
     for (const node of this.options.inertWhileOpen ?? []) {
       node.inert = false;
     }
-    this.button.setAttribute('aria-expanded', 'false');
     document.body.classList.remove('about-open');
     this.canvas.classList.remove('is-dimmed');
     this.host.resume();
-    (this.lastFocus ?? this.button).focus();
+    this.lastFocus?.focus();
     this.lastFocus = null;
     this.options.onClose?.();
   }
@@ -181,7 +168,6 @@ export class About {
   dispose(): void {
     window.removeEventListener('keydown', this.onKey);
     this.close();
-    this.button.remove();
     this.backdrop.remove();
   }
 

@@ -204,7 +204,7 @@ export class Props {
   /** Детская площадка: пара цветных модулей. */
   playground(x: number, z: number): void {
     const b = this.batch;
-    b.plane(x, 0.2, z, 7, 7, this.m.color('sand'));
+    b.plane(x, 0.26, z, 7, 7, this.m.color('sand'));
     b.box(x - 1.5, 1.2, z, 1.2, 2, 1.2, this.m.color('accent-red'));
     b.box(x + 1.5, 0.9, z + 1, 2.4, 0.2, 0.6, this.m.color('flag-blue'));
     b.box(x + 0.5, 0.5, z - 1.5, 0.3, 1, 0.3, this.m.color('gold'));

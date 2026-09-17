@@ -19,16 +19,16 @@ export interface ShellOptions {
 }
 
 /**
- * DOM-оболочка над канвасом (design C13, FR-10): заголовок, HUD с кнопками «Поделиться»
- * и «?», тосты, About, обработка потери WebGL-контекста (FR-11.4) и уведомления о seed.
+ * DOM-оболочка над канвасом (design C13, FR-10): заголовок, тосты, About по клавише `?`
+ * (с кнопкой «Поделиться» внутри), обработка потери WebGL-контекста (FR-11.4)
+ * и уведомления о seed. Экранных кнопок нет — по запросу пользователя (итерация 2).
  */
 export class Shell {
   readonly root: HTMLElement;
-  readonly hud: HTMLElement;
   readonly title: Title;
   readonly toast: Toast;
-  readonly share: ShareControl;
   readonly about: About;
+  readonly share: ShareControl;
 
   private contextTimer = 0;
   private pausedByContext = false;
@@ -46,27 +46,21 @@ export class Shell {
 
     this.root = el('div', 'ui');
     this.root.id = 'ui';
-    this.hud = el('div', 'hud');
-    this.hud.id = 'hud';
-    this.hud.setAttribute('role', 'toolbar');
-    this.hud.setAttribute('aria-label', STRINGS.aria.hud);
-
     this.title = new Title(this.root, STRINGS.title, STRINGS.subtitle);
-    this.root.appendChild(this.hud);
     this.toast = new Toast(this.root);
-    this.share = new ShareControl(this.hud, this.root, {
-      url: () => buildShareUrl(window.location.href, app.flags.seed),
-      toast: this.toast,
-    });
-    this.about = new About(this.hud, this.root, app, canvas, {
+    this.about = new About(this.root, app, canvas, {
       credits: options.credits,
       author: UI.AUTHOR,
-      inertWhileOpen: [canvas, this.hud],
+      inertWhileOpen: [canvas],
       onOpen: () => {
         this.title.remove();
         this.share.hideFallback();
       },
       onClose: () => app.input.keys.clear(),
+    });
+    this.share = new ShareControl(this.about.actions, {
+      url: () => buildShareUrl(window.location.href, app.flags.seed),
+      toast: this.toast,
     });
     parent.appendChild(this.root);
 

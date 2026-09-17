@@ -188,8 +188,16 @@ function residentialNew(ctx: Ctx): void {
       accents[int(ctx.rng, 0, accents.length - 1)] ?? 'glass-teal',
     );
   }
-  lawn(ctx, 14, 12, 14, 14);
-  scatterTrees(ctx, 7, (x, z) => towers.some((t) => insideRect(x, z, t.x, t.z, t.w, t.d)));
+  // Газонная вставка выше покрытия двора (bugfix BUG-7: одна плоскость → z-fighting).
+  ctx.b.plane(14, LAWN_Y + 0.06, 12, 14, 14, ctx.m.color('grass'));
+  scatterTrees(
+    ctx,
+    7,
+    (x, z) =>
+      towers.some((t) => insideRect(x, z, t.x, t.z, t.w, t.d)) ||
+      Math.hypot(x, z) < 3 ||
+      Math.hypot(x + 20, z - 20) < 3,
+  );
   for (let i = 0; i < 4; i++) {
     ctx.props.parkedCar(-18 + i * 4.5, 22, 0, i);
   }
@@ -238,7 +246,7 @@ function commercial(ctx: Ctx): void {
     awnings[int(ctx.rng, 0, 3)] ?? 'flag-blue',
   );
   // Парковка между рядами.
-  ctx.b.plane(4, CURB_Y + 0.04, 2, 34, 8, ctx.m.color('asphalt'));
+  ctx.b.plane(4, LAWN_Y + 0.03, 2, 34, 8, ctx.m.color('asphalt'));
   for (let i = 0; i < 6; i++) {
     if (ctx.rng() < 0.7) {
       ctx.props.parkedCar(-10 + i * 5, 2, Math.PI / 2, i);
@@ -323,9 +331,9 @@ function mall(ctx: Ctx): void {
     { x: 0, z: -7, w: 40, d: 24 },
     accents[int(ctx.rng, 0, accents.length - 1)] ?? 'gold',
   );
-  ctx.b.plane(0, CURB_Y + 0.04, 15, 44, 12, ctx.m.color('asphalt'));
+  ctx.b.plane(0, LAWN_Y + 0.03, 15, 44, 12, ctx.m.color('asphalt'));
   for (let i = 0; i < 9; i++) {
-    ctx.b.box(-18 + i * 4.5, CURB_Y + 0.07, 15, 0.15, 0.02, 9, ctx.m.color('marking'));
+    ctx.b.box(-18 + i * 4.5, LAWN_Y + 0.06, 15, 0.15, 0.02, 9, ctx.m.color('marking'));
     if (i < 8 && ctx.rng() < 0.7) {
       ctx.props.parkedCar(-15.75 + i * 4.5, 15, Math.PI / 2, i);
     }

@@ -30,16 +30,14 @@ describe('ShareControl — «Поделиться» (FR-2.3, AC-2.3)', () => {
   });
 
   it('копирует ссылку и показывает тост «Ссылка скопирована»', async () => {
-    const hud = document.createElement('div');
-    document.body.appendChild(hud);
     const toast = new Toast(document.body);
     const writeText = vi.fn(() => Promise.resolve());
-    const share = new ShareControl(hud, document.body, {
+    const share = new ShareControl(document.body, {
       url: () => 'https://example.test/?seed=astana&v=1',
       toast,
       nav: navWith(writeText),
     });
-    expect(share.button.getAttribute('aria-label')).toBe(STRINGS.buttons.share);
+    expect(share.button.textContent).toBe(STRINGS.buttons.share);
     await share.share();
     expect(writeText).toHaveBeenCalledWith('https://example.test/?seed=astana&v=1');
     expect(toast.visible).toBe(true);
@@ -48,10 +46,8 @@ describe('ShareControl — «Поделиться» (FR-2.3, AC-2.3)', () => {
   });
 
   it('без буфера обмена показывает поле со ссылкой; Esc скрывает его', async () => {
-    const hud = document.createElement('div');
-    document.body.appendChild(hud);
     const toast = new Toast(document.body);
-    const share = new ShareControl(hud, document.body, {
+    const share = new ShareControl(document.body, {
       url: () => 'https://example.test/?seed=a&v=1',
       toast,
       nav: {} as Navigator,
