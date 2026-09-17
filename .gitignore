@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.vite/
+
+# tests
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# logs
+*.log
+npm-debug.log*
+
+# env
+.env
+.env.*
+
+# os / editor
+.DS_Store
+Thumbs.db
