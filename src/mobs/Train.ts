@@ -1,0 +1,120 @@
+import { LRT, TRAIN, WORLD } from '@/config';
+import { hashUnit } from '@/world/Hash';
+import { isStationColumn } from '@/world/LrtPlanner';
+import { MobileObject } from './MobileObject';
+
+/** Состояния поезда (FR-5.4). */
+export type TrainState = 'moving' | 'braking' | 'dwell' | 'accelerating';
+
+const TRAIN_SALT = 700;
+const DWELL_SALT = 701;
+
+/** Длина вагона и зазор между вагонами, юниты. */
+export const CARRIAGE_LENGTH = 9;
+export const CARRIAGE_GAP = 0.6;
+export const CARRIAGES = 3;
+
+/**
+ * Поезд ЛРТ (FR-5.3–5.6, design C10): едет по своей нитке эстакады, у станции тормозит,
+ * стоит 3–5 с и разгоняется; при сближении с поездом впереди ближе одного чанка притормаживает.
+ */
+export class Train extends MobileObject {
+  state: TrainState = 'moving';
+  /** Секунд стоянки осталось. */
+  dwellLeft = 0;
+  /** Станция, у которой уже остановились (чтобы не тормозить повторно). */
+  private servedStationKey: string | null = null;
+  private readonly seed: number;
+
+  constructor(seed: number, gx: number, gy: number, x: number, direction: 1 | -1) {
+    super(gx, gy, x, LRT.BEAM_HEIGHT + 0.7, direction === 1 ? LRT.TRACK_Z.east : LRT.TRACK_Z.west);
+    this.seed = seed;
+    this.dirX = direction;
+    this.dirZ = 0;
+    this.speed = TRAIN.MAX_SPEED;
+    this.faceDirection();
+  }
+
+  /** Детерминированный спавн: восточные поезда в чанках `gx ≡ 0 (mod 5)`, западные — `gx ≡ 2 (mod 5)`. */
+  static spawnsAt(gx: number, direction: 1 | -1): boolean {
+    const period = TRAIN_SPAWN_PERIOD;
+    const phase = direction === 1 ? 0 : Math.floor(period / 2);
+    return ((gx % period) + period) % period === phase;
+  }
+
+  /** Расстояние (со знаком по направлению) до центра станции текущего чанка или `null`. */
+  private stationAhead(): number | null {
+    if (!isStationColumn(this.gx) || this.servedStationKey === this.key) {
+      return null;
+    }
+    const distance = (0 - this.x) * this.dirX;
+    return distance >= -1 ? distance : null;
+  }
+
+  /** `leader` — расстояние до поезда впереди на той же нитке (юниты) или `Infinity`. */
+  step(dt: number, leaderDistance: number): void {
+    const accel = TRAIN.MAX_SPEED * dt; // разгон/торможение за ~1 с
+    const separation = WORLD.CHUNK_SIZE;
+    switch (this.state) {
+      case 'moving': {
+        const ahead = this.stationAhead();
+        if (ahead !== null && ahead <= TRAIN.BRAKE_DISTANCE) {
+          this.state = 'braking';
+        } else if (leaderDistance < separation) {
+          this.speed = Math.max(TRAIN.MAX_SPEED * 0.4, this.speed - accel);
+        } else {
+          this.speed = Math.min(TRAIN.MAX_SPEED, this.speed + accel);
+        }
+        break;
+      }
+      case 'braking': {
+        const ahead = this.stationAhead() ?? 0;
+        // Скорость по тормозному пути: v = vmax·sqrt(d / D), минимум для доезда.
+        const target = TRAIN.MAX_SPEED * Math.sqrt(Math.max(ahead, 0) / TRAIN.BRAKE_DISTANCE);
+        this.speed = Math.max(Math.min(this.speed, Math.max(target, 1.5)), 0);
+        if (ahead <= 0.4) {
+          this.speed = 0;
+          this.x = 0;
+          this.state = 'dwell';
+          this.servedStationKey = this.key;
+          const u = hashUnit(this.seed, this.gx, this.gy, DWELL_SALT + (this.dirX === 1 ? 0 : 1));
+          this.dwellLeft = TRAIN.DWELL.min + u * (TRAIN.DWELL.max - TRAIN.DWELL.min);
+        }
+        break;
+      }
+      case 'dwell':
+        this.dwellLeft -= dt;
+        if (this.dwellLeft <= 0) {
+          this.state = 'accelerating';
+        }
+        break;
+      case 'accelerating':
+        this.speed = Math.min(TRAIN.MAX_SPEED, this.speed + accel);
+        if (this.speed >= TRAIN.MAX_SPEED) {
+          this.state = 'moving';
+        }
+        break;
+    }
+    this.advance(this.speed * dt);
+  }
+
+  update(dt: number): void {
+    this.step(dt, Number.POSITIVE_INFINITY);
+  }
+
+  /** Сброс «обслуженной» станции при переходе в другой чанк. */
+  override moveTo(transfer: { gx: number; gy: number; key: string }): void {
+    super.moveTo(transfer);
+    if (this.servedStationKey !== this.key) {
+      this.servedStationKey = null;
+    }
+  }
+
+  /** Хеш для детерминированных параметров поезда. */
+  static roll(seed: number, gx: number, gy: number): number {
+    return hashUnit(seed, gx, gy, TRAIN_SALT);
+  }
+}
+
+/** Период спавна поездов по gx (чанков); в окне 9 — 1…2 поезда на нитку (AC-5.4). */
+export const TRAIN_SPAWN_PERIOD = 5;

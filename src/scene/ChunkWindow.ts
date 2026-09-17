@@ -1,8 +1,15 @@
 import { Group } from 'three';
+import { Emitter } from '@/app/Emitter';
 import { WORLD } from '@/config';
 import { Generator } from '@/world/Generator';
 import type { ChunkDescriptor } from '@/world/types';
 import type { ChunkNode } from './ChunkNode';
+
+/** События окна: чанк вошёл в окно / покинул его (для спавна мобов). */
+export interface WindowEvents extends Record<string, unknown> {
+  enter: { key: string; descriptor: ChunkDescriptor };
+  leave: { key: string };
+}
 
 /** Сборщик чанков: полноценная сборка, быстрый плейсхолдер и освобождение (design C7). */
 export interface ChunkBuilder {
@@ -31,7 +38,9 @@ export class ChunkWindow {
   readonly size: number;
   readonly gridCoords = { x: 0, y: 0 };
   readonly slots: Slot[] = [];
+  readonly events = new Emitter<WindowEvents>();
 
+  private readonly keys = new Set<string>();
   private readonly built = new Map<string, ChunkNode>();
   private readonly queue: Slot[] = [];
   private buildsTotal = 0;
@@ -115,6 +124,11 @@ export class ChunkWindow {
     return slot.node;
   }
 
+  /** Есть ли чанк с таким ключом в окне (собранный или плейсхолдер). */
+  hasKey(key: string): boolean {
+    return this.keys.has(key);
+  }
+
   /** Слот по смещению от центра. */
   slotAt(cx: number, cy: number): Slot | undefined {
     const half = Math.floor(this.size / 2);
@@ -150,10 +164,16 @@ export class ChunkWindow {
 
   private reassign(): void {
     this.queue.length = 0;
+    const previous = new Set(this.keys);
+    this.keys.clear();
     for (const slot of this.slots) {
       const gx = this.gridCoords.x + slot.cx;
       const gy = this.gridCoords.y + slot.cy;
       const key = Generator.key(gx, gy);
+      this.keys.add(key);
+      if (!previous.has(key)) {
+        this.events.emit('enter', { key, descriptor: this.generator.describe(gx, gy) });
+      }
       if (slot.key === key && slot.node !== null && !slot.node.placeholder) {
         continue;
       }
@@ -171,6 +191,11 @@ export class ChunkWindow {
       this.queue.push(slot);
     }
     this.queue.sort((a, b) => a.cx * a.cx + a.cy * a.cy - (b.cx * b.cx + b.cy * b.cy));
+    for (const key of previous) {
+      if (!this.keys.has(key)) {
+        this.events.emit('leave', { key });
+      }
+    }
   }
 
   private attach(slot: Slot, node: ChunkNode): void {

@@ -49,6 +49,7 @@ export class DebugOverlay {
   }
 
   update(): void {
+    this.refreshLabels();
     const s = this.app.stats();
     this.element.textContent = [
       `seed=${this.app.flags.seed}`,
@@ -56,6 +57,7 @@ export class DebugOverlay {
       `grid=(${String(s.gridCoords.x)},${String(s.gridCoords.y)})  h=${s.cameraHeight.toFixed(1)}`,
       `emptySlots=${String(s.emptySlots)}  builds=${String(s.builds)}  cacheHits=${String(s.cacheHits)}`,
       `genErrors=${String(s.generatorErrors)}  paused=${String(this.app.isPaused)}`,
+      `cars=${String(s.mobs.cars)}  trains=${String(s.mobs.trains)}  clouds=${String(s.mobs.clouds)}  stuck=${String(s.mobs.stuckCars)}`,
     ].join('\n');
   }
 

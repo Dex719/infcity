@@ -1,9 +1,10 @@
 import { Scene } from 'three';
-import { WORLD } from '@/config';
+import { CLOUD, WORLD } from '@/config';
 import type { AppFlags } from '@/api/Seed';
 import { CameraRig } from '@/controls/CameraRig';
 import { InputManager } from '@/controls/InputManager';
 import { PanControls } from '@/controls/PanControls';
+import { MobSystem, type MobStats } from '@/mobs/MobSystem';
 import { Lighting } from '@/render/Lighting';
 import { Vignette } from '@/render/Post';
 import type { Profile } from '@/render/Profile';
@@ -14,6 +15,9 @@ import type { Palette } from '@/scene/palette';
 import { PrefabBuilder } from '@/scene/PrefabBuilder';
 import { Generator } from '@/world/Generator';
 import { Emitter } from './Emitter';
+
+/** Запас высоты камеры над облаками, ниже которого облака скрываются, юниты. */
+const CLOUD_CLEARANCE = 12;
 
 /** События приложения для UI-оболочки (design C1). */
 export interface AppEvents extends Record<string, unknown> {
@@ -33,6 +37,7 @@ export interface AppStats {
   builds: number;
   cacheHits: number;
   generatorErrors: number;
+  mobs: MobStats;
 }
 
 export interface AppOptions {
@@ -59,6 +64,7 @@ export class App extends Emitter<AppEvents> {
   readonly materials: Materials;
   readonly lighting: Lighting;
   readonly vignette: Vignette;
+  readonly mobs: MobSystem;
 
   private lastFrameTime = 0;
   private paused = false;
@@ -85,6 +91,7 @@ export class App extends Emitter<AppEvents> {
     this.scene.add(this.chunkWindow.root);
     this.lighting = new Lighting(this.scene, options.palette, options.profile);
     this.vignette = new Vignette();
+    this.mobs = new MobSystem(this.chunkWindow, this.materials, options.profile);
     this.pan = new PanControls(this.input, this.rig, this.chunkWindow.root);
     this.pan.on('move', ({ dx, dy }) => this.chunkWindow.move(dx, dy));
     this.input.on('wheel', ({ deltaY }) => this.rig.wheel(deltaY));
@@ -163,6 +170,7 @@ export class App extends Emitter<AppEvents> {
       builds: cw.builds,
       cacheHits: cw.cacheHits,
       generatorErrors: this.generator.errors,
+      mobs: this.mobs.stats(),
     };
   }
 
@@ -189,7 +197,9 @@ export class App extends Emitter<AppEvents> {
   private tick(dt: number): void {
     this.pan.update(dt);
     this.chunkWindow.update();
+    this.mobs.update(dt);
     this.rig.update(dt);
+    this.mobs.setCloudsVisible(this.rig.currentHeight > CLOUD.ALTITUDE + CLOUD_CLEARANCE);
     this.renderer.render(this.scene, this.rig.camera);
     this.vignette.render(this.renderer.gl);
   }
