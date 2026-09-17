@@ -1,14 +1,17 @@
-import { DirectionalLight, HemisphereLight, Scene } from 'three';
-import { RENDER, WORLD } from '@/config';
+import { Scene } from 'three';
+import { WORLD } from '@/config';
 import type { AppFlags } from '@/api/Seed';
 import { CameraRig } from '@/controls/CameraRig';
 import { InputManager } from '@/controls/InputManager';
 import { PanControls } from '@/controls/PanControls';
+import { Lighting } from '@/render/Lighting';
+import { Vignette } from '@/render/Post';
 import type { Profile } from '@/render/Profile';
 import { Renderer } from '@/render/Renderer';
 import { ChunkWindow, type ChunkBuilder } from '@/scene/ChunkWindow';
-import { GreyboxBuilder } from '@/scene/GreyboxBuilder';
+import { Materials } from '@/scene/Materials';
 import type { Palette } from '@/scene/palette';
+import { PrefabBuilder } from '@/scene/PrefabBuilder';
 import { Generator } from '@/world/Generator';
 import { Emitter } from './Emitter';
 
@@ -53,6 +56,9 @@ export class App extends Emitter<AppEvents> {
   readonly generator: Generator;
   readonly chunkWindow: ChunkWindow;
   readonly flags: AppFlags;
+  readonly materials: Materials;
+  readonly lighting: Lighting;
+  readonly vignette: Vignette;
 
   private lastFrameTime = 0;
   private paused = false;
@@ -71,11 +77,14 @@ export class App extends Emitter<AppEvents> {
     this.rig = new CameraRig(1);
     this.input = new InputManager(options.canvas);
     this.generator = new Generator(options.flags.seed);
+    this.materials = new Materials(options.palette);
     this.chunkWindow = new ChunkWindow(
       this.generator,
-      options.builder ?? new GreyboxBuilder(options.palette),
+      options.builder ?? new PrefabBuilder(this.materials),
     );
     this.scene.add(this.chunkWindow.root);
+    this.lighting = new Lighting(this.scene, options.palette, options.profile);
+    this.vignette = new Vignette();
     this.pan = new PanControls(this.input, this.rig, this.chunkWindow.root);
     this.pan.on('move', ({ dx, dy }) => this.chunkWindow.move(dx, dy));
     this.input.on('wheel', ({ deltaY }) => this.rig.wheel(deltaY));
@@ -86,7 +95,6 @@ export class App extends Emitter<AppEvents> {
     this.input.on('pinchend', () => {
       this.pan.enabled = true;
     });
-    this.addLights(options.palette);
     this.resize();
     window.addEventListener('resize', this.resize);
     document.addEventListener('visibilitychange', this.onVisibility);
@@ -176,6 +184,7 @@ export class App extends Emitter<AppEvents> {
     this.chunkWindow.update();
     this.rig.update(dt);
     this.renderer.render(this.scene, this.rig.camera);
+    this.vignette.render(this.renderer.gl);
   }
 
   private countFps(): void {
@@ -193,6 +202,7 @@ export class App extends Emitter<AppEvents> {
     const height = window.innerHeight;
     this.renderer.setSize(width, height);
     this.rig.setAspect(width / height);
+    this.lighting.resize(width / height);
   };
 
   private readonly onVisibility = (): void => {
@@ -206,15 +216,4 @@ export class App extends Emitter<AppEvents> {
       this.resume();
     }
   };
-
-  private addLights(palette: Palette): void {
-    const sun = new DirectionalLight(palette[RENDER.SUN.colorKey], RENDER.SUN.intensity);
-    sun.position.set(RENDER.SUN.position.x, RENDER.SUN.position.y, RENDER.SUN.position.z);
-    sun.name = 'sun';
-    this.scene.add(sun);
-    this.scene.add(sun.target);
-    const sky = new HemisphereLight(palette.sky, palette.ground, RENDER.HEMISPHERE_INTENSITY);
-    sky.name = 'sky';
-    this.scene.add(sky);
-  }
 }

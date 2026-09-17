@@ -65,18 +65,22 @@ export class Renderer {
     return this.width / this.height;
   }
 
+  /** Основной проход; статистика снимается сразу после него, до пост-проходов. */
   render(scene: Scene, camera: Camera): void {
     this.gl.render(scene, camera);
-  }
-
-  get stats(): FrameStats {
     const info = this.gl.info;
-    return {
+    this.lastStats = {
       drawCalls: info.render.calls,
       triangles: info.render.triangles,
       geometries: info.memory.geometries,
       textures: info.memory.textures,
     };
+  }
+
+  private lastStats: FrameStats = { drawCalls: 0, triangles: 0, geometries: 0, textures: 0 };
+
+  get stats(): FrameStats {
+    return this.lastStats;
   }
 
   /** Подписка на потерю/восстановление контекста (FR-11.4). */

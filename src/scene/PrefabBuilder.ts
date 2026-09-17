@@ -1,0 +1,95 @@
+import { BufferGeometry, Matrix4, Mesh, MeshLambertMaterial, PlaneGeometry } from 'three';
+import { CHUNK_LAYOUT, WORLD } from '@/config';
+import type { ChunkDescriptor } from '@/world/types';
+import { ChunkNode } from './ChunkNode';
+import type { ChunkBuilder } from './ChunkWindow';
+import type { Materials } from './Materials';
+import { buildBlock } from './procedural/BlockPrefabs';
+import { GeometryBatch } from './procedural/GeometryBatch';
+import { buildLrt } from './procedural/Lrt';
+import { Props } from './procedural/Props';
+import { buildRoads } from './procedural/Roads';
+
+const BLOCK_CENTER = CHUNK_LAYOUT.ROAD_WIDTH / 2; // 5
+
+/**
+ * Сборщик чанков из процедурных префабов (design C7, D2/D3): дороги + ЛРТ + квартал
+ * сливаются в одну геометрию с вершинными цветами → 1 непрозрачный меш и, при наличии
+ * стекла, 1 полупрозрачный. Геометрия уникальна для чанка и освобождается в `dispose`.
+ */
+export class PrefabBuilder implements ChunkBuilder {
+  private readonly placeholderGeometry = new PlaneGeometry(
+    WORLD.CHUNK_SIZE,
+    WORLD.CHUNK_SIZE,
+  ).rotateX(-Math.PI / 2);
+  private readonly placeholderMaterial: MeshLambertMaterial;
+  private readonly blockMatrix = new Matrix4();
+
+  /** Суммарно собрано вершин (для отладки бюджета). */
+  verticesBuilt = 0;
+
+  constructor(private readonly materials: Materials) {
+    this.placeholderMaterial = new MeshLambertMaterial({ color: materials.color('concrete') });
+  }
+
+  build(descriptor: ChunkDescriptor): ChunkNode {
+    const node = new ChunkNode(descriptor);
+    const opaque = new GeometryBatch();
+    const glass = new GeometryBatch();
+    const props = new Props(opaque, this.materials);
+
+    buildRoads(opaque, props, this.materials, descriptor.roads, descriptor.lrt.corridor !== null);
+    buildLrt(opaque, this.materials, descriptor.lrt);
+
+    const block = buildBlock(descriptor, this.materials);
+    this.blockMatrix.makeRotationY((descriptor.rotation * Math.PI) / 2);
+    this.blockMatrix.setPosition(BLOCK_CENTER, 0, BLOCK_CENTER);
+    opaque.append(block.opaque, this.blockMatrix);
+    glass.append(block.glass, this.blockMatrix);
+
+    this.verticesBuilt += opaque.vertices + glass.vertices;
+
+    const solid = new Mesh(opaque.build(), this.materials.opaque);
+    solid.name = 'statics';
+    solid.castShadow = true;
+    solid.receiveShadow = true;
+    solid.matrixAutoUpdate = false;
+    solid.updateMatrix();
+    node.add(solid);
+
+    if (!glass.isEmpty) {
+      const pane = new Mesh(glass.build(), this.materials.glass);
+      pane.name = 'glass';
+      pane.renderOrder = 10;
+      pane.matrixAutoUpdate = false;
+      pane.updateMatrix();
+      node.add(pane);
+    }
+    node.updateMatrix();
+    return node;
+  }
+
+  buildPlaceholder(descriptor: ChunkDescriptor): ChunkNode {
+    const node = new ChunkNode(descriptor);
+    node.placeholder = true;
+    const ground = new Mesh(this.placeholderGeometry, this.placeholderMaterial);
+    ground.matrixAutoUpdate = false;
+    ground.updateMatrix();
+    node.add(ground);
+    node.updateMatrix();
+    return node;
+  }
+
+  dispose(node: ChunkNode): void {
+    for (const child of node.children) {
+      if (
+        child instanceof Mesh &&
+        child.geometry instanceof BufferGeometry &&
+        child.geometry !== this.placeholderGeometry
+      ) {
+        child.geometry.dispose();
+      }
+    }
+    node.clear();
+  }
+}

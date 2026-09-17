@@ -46,59 +46,59 @@
 
 ### Phase 1: Core loop и greybox-окно
 
-- [ ] **TSK-010**: `app/App` — цикл, resize, visibility, pause/resume
+- [x] **TSK-010**: `app/App` — цикл, resize, visibility, pause/resume
   - Requirement: FR-8.5, FR-11.5
   - Deliverables: `src/app/App.ts`, `src/render/Renderer.ts` (WebGLRenderer, DPR cap, clear color)
   - Acceptance: rAF-цикл с `dt ≤ 0.05`; скрытие вкладки ставит паузу, возврат — без скачка (AC-8.3 вручную)
 
-- [ ] **TSK-011**: `controls/CameraRig`
+- [x] **TSK-011**: `controls/CameraRig`
   - Requirement: FR-8.2
   - Deliverables: `src/controls/CameraRig.ts`
   - Acceptance: fov 30, `(80,h,80)`, lookAt origin, `targetHeight` 30..140 с лерпом; unit-тест на clamp
 
-- [ ] **TSK-012**: `controls/InputManager`
+- [x] **TSK-012**: `controls/InputManager`
   - Requirement: FR-8.1, FR-8.2, FR-8.4, NFR-2
   - Deliverables: `src/controls/InputManager.ts` (Pointer Events, wheel, pinch, keys), CSS `touch-action: none`, курсоры grab/grabbing
   - Acceptance: события `startdrag/drag/enddrag/pinch*/wheel/keys` приходят на десктопе и в эмуляции touch; страница не скроллится при жестах
 
-- [ ] **TSK-013**: `scene/ChunkWindow` (greybox) + `controls/PanControls`
+- [x] **TSK-013**: `scene/ChunkWindow` (greybox) + `controls/PanControls`
   - Requirement: FR-1.1, FR-1.4, FR-8.1
   - Deliverables: `src/scene/ChunkWindow.ts` (слоты 9×9, пикеры, `move`, `emptySlots`), `src/controls/PanControls.ts` (поворот −45°, PAN_SPEED(h), инерция, raycast центра), `ChunkBuilder.buildPlaceholder` (цветной бокс + подпись gx,gy)
   - Acceptance: панорамирование бесконечно, при пересечении границы чанка `gridCoords` меняется, картинка не дёргается; `root.position` остаётся в пределах ±60 (AC-1.3)
 
-- [ ] **TSK-014**: Debug-оверлей и `window.__app`
+- [x] **TSK-014**: Debug-оверлей и `window.__app`
   - Requirement: FR-12
   - Deliverables: `src/ui/Debug.ts`, `src/api/DebugApi.ts` (`stats`, `describe`, `dumpWindow`, `pan`, `step`)
   - Acceptance: `?debug=1` показывает FPS/drawCalls/gridCoords/emptySlots и границы чанков (AC-12.1, AC-12.2)
 
 ### Phase 2: Детерминированная генерация
 
-- [ ] **TSK-020**: `world/Hash` + PRNG
+- [x] **TSK-020**: `world/Hash` + PRNG
   - Requirement: NFR-3, FR-2
   - Deliverables: `src/world/Hash.ts` (`hash32`, `seedToInt`, `rng`), `tests/world/hash.test.ts`
   - Acceptance: детерминизм, распределение (χ²), одинаковые значения в Node и браузере (снапшот)
 
-- [ ] **TSK-021**: `world/Generator` — типы кварталов, поворот, дороги, машины, облака
+- [x] **TSK-021**: `world/Generator` — типы кварталов, поворот, дороги, машины, облака
   - Requirement: FR-3.1–3.3, FR-6.1, FR-7.1, NFR-7
   - Deliverables: `src/world/Generator.ts`, `src/world/types.ts` (`ChunkDescriptor`, `BlockTypeId`), правило D9, fallback-чанк, `tests/world/generator.test.ts`
   - Acceptance: AC-3.1 на 10 000 чанков (< 0,5 % исключений), AC-1.1/AC-2.1 (снапшот дампа 21×21 для `astana`), AC-3.3
 
-- [ ] **TSK-022**: `world/LandmarkPlanner`
+- [x] **TSK-022**: `world/LandmarkPlanner`
   - Requirement: FR-4.1, FR-4.2, FR-4.6
   - Deliverables: `src/world/LandmarkPlanner.ts` (фиксированные `(0,-1)` Байтерек, `(0,1)` Хан Шатыр; правило «минимальный хеш в радиусе 6»; feature-флаги ландмарков), `tests/world/landmarks.test.ts`
   - Acceptance: AC-4.1 (100 seed), AC-4.2 (доля 1/25…1/40, дистанция ≥ 6)
 
-- [ ] **TSK-023**: `world/LrtPlanner`
+- [x] **TSK-023**: `world/LrtPlanner`
   - Requirement: FR-5.1, FR-5.2
   - Deliverables: `src/world/LrtPlanner.ts`, `tests/world/lrt.test.ts`
   - Acceptance: AC-5.1 (ровно один коридор в стартовом окне), станции `gx mod 3 == 0`
 
-- [ ] **TSK-024**: `api/Seed` — URL, нормализация, share
+- [x] **TSK-024**: `api/Seed` — URL, нормализация, share
   - Requirement: FR-2.1–2.4
   - Deliverables: `src/api/Seed.ts`, `src/ui/Share.ts` (кнопка, тост, fallback-поле), `tests/api/seed.test.ts`
   - Acceptance: AC-2.2, AC-2.3; недопустимый seed нормализуется без ошибки
 
-- [ ] **TSK-025**: Подключить генератор к окну (greybox по типам)
+- [x] **TSK-025**: Подключить генератор к окну (greybox по типам)
   - Requirement: FR-1.3, FR-3
   - Deliverables: `ChunkWindow` использует `Generator.describe`; greybox раскрашен по `block`, ландмарки — высокими боксами, ЛРТ — линией
   - Acceptance: при `seed=astana` стартовое окно повторяется после ухода/возврата (AC-1.1 через `__app.dumpWindow`), `emptySlots === 0` при 60 с панорамирования (AC-1.2)
@@ -312,17 +312,17 @@ graph TD
 | TSK-001 | Complete | 2026-09-17, three r186, vite 8, vitest 5; коммит chore: init toolchain |
 | TSK-002 | Complete | 2026-09-17, config.ts + palette.json + strings.ru.ts, 32 unit-тестов |
 | TSK-003 | Complete | 2026-09-17, ci.yml lint→test→build |
-| TSK-010 | Pending | |
-| TSK-011 | Pending | |
-| TSK-012 | Pending | |
-| TSK-013 | Pending | |
-| TSK-014 | Pending | |
-| TSK-020 | Pending | |
-| TSK-021 | Pending | |
-| TSK-022 | Pending | |
-| TSK-023 | Pending | |
-| TSK-024 | Pending | |
-| TSK-025 | Pending | |
+| TSK-010 | Complete | 2026-09-17: App loop, Renderer, pause/visibility; тайминг через performance.now (без Clock) |
+| TSK-011 | Complete | 2026-09-17: CameraRig: fov 30, h 30..140, старт 140, лерп τ 0.3 с; unit-тесты |
+| TSK-012 | Complete | 2026-09-17: InputManager: Pointer Events, wheel, pinch, клавиши, курсор grab/grabbing |
+| TSK-013 | Complete | 2026-09-17: ChunkWindow 9×9 + LRU 169 + очередь ≤2/кадр; PanControls: точное 1:1 по плоскости земли, инерция (EMA, clamp 300 юн/с), recenter → move |
+| TSK-014 | Complete | 2026-09-17: DebugOverlay (fps/draw/tris/grid/emptySlots/builds/cacheHits) + window.__app (describe/dumpWindow/stats/pan/step) |
+| TSK-020 | Complete | 2026-09-17: hash32 (murmur3-подобный), hashUnit, seedToInt (FNV-1a), mulberry32; χ²-тест, снапшот |
+| TSK-021 | Complete | 2026-09-17: Generator: 9 регулярных типов + stadium (Rare) + landmark; классы чётности (D9), 0 нарушений AC-3.1 на 10k; кэш 4096 |
+| TSK-022 | Complete | 2026-09-17: LandmarkPlanner: per-type правило редкости (P=1/74, R=5), подавление соседей, фиксированные (0,-1)/(0,1), стартовая зона R=4 |
+| TSK-023 | Complete | 2026-09-17: LrtPlanner: коридор gy≡0 (mod 8), станции gx≡0 (mod 3) |
+| TSK-024 | Complete | 2026-09-17: api/Seed: parseFlags, normalizeSeed, generateSeed, buildShareUrl, syncSeedToLocation (replaceState); Share-кнопка — в TSK-050 |
+| TSK-025 | Complete | 2026-09-17: GreyboxBuilder: боксы по типу, ландмарки-башни, эстакада/опоры/станции ЛРТ; проверено в браузере: 81 чанк, ~80–110 draw calls, 165 FPS, emptySlots=0 при панорамировании |
 | TSK-030 | Pending | |
 | TSK-031 | Pending | |
 | TSK-032 | Pending | |
