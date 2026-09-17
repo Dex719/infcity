@@ -35,19 +35,20 @@ describe('CameraRig (FR-8.2, design C11)', () => {
 
   it('высота плавно догоняет цель и сходится', () => {
     const rig = new CameraRig(2);
-    rig.setTargetHeight(CAMERA.HEIGHT_MAX);
+    rig.setTargetHeight(CAMERA.HEIGHT_MIN);
     rig.update(1 / 60);
-    expect(rig.currentHeight).toBeGreaterThan(CAMERA.HEIGHT_START);
-    expect(rig.currentHeight).toBeLessThan(CAMERA.HEIGHT_MAX);
+    expect(rig.currentHeight).toBeLessThan(CAMERA.HEIGHT_START);
+    expect(rig.currentHeight).toBeGreaterThan(CAMERA.HEIGHT_MIN);
     for (let i = 0; i < 600; i++) {
       rig.update(1 / 60);
     }
-    expect(rig.currentHeight).toBe(CAMERA.HEIGHT_MAX);
-    expect(rig.camera.position.y).toBe(CAMERA.HEIGHT_MAX);
+    expect(rig.currentHeight).toBe(CAMERA.HEIGHT_MIN);
+    expect(rig.camera.position.y).toBe(CAMERA.HEIGHT_MIN);
   });
 
   it('точка земли под краями экрана лежит дальше от центра при большей высоте', () => {
     const rig = new CameraRig(2);
+    rig.snapHeight(CAMERA.HEIGHT_MIN);
     const near = rig.groundPoint(1, 0, new Vector3());
     rig.snapHeight(CAMERA.HEIGHT_MAX);
     const far = rig.groundPoint(1, 0, new Vector3());
@@ -55,4 +56,5 @@ describe('CameraRig (FR-8.2, design C11)', () => {
     expect(far).not.toBeNull();
     expect((far?.length() ?? 0) > (near?.length() ?? 0)).toBe(true);
   });
+});
 });
