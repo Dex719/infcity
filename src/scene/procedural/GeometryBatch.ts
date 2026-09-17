@@ -54,6 +54,12 @@ export const Templates = {
   pyramid4: templateFrom(new ConeGeometry(1, 1, 4)),
   /** Сфера r=1, 10×7 (деревья, купола). */
   sphereLow: templateFrom(new SphereGeometry(1, 10, 7)),
+  /** Сфера r=1, 7×5 (48 вершин, 56 треугольников): главные объёмы крон и облаков (FR-17). */
+  blob: templateFrom(new SphereGeometry(1, 7, 5)),
+  /** Сфера r=1, 6×4 (35 вершин, 36 треугольников): боковые объёмы крон, подложки облаков (FR-17.4). */
+  blobLow: templateFrom(new SphereGeometry(1, 6, 4)),
+  /** Усечённый конус 8 граней (стволы деревьев — дешевле `taper` вдвое, FR-17.4). */
+  taper8: templateFrom(new CylinderGeometry(0.6, 1, 1, 8)),
   /** Сфера r=1, 16×12 (шар Байтерека, Нур Алем). */
   sphere16: templateFrom(new SphereGeometry(1, 16, 12)),
   /** Плоскость 1×1 в XZ, нормаль вверх. */
@@ -85,10 +91,12 @@ export class GeometryBatch {
   private colors: number[] = [];
   private indices: number[] = [];
   private vertexCount = 0;
+  private partCount = 0;
 
   /** Добавить шаблон, преобразованный матрицей, с одним цветом на все вершины. */
   add(template: Template, matrix: Matrix4, color: Color): void {
     const base = this.vertexCount;
+    this.partCount++;
     tmpNormal.getNormalMatrix(matrix);
     const e = matrix.elements;
     const n = tmpNormal.elements;
@@ -142,6 +150,7 @@ export class GeometryBatch {
   /** Перенести содержимое другого батча (в его локальных координатах), применив матрицу. */
   append(other: GeometryBatch, matrix: Matrix4): void {
     const base = this.vertexCount;
+    this.partCount += other.partCount;
     tmpNormal.getNormalMatrix(matrix);
     const e = matrix.elements;
     const n = tmpNormal.elements;
@@ -242,6 +251,11 @@ export class GeometryBatch {
 
   get vertices(): number {
     return this.vertexCount;
+  }
+
+  /** Сколько шаблонов добавлено (диагностика деталей, AC-17.1/17.2). */
+  get parts(): number {
+    return this.partCount;
   }
 
   get isEmpty(): boolean {

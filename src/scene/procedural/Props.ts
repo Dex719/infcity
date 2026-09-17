@@ -1,5 +1,17 @@
 import type { Materials } from '@/scene/Materials';
+import type { PaletteKey } from '@/scene/palette';
 import { type GeometryBatch, Templates } from './GeometryBatch';
+
+/** Приствольный круг — выше любого покрытия квартала (газоны ≤ 0.26). */
+const PIT_Y = 0.28;
+/** Основание изгородей, клумб и столбиков — уровень газона квартала. */
+const HEDGE_BASE_Y = 0.2;
+
+/** Детерминированный угол раскладки кроны от позиции дерева (без rng префабов). */
+function treeAngle(x: number, z: number): number {
+  const h = (Math.round(x * 10) * 73856093) ^ (Math.round(z * 10) * 19349663);
+  return ((h >>> 0) % 360) * (Math.PI / 180);
+}
 
 /** Малые формы: деревья, фонари, скамейки, фонтаны, памятники (FR-3.4, FR-3.5). */
 export class Props {
@@ -8,36 +20,198 @@ export class Props {
     private readonly m: Materials,
   ) {}
 
-  /** Дерево: ствол + крона (конус или шар). `kind` 0 — лиственное, 1 — хвойное. */
+  /**
+   * Дерево (FR-17.1): ствол с комлем, приствольный круг и объёмная крона.
+   * `kind` 0 — лиственное (три объёма двух оттенков), 1 — хвойное (три яруса),
+   * 2 — тополь (высокая узкая крона). Раскладка объёмов детерминирована позицией.
+   */
   tree(x: number, z: number, scale = 1, kind = 0): void {
     const b = this.batch;
+    const m = this.m;
     const trunkH = 1.6 * scale;
+    b.plane(x, PIT_Y, z, 1.6 * scale, 1.6 * scale, m.shade('ground', 0.72));
     b.place(
-      Templates.cylinder8,
+      Templates.taper8,
       x,
       trunkH / 2,
       z,
-      0.3 * scale,
+      0.36 * scale,
       trunkH,
-      0.3 * scale,
-      this.m.color('brick'),
+      0.36 * scale,
+      m.color('brick'),
     );
     if (kind === 1) {
-      const h = 4.5 * scale;
-      b.place(
-        Templates.cone8,
-        x,
-        trunkH + h / 2 - 0.2,
-        z,
-        1.6 * scale,
-        h,
-        1.6 * scale,
-        this.m.color('tree-dark'),
-      );
-    } else {
-      const r = 2 * scale;
-      b.place(Templates.sphereLow, x, trunkH + r - 0.3, z, r, r * 0.9, r, this.m.color('grass'));
+      const base = trunkH - 0.3 * scale;
+      const tiers: readonly (readonly [number, number, number])[] = [
+        [1.7, 2.3, 0],
+        [1.35, 2.1, 1.3],
+        [0.95, 1.9, 2.6],
+      ];
+      tiers.forEach(([r, h, dy], i) => {
+        b.place(
+          Templates.cone8,
+          x,
+          base + (dy + h / 2) * scale,
+          z,
+          r * scale,
+          h * scale,
+          r * scale,
+          i === 2 ? m.shade('tree-dark', 1.15) : m.color('tree-dark'),
+        );
+      });
+      return;
     }
+    if (kind === 2) {
+      const crownH = 6 * scale;
+      const crownR = 1.1 * scale;
+      b.place(
+        Templates.blob,
+        x,
+        trunkH + crownH / 2 - 0.3,
+        z,
+        crownR,
+        crownH / 2,
+        crownR,
+        m.color('grass'),
+      );
+      b.place(
+        Templates.blobLow,
+        x,
+        trunkH + crownH - 0.4,
+        z,
+        crownR * 0.55,
+        crownH * 0.16,
+        crownR * 0.55,
+        m.shade('grass', 1.12),
+      );
+      return;
+    }
+    const a = treeAngle(x, z);
+    const r = 1.9 * scale;
+    const cy = trunkH + r - 0.3;
+    b.place(Templates.blob, x, cy, z, r, r * 0.85, r, m.color('grass'));
+    b.place(
+      Templates.blobLow,
+      x + Math.cos(a) * r * 0.6,
+      cy - r * 0.15,
+      z + Math.sin(a) * r * 0.6,
+      r * 0.7,
+      r * 0.6,
+      r * 0.7,
+      m.shade('grass', 0.85),
+    );
+    b.place(
+      Templates.blobLow,
+      x - Math.cos(a) * r * 0.55,
+      cy + r * 0.1,
+      z - Math.sin(a) * r * 0.55,
+      r * 0.62,
+      r * 0.55,
+      r * 0.62,
+      m.shade('grass', 1.12),
+    );
+  }
+
+  /** Живая изгородь `w × d` (FR-17.3): тёмная подложка и светлый верх. */
+  hedge(x: number, z: number, w: number, d: number, rot = 0): void {
+    this.batch.box(x, HEDGE_BASE_Y + 0.45, z, w, 0.9, d, this.m.shade('grass', 0.75), rot);
+    this.batch.box(x, HEDGE_BASE_Y + 0.95, z, w - 0.3, 0.2, d - 0.3, this.m.color('grass'), rot);
+  }
+
+  /** Круглая клумба: каменный бордюр и цветной «ковёр». */
+  flowerBed(x: number, z: number, radius: number, color: PaletteKey = 'accent-red'): void {
+    const b = this.batch;
+    b.place(
+      Templates.cylinder16,
+      x,
+      HEDGE_BASE_Y + 0.2,
+      z,
+      radius,
+      0.4,
+      radius,
+      this.m.color('stone-light'),
+    );
+    b.place(
+      Templates.cylinder8,
+      x,
+      HEDGE_BASE_Y + 0.42,
+      z,
+      radius - 0.4,
+      0.3,
+      radius - 0.4,
+      this.m.color(color),
+    );
+  }
+
+  /** Козырёк входа: плита на четырёх стойках. */
+  canopy(x: number, z: number, w: number, d: number, height: number, rot = 0): void {
+    const b = this.batch;
+    const steel = this.m.color('steel');
+    b.box(x, height, z, w, 0.3, d, this.m.color('white'), rot);
+    const cos = Math.cos(rot);
+    const sin = Math.sin(rot);
+    for (const [sx, sz] of [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ] as const) {
+      const lx = sx * (w / 2 - 0.3);
+      const lz = sz * (d / 2 - 0.3);
+      b.box(
+        x + lx * cos + lz * sin,
+        height / 2,
+        z - lx * sin + lz * cos,
+        0.22,
+        height,
+        0.22,
+        steel,
+      );
+    }
+  }
+
+  /** Ряд столбиков от `(x1, z1)` до `(x2, z2)`. */
+  bollards(x1: number, z1: number, x2: number, z2: number, count: number): void {
+    const steel = this.m.color('steel');
+    for (let i = 0; i < count; i++) {
+      const t = count === 1 ? 0.5 : i / (count - 1);
+      const x = x1 + (x2 - x1) * t;
+      const z = z1 + (z2 - z1) * t;
+      this.batch.place(Templates.cylinder8, x, HEDGE_BASE_Y + 0.45, z, 0.16, 0.9, 0.16, steel);
+    }
+  }
+
+  /** Прожектор на низкой стойке, наклонённый в сторону `facing` (радианы). */
+  spotlight(x: number, z: number, facing = 0): void {
+    const b = this.batch;
+    b.box(x, 0.35, z, 0.6, 0.3, 0.6, this.m.color('roof-dark'));
+    b.box(x, 0.9, z, 0.14, 0.9, 0.14, this.m.color('steel'));
+    b.placeRotated(
+      Templates.box,
+      x,
+      1.45,
+      z,
+      0.55,
+      0.4,
+      0.55,
+      -0.7,
+      facing,
+      0,
+      this.m.color('steel'),
+    );
+    b.placeRotated(
+      Templates.box,
+      x + Math.sin(facing) * 0.24,
+      1.62,
+      z + Math.cos(facing) * 0.24,
+      0.4,
+      0.3,
+      0.12,
+      -0.7,
+      facing,
+      0,
+      this.m.color('yellow'),
+    );
   }
 
   /** Уличный фонарь. */

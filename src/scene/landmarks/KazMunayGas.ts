@@ -68,4 +68,20 @@ export function buildKazMunayGas(ctx: LandmarkContext): void {
   ctx.props.lamp(20, 20, 4);
   ctx.props.tree(-20, -20, 0.9, 1);
   ctx.props.tree(20, -20, 0.9, 1);
+
+  // Детали итерации 3 (FR-17.3): пилястры крыльев, золотой карниз арки, козырёк входа,
+  // планеры с клумбами и изгороди.
+  const white = m.color('white');
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 7; i++) {
+      b.box(side * 18.65, wingH / 2, -13 + i * 4.3, 0.4, wingH, 0.7, white);
+    }
+    for (let i = 0; i < 4; i++) {
+      b.box(side * (6.5 + i * 3.6), wingH / 2, 11.1, 0.7, wingH, 0.4, white);
+    }
+    ctx.props.hedge(side * 21.5, -2, 0.9, 20);
+    ctx.props.flowerBed(side * 9, 20, 1.5, 'gold');
+  }
+  b.box(0, wingH + 0.9, -2, 12.6, 0.5, wingD * 0.8 + 0.6, m.color('gold'));
+  ctx.props.canopy(0, 13.5, 8, 2.6, 4);
 }

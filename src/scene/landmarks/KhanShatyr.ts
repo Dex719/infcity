@@ -84,4 +84,25 @@ export function buildKhanShatyr(ctx: LandmarkContext): void {
   b.box(-6, 4, rz + 4.5, 1.2, 8, 1.2, white);
   b.box(6, 4, rz + 4.5, 1.2, 8, 1.2, white);
   b.box(0, 8.4, rz + 4.5, 13.4, 1, 1.4, m.color('gold'));
+
+  // Детали итерации 3 (FR-17.3): лента остекления подиума, козырёк, изгороди с клумбами, корона мачты.
+  g.place(
+    Templates.cylinder16,
+    0,
+    5.4,
+    0,
+    rx * 0.72 + 0.15,
+    2.2,
+    rz * 0.72 + 0.15,
+    m.color('glass-teal'),
+  );
+  ctx.props.canopy(0, 23.8, 8, 2.2, 3.4);
+  ctx.props.hedge(-13, 17.6, 12, 0.8);
+  ctx.props.hedge(13, 17.6, 12, 0.8);
+  ctx.props.flowerBed(-23, 5, 1.4, 'gold');
+  ctx.props.flowerBed(23, 5, 1.4, 'gold');
+  ctx.props.flowerBed(-23, -5, 1.4, 'accent-red');
+  ctx.props.flowerBed(23, -5, 1.4, 'accent-red');
+  b.place(Templates.cylinder16, apexX * 1.05, total - 1.4, 0, 1.6, 0.3, 1.6, m.color('gold'));
+  b.place(Templates.cylinder16, apexX * 1.05, total - 3.2, 0, 1.2, 0.25, 1.2, m.color('gold'));
 }

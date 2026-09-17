@@ -62,4 +62,43 @@ export function buildPyramid(ctx: LandmarkContext): void {
   }
   ctx.props.lamp(-19, 19, 4);
   ctx.props.lamp(19, 19, 4);
+
+  // Детали итерации 3 (FR-17.3): стеклянные ромбы на гранях, изгороди, столбики, прожекторы.
+  const slope = Math.atan(half / h); // наклон грани от вертикали
+  const faces: readonly (readonly [number, number, number, number])[] = [
+    // [nx, nz, rx, ry] — поворот тонкого бокса так, чтобы его нормаль совпала с нормалью грани
+    [0, 1, -slope, 0],
+    [0, -1, -(Math.PI - slope), 0],
+    [1, 0, -Math.PI / 2, Math.PI / 2 - slope],
+    [-1, 0, -Math.PI / 2, -(Math.PI / 2 - slope)],
+  ];
+  const t = 0.45;
+  const radial = half * (1 - t) + 0.2;
+  for (const [nx, nz, rx, ry] of faces) {
+    for (const lateral of [-4.2, 0, 4.2]) {
+      g.placeRotated(
+        Templates.box,
+        nx * radial + nz * lateral,
+        plinthH + h * t,
+        nz * radial + nx * lateral,
+        2.6,
+        2.6,
+        0.25,
+        rx,
+        ry,
+        Math.PI / 4,
+        m.color('glass-blue'),
+      );
+    }
+  }
+  for (const s of [-1, 1]) {
+    ctx.props.hedge(-12, s * 19, 8, 0.9);
+    ctx.props.hedge(12, s * 19, 8, 0.9);
+    ctx.props.hedge(s * 19, -12, 0.9, 8);
+    ctx.props.hedge(s * 19, 12, 0.9, 8);
+    ctx.props.bollards(-7, s * 23.2, 7, s * 23.2, 5);
+    ctx.props.bollards(s * 23.2, -7, s * 23.2, 7, 5);
+    ctx.props.spotlight(s * 23.5, -14, Math.atan2(-s * 23.5, 14));
+    ctx.props.spotlight(s * 23.5, 14, Math.atan2(-s * 23.5, -14));
+  }
 }

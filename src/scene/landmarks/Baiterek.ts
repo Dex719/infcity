@@ -96,4 +96,34 @@ export function buildBaiterek(ctx: LandmarkContext): void {
 
   // Золотой шар.
   b.place(Templates.sphere16, 0, sphereY, 0, sphereR, sphereR, sphereR, gold);
+
+  // Детали итерации 3 (FR-17.3): стеклянная шахта лифта, клумбы-«лепестки», прожекторы, изгороди.
+  const shaftH = crownBottom - 2.6;
+  g.box(0, 2.6 + shaftH / 2, 3.1, 1.4, shaftH, 0.5, m.color('glass-blue'));
+  b.box(-0.8, 2.6 + shaftH / 2, 3.1, 0.2, shaftH, 0.6, m.color('steel'));
+  b.box(0.8, 2.6 + shaftH / 2, 3.1, 0.2, shaftH, 0.6, m.color('steel'));
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+    ctx.props.flowerBed(
+      Math.cos(a) * 16.5,
+      Math.sin(a) * 16.5,
+      1.6,
+      i % 2 === 0 ? 'accent-red' : 'gold',
+    );
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const x = Math.cos(a) * 10.5;
+    const z = Math.sin(a) * 10.5;
+    ctx.props.spotlight(x, z, Math.atan2(-x, -z));
+  }
+  for (const [x, z] of [
+    [-18, -18],
+    [18, -18],
+    [-18, 18],
+    [18, 18],
+  ] as const) {
+    ctx.props.hedge(x, z - Math.sign(z) * 4.8, 9, 0.8);
+    ctx.props.hedge(x - Math.sign(x) * 4.8, z, 0.8, 9);
+  }
 }

@@ -56,4 +56,37 @@ export function buildHazretSultan(ctx: LandmarkContext): void {
   ctx.props.fountain(0, 22.5, 2);
   ctx.props.lamp(-14, 22, 4);
   ctx.props.lamp(14, 22, 4);
+
+  // Детали итерации 3 (FR-17.3): арочные окна корпуса, эмблемы куполов, сад с изгородями
+  // и клумбами, столбики у портала.
+  const g = ctx.glass;
+  const navy = m.color('glass-navy');
+  for (let i = 0; i < 5; i++) {
+    const p = -10 + i * 5;
+    g.box(p, 6, -16.06, 2, 4.5, 0.12, navy);
+    g.box(-16.06, 6, p, 0.12, 4.5, 2, navy);
+    g.box(16.06, 6, p, 0.12, 4.5, 2, navy);
+    if (p !== 0) {
+      g.box(p, 6, 16.06, 2, 4.5, 0.12, navy);
+    }
+    b.box(p, 8.6, -16.1, 2.4, 0.5, 0.2, gold);
+    b.box(-16.1, 8.6, p, 0.2, 0.5, 2.4, gold);
+    b.box(16.1, 8.6, p, 0.2, 0.5, 2.4, gold);
+  }
+  b.placeRotated(Templates.cylinder16, 0, bodyH + 16.7, 0, 0.8, 0.12, 0.8, Math.PI / 2, 0, 0, gold);
+  for (const [x, z] of [
+    [-11, -11],
+    [11, -11],
+    [-11, 11],
+    [11, 11],
+  ] as const) {
+    b.box(x, bodyH + 6.2, z, 0.15, 1.2, 0.15, gold);
+    b.placeRotated(Templates.cylinder16, x, bodyH + 7, z, 0.4, 0.1, 0.4, Math.PI / 2, 0, 0, gold);
+  }
+  ctx.props.hedge(-22.5, 0, 0.9, 24);
+  ctx.props.hedge(22.5, 0, 0.9, 24);
+  ctx.props.flowerBed(-8, 22.5, 1.5, 'accent-red');
+  ctx.props.flowerBed(8, 22.5, 1.5, 'accent-red');
+  ctx.props.bollards(-9, 20.2, -3, 20.2, 3);
+  ctx.props.bollards(3, 20.2, 9, 20.2, 3);
 }

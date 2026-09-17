@@ -159,28 +159,82 @@ export function buildCarriage(b: GeometryBatch, m: Materials): void {
   b.box(0, -0.3, 0, CARRIAGE_LENGTH - 1.5, 0.6, w - 0.8, m.color('roof-dark'));
 }
 
-/** Облако: скопление сплюснутых шаров. Два варианта силуэта. */
+type Blob = readonly [number, number, number, number];
+
+/** Силуэты облаков (FR-17.2): верхние объёмы и плоская тёмная подложка снизу. */
+const CLOUD_SHAPES: readonly { readonly top: readonly Blob[]; readonly base: readonly Blob[] }[] = [
+  {
+    // Кучевое.
+    top: [
+      [0, 0, 0, 5],
+      [4.5, 0.6, 1, 3.8],
+      [-4.2, 0.4, -0.5, 3.6],
+      [1.5, 1.8, -2.5, 3],
+      [-1.5, 1.4, 2.6, 2.8],
+      [2.8, 2.6, 0.5, 2.2],
+      [-2.6, 2.4, -1.4, 2],
+      [6.8, -0.2, -1, 2.4],
+    ],
+    base: [
+      [0, -0.6, 0, 4.6],
+      [4.4, -0.6, 1, 3.2],
+      [-4, -0.6, -0.5, 3],
+      [1, -0.6, -2.6, 2.4],
+    ],
+  },
+  {
+    // Крупное кучевое.
+    top: [
+      [0, 0.4, 0, 6],
+      [5.5, 0.6, 1.5, 4.2],
+      [-5.2, 0.2, -1, 4],
+      [2, 2.6, -3, 3.4],
+      [-2, 2.2, 3, 3.2],
+      [3.5, 3.8, 0.5, 2.6],
+      [-3.2, 3.4, -1.5, 2.4],
+      [8.8, -0.3, -0.5, 2.8],
+      [-8.4, -0.4, 1, 2.6],
+    ],
+    base: [
+      [0, -0.6, 0, 5.4],
+      [5.4, -0.6, 1.4, 3.6],
+      [-5.2, -0.6, -1, 3.4],
+      [8.6, -0.6, -0.4, 2.2],
+    ],
+  },
+  {
+    // Вытянутое слоистое.
+    top: [
+      [0, 0, 0, 3.8],
+      [5.5, 0.2, 0.6, 3.4],
+      [-5.5, 0.1, -0.4, 3.4],
+      [10.6, -0.3, 0.2, 2.8],
+      [-10.6, -0.2, 0, 2.8],
+      [2.5, 1.4, -1.2, 2.4],
+      [-3, 1.3, 1, 2.2],
+    ],
+    base: [
+      [0, -0.6, 0, 3.4],
+      [6, -0.6, 0.5, 3],
+      [-6, -0.6, -0.3, 3],
+      [11, -0.6, 0, 2.2],
+    ],
+  },
+];
+
+/** Облако (FR-7, FR-17.2): скопление сплюснутых шаров с тёмной подложкой; три силуэта. */
 export function buildCloud(b: GeometryBatch, m: Materials, variant: number): void {
+  const shape = CLOUD_SHAPES[variant % CLOUD_SHAPES.length] ?? CLOUD_SHAPES[0];
+  if (shape === undefined) {
+    return;
+  }
   const white = m.color('white');
-  const blobs: readonly (readonly [number, number, number, number])[] =
-    variant === 0
-      ? [
-          [0, 0, 0, 5],
-          [4.5, 0.6, 1, 3.8],
-          [-4.2, 0.4, -0.5, 3.6],
-          [1.5, 1.8, -2.5, 3],
-          [-1.5, 1.4, 2.6, 2.8],
-        ]
-      : [
-          [0, 0, 0, 4.2],
-          [3.8, 0.9, 0, 3.4],
-          [-3.6, 0.2, 1.4, 3.2],
-          [7, -0.3, 0.8, 2.6],
-          [-6.5, -0.2, -0.6, 2.4],
-          [1, 1.9, -2, 2.6],
-        ];
-  for (const [x, y, z, r] of blobs) {
-    b.place(Templates.sphereLow, x, y, z, r, r * 0.65, r, white);
+  const shadow = m.shade('white', 0.82);
+  shape.top.forEach(([x, y, z, r], i) => {
+    b.place(i < 2 ? Templates.sphereLow : Templates.blob, x, y, z, r, r * 0.65, r, white);
+  });
+  for (const [x, y, z, r] of shape.base) {
+    b.place(Templates.blobLow, x, y, z, r, r * 0.3, r, shadow);
   }
 }
 

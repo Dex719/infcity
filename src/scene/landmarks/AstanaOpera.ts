@@ -54,4 +54,32 @@ export function buildAstanaOpera(ctx: LandmarkContext): void {
   ctx.props.flagpole(21, 20, 9);
   ctx.props.tree(-19, -18, 1.0, 1);
   ctx.props.tree(19, -18, 1.0, 1);
+
+  // Детали итерации 3 (FR-17.3): скульптуры на фронтоне, окна сценической коробки,
+  // фонари вдоль лестницы, изгороди газонов.
+  const g = ctx.glass;
+  const gold = m.color('gold');
+  for (const [x, y] of [
+    [-13, bodyH + 2.1],
+    [13, bodyH + 2.1],
+    [0, bodyH + 5.5],
+  ] as const) {
+    b.box(x, y, front + 3, 0.8, 2, 0.8, gold);
+    b.place(Templates.sphereLow, x, y + 1.35, front + 3, 0.42, 0.42, 0.42, gold);
+  }
+  for (let i = 0; i < 3; i++) {
+    g.box(-10.06, 12, -13 + i * 3, 0.12, 3, 1.6, m.color('glass-navy'));
+    g.box(10.06, 12, -13 + i * 3, 0.12, 3, 1.6, m.color('glass-navy'));
+  }
+  for (let i = 0; i < 4; i++) {
+    g.box(-6 + i * 4, 12, -15.06, 1.8, 3, 0.12, m.color('glass-navy'));
+  }
+  ctx.props.lamp(-14, 15.5, 3);
+  ctx.props.lamp(14, 15.5, 3);
+  ctx.props.lamp(-10.5, 19.5, 3);
+  ctx.props.lamp(10.5, 19.5, 3);
+  for (const s of [-1, 1]) {
+    ctx.props.hedge(s * 16.2, -4, 0.8, 26);
+    ctx.props.hedge(s * 22.6, -4, 0.8, 26);
+  }
 }

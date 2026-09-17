@@ -1,5 +1,6 @@
 import { LANDMARKS } from '@/config';
 import type { PaletteKey } from '@/scene/palette';
+import { Templates } from '@/scene/procedural/GeometryBatch';
 import type { LandmarkContext } from './index';
 
 const LAWN_Y = 0.2;
@@ -57,4 +58,21 @@ export function buildAbuDhabiPlaza(ctx: LandmarkContext): void {
   ctx.props.fountain(0, 21.5, 2.2);
   ctx.props.bench(-6, 22.5, 0);
   ctx.props.bench(6, 22.5, 0);
+
+  // Детали итерации 3 (FR-17.3): ламели главной башни, вертолётная площадка, козырёк, планеры.
+  const white = m.color('white');
+  for (let i = 0; i < 5; i++) {
+    b.box(-11 + i * 2.5, total / 2, 1.15, 0.25, total - 2, 0.3, white);
+    b.box(1.15, total / 2, -11 + i * 2.5, 0.3, total - 2, 0.25, white);
+  }
+  b.place(Templates.cylinder16, 14, 6.75, -14, 4.5, 0.25, 4.5, m.color('roof-dark'));
+  b.place(Templates.cylinder16, 14, 6.92, -14, 3.6, 0.1, 3.6, white);
+  b.place(Templates.cylinder16, 14, 6.96, -14, 3.1, 0.1, 3.1, m.color('roof-dark'));
+  b.box(12.9, 7.04, -14, 0.5, 0.06, 3, white);
+  b.box(15.1, 7.04, -14, 0.5, 0.06, 3, white);
+  b.box(14, 7.04, -14, 1.7, 0.06, 0.5, white);
+  ctx.props.canopy(-12, 21.6, 8, 2.8, 4.5);
+  ctx.props.hedge(12, 22.2, 10, 1);
+  ctx.props.hedge(-22.2, 8, 1, 10);
+  ctx.props.hedge(22.2, -8, 1, 10);
 }

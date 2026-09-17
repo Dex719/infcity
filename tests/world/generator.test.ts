@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLOCKS, TRAFFIC, WORLD } from '@/config';
+import { BLOCKS, CLOUD, TRAFFIC, WORLD } from '@/config';
 import { Generator } from '@/world/Generator';
 import { hash32 } from '@/world/Hash';
 import { chebyshev } from '@/world/math';
@@ -175,7 +175,11 @@ describe('Generator — машины, облака, дороги, ЛРТ', () =>
       expect(Math.abs(cloud.z)).toBeLessThanOrEqual(WORLD.CHUNK_SIZE / 2);
       expect(cloud.speedMul).toBeGreaterThanOrEqual(1);
       expect(cloud.phase).toBeLessThan(1);
+      expect(cloud.model).toBeGreaterThanOrEqual(0);
+      expect(cloud.model).toBeLessThan(CLOUD.MODELS);
     }
+    // Три силуэта облаков реально используются (AC-17.2).
+    expect(new Set(clouds.map((c) => c.cloud?.model)).size).toBe(CLOUD.MODELS);
   });
 
   it('дороги и ЛРТ описаны в каждом чанке', () => {

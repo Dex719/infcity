@@ -45,4 +45,20 @@ export function buildTransportTower(ctx: LandmarkContext): void {
   ctx.props.tree(-20, -18, 1.0);
   ctx.props.tree(20, -18, 1.0);
   ctx.props.fountain(0, 18, 2.4);
+
+  // Детали итерации 3 (FR-17.3): козырёк входа, стеклянное «ребро» башни, изгороди, прожекторы.
+  ctx.props.canopy(0, 13.4, 8, 2.6, 4.2);
+  ctx.glass.box(0, bodyH / 2, 4.2, 2.4, bodyH - 1, 0.5, m.color('glass-teal'));
+  b.box(-1.4, bodyH / 2, 4.2, 0.2, bodyH - 1, 0.6, m.color('steel'));
+  b.box(1.4, bodyH / 2, 4.2, 0.2, bodyH - 1, 0.6, m.color('steel'));
+  ctx.props.hedge(-15.8, -2, 0.9, 20);
+  ctx.props.hedge(15.8, -2, 0.9, 20);
+  for (const [x, z] of [
+    [-16.5, -13.5],
+    [16.5, -13.5],
+    [-16.5, 13.5],
+    [16.5, 13.5],
+  ] as const) {
+    ctx.props.spotlight(x, z, Math.atan2(-x, -2 - z));
+  }
 }

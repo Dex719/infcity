@@ -55,4 +55,40 @@ export function buildNurAlem(ctx: LandmarkContext): void {
   }
   ctx.props.lamp(-14, 20, 4);
   ctx.props.lamp(14, 20, 4);
+
+  // Детали итерации 3 (FR-17.3): меридианы сферы, ряд флагов Expo, окна павильонов,
+  // вывеска EXPO на подиуме, клумбы у лестницы.
+  const white = m.color('white');
+  const levels = [-8, -3, 3, 9];
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 16;
+    for (let k = 0; k < levels.length - 1; k++) {
+      const y0 = levels[k] ?? 0;
+      const y1 = levels[k + 1] ?? 0;
+      const r0 = Math.sqrt(r * r - y0 * y0) + 0.3;
+      const r1 = Math.sqrt(r * r - y1 * y1) + 0.3;
+      b.strut(
+        Math.cos(a) * r0,
+        centerY + y0,
+        Math.sin(a) * r0,
+        Math.cos(a) * r1,
+        centerY + y1,
+        Math.sin(a) * r1,
+        0.28,
+        white,
+      );
+    }
+  }
+  for (let i = 0; i < 6; i++) {
+    ctx.props.flagpole(-12.5 + i * 5, -23, 7);
+  }
+  for (const side of [-1, 1]) {
+    g.box(side * 23.06, 2.6, 2, 0.12, 2.2, 10, m.color('glass-navy'));
+    g.box(side * 19, 2.6, 8.06, 6, 2.2, 0.12, m.color('glass-navy'));
+  }
+  for (let i = 0; i < 4; i++) {
+    b.box(-4.5 + i * 3, 4.2, 13.2, 2.2, 1.6, 0.3, m.color('gold'));
+  }
+  ctx.props.flowerBed(-10, 18, 1.5, 'accent-red');
+  ctx.props.flowerBed(10, 18, 1.5, 'accent-red');
 }

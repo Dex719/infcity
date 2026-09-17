@@ -84,4 +84,20 @@ export function buildMegaSilkWay(ctx: LandmarkContext): void {
   ctx.props.flagpole(21, 5, 9);
   ctx.props.lamp(-22, 22, 5);
   ctx.props.lamp(22, 22, 5);
+
+  // Детали итерации 3 (FR-17.3): световые фонари на волнах крыши, вывеска MEGA на крыше,
+  // остановка у парковки, изгороди.
+  for (let i = 0; i < 6; i++) {
+    const x = body.x - body.w / 2 + 3.7 + i * 7.3;
+    g.box(x, h + 3.05, body.z, 1.6, 0.16, body.d - 6, m.color('glass-teal'));
+  }
+  b.box(-11.2, h + 4.6, body.z - 6.3, 14, 2.6, 0.2, white);
+  for (let i = 0; i < 4; i++) {
+    b.box(-16 + i * 3.2, h + 4.6, body.z - 6, 2.4, 2.2, 0.4, m.color('accent-red'));
+  }
+  b.box(-16.6, h + 3.8, body.z - 6, 0.3, 1.6, 0.3, m.color('steel'));
+  b.box(-5.8, h + 3.8, body.z - 6, 0.3, 1.6, 0.3, m.color('steel'));
+  ctx.props.busStop(-23.5, -16, Math.PI / 2);
+  ctx.props.hedge(-14, 7.6, 14, 0.8);
+  ctx.props.hedge(14, 7.6, 14, 0.8);
 }

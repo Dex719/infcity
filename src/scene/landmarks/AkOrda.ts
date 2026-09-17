@@ -53,4 +53,30 @@ export function buildAkOrda(ctx: LandmarkContext): void {
   ctx.props.lamp(20, 20, 4);
   ctx.props.tree(-21, 12, 0.9, 1);
   ctx.props.tree(21, 12, 0.9, 1);
+
+  // Детали итерации 3 (FR-17.3): ряды окон, золотое кольцо купола, балюстрада крыши, клумбы.
+  const g = ctx.glass;
+  const navy = m.color('glass-navy');
+  for (const y of [5, 11]) {
+    for (let i = 0; i < 6; i++) {
+      g.box(-10 + i * 4, y, -13.06, 2.2, 3, 0.12, navy);
+    }
+    for (let i = 0; i < 4; i++) {
+      g.box(-15.06, y, -10 + i * 3.5, 0.12, 3, 2, navy);
+      g.box(15.06, y, -10 + i * 3.5, 0.12, 3, 2, navy);
+    }
+  }
+  for (let i = 0; i < 3; i++) {
+    g.box(-23.06, 5, -10 + i * 4.5, 0.12, 2.6, 2, navy);
+    g.box(23.06, 5, -10 + i * 4.5, 0.12, 2.6, 2, navy);
+  }
+  b.place(Templates.cylinder16, 0, bodyH + drumH + 0.2, -4, 7.4, 0.4, 7.4, gold);
+  b.box(0, bodyH + 1, -13.2, 31, 0.6, 0.4, white);
+  b.box(-15.3, bodyH + 1, -4, 0.4, 0.6, 18, white);
+  b.box(15.3, bodyH + 1, -4, 0.4, 0.6, 18, white);
+  for (let i = 0; i < 12; i++) {
+    b.box(-13.75 + i * 2.5, bodyH + 0.6, -13.2, 0.3, 0.6, 0.3, white);
+  }
+  ctx.props.flowerBed(-7, 15, 1.6, 'accent-red');
+  ctx.props.flowerBed(7, 15, 1.6, 'accent-red');
 }

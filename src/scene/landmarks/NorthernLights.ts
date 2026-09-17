@@ -28,6 +28,16 @@ function waveTower(
   const top = floors * FLOOR;
   const shift = Math.sin(floors * 0.45 + phase) * 1.3;
   b.box(x + shift, top + 0.4, z, w * 0.7, 0.8, w * 0.7, m.color('white'));
+  // Корона: шпиль и четыре стойки по углам верхней плиты (FR-17.3).
+  b.box(x + shift, top + 2.6, z, 0.3, 3.6, 0.3, m.color('steel'));
+  for (const [sx, sz] of [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+  ] as const) {
+    b.box(x + shift + sx * w * 0.3, top + 1.4, z + sz * w * 0.3, 0.25, 1.2, 0.25, m.color('white'));
+  }
 }
 
 /** ЖК «Северное сияние» (FR-15.2): три волнистые стеклянные башни разной высоты на подиуме. */
@@ -50,4 +60,12 @@ export function buildNorthernLights(ctx: LandmarkContext): void {
   ctx.props.lamp(21, 21, 4);
   ctx.props.bench(-4, 17, 0);
   ctx.props.bench(4, 17, 0);
+
+  // Детали итерации 3 (FR-17.3): козырёк входа, клумбы во дворе, прожекторы на башни.
+  ctx.props.canopy(0, 16.2, 6, 2.4, 3.6);
+  for (let i = 0; i < 4; i++) {
+    ctx.props.flowerBed(-12 + i * 8, 21.8, 1.3, i % 2 === 0 ? 'accent-red' : 'gold');
+  }
+  ctx.props.spotlight(-22.5, 12, Math.atan2(22.5, -12));
+  ctx.props.spotlight(22.5, 12, Math.atan2(-22.5, -12));
 }

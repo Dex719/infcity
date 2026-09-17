@@ -112,7 +112,10 @@ function scatterTrees(ctx: Ctx, count: number, avoid: (x: number, z: number) => 
     if (avoid(x, z)) {
       continue;
     }
-    ctx.props.tree(x, z, between(ctx.rng, 0.8, 1.3), ctx.rng() < 0.3 ? 1 : 0);
+    const scale = between(ctx.rng, 0.8, 1.3);
+    const roll = ctx.rng();
+    // Тот же бросок, что и раньше: хвойное / тополь / лиственное (FR-17.1).
+    ctx.props.tree(x, z, scale, roll < 0.25 ? 1 : roll < 0.4 ? 2 : 0);
     placed++;
   }
 }
