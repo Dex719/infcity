@@ -10,7 +10,7 @@ function radarCar(
   dirZ: number,
   local = { x: 0, z: 0 },
 ): RadarCar {
-  return { wx, wz, dirX, dirZ, x: local.x, z: local.z, halfLength: 2, detected: null };
+  return { wx, wz, dirX, dirZ, x: local.x, z: local.z, halfLength: 2, speed: 0, detected: null };
 }
 
 describe('detects — радар (FR-6.2)', () => {
@@ -24,9 +24,18 @@ describe('detects — радар (FR-6.2)', () => {
     const self = radarCar(0, 0, 1, 0);
     expect(detects(self, radarCar(-10, 0, 1, 0))).toBe(false);
     expect(detects(self, radarCar(0, -8, 1, 0))).toBe(false); // слева
-    expect(detects(self, radarCar(0, 8, 0, 1))).toBe(true); // справа
+    expect(detects(self, radarCar(0, 8, 0, -1))).toBe(true); // справа, едет к моей линии
     expect(detects(self, radarCar(8, 8, 0, -1))).toBe(true); // впереди-справа
     expect(detects(self, radarCar(8, -8, 0, 1))).toBe(false); // впереди-слева
+  });
+
+  it('поперечная машина, уже проехавшая точку пересечения, не держит радар (AC-6.2)', () => {
+    const self = radarCar(0, 0, 1, 0);
+    // Справа, но удаляется от моей линии (+z): столкновение невозможно.
+    expect(detects(self, radarCar(0, 8, 0, 1))).toBe(false);
+    expect(detects(self, radarCar(6, 4, 0, 1))).toBe(false);
+    // Та же точка, но едет к моей линии — видна.
+    expect(detects(self, radarCar(6, 4, 0, -1))).toBe(true);
   });
 
   it('взаимная блокировка не считается: если он уже видит меня, я его не вижу', () => {
@@ -84,7 +93,7 @@ describe('Car.sense — торможение, разгон, anti-deadlock (AC-6.
       car.update(1 / 60);
       blocker.x = car.x + 6; // держим препятствие впереди
     }
-    expect(car.stuckSeconds).toBeGreaterThanOrEqual(TRAFFIC.DEADLOCK_TIMEOUT);
+    expect(car.blockedSeconds).toBeGreaterThanOrEqual(TRAFFIC.DEADLOCK_TIMEOUT);
     expect(car.speed).toBeCloseTo(TRAFFIC.MAX_SPEED * TRAFFIC.DEADLOCK_MIN_SPEED_FACTOR, 5);
   });
 

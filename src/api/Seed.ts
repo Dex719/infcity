@@ -16,7 +16,10 @@ export interface AppFlags {
   readonly seedGenerated: boolean;
   /** Seed был недопустимым и приведён к допустимому виду (FR-2.4). */
   readonly seedNormalized: boolean;
+  /** `window.__app` установлен (`?debug=1` или `?debug=api`). */
   readonly debug: boolean;
+  /** Визуальный debug-оверлей (`?debug=1`). */
+  readonly debugOverlay: boolean;
   readonly season: Season;
   readonly gpu: boolean;
   readonly quality: Quality | null;
@@ -79,7 +82,8 @@ export function parseFlags(search: string, random?: () => number): AppFlags {
     seed,
     seedGenerated: normalized === null,
     seedNormalized: normalized?.normalized ?? false,
-    debug: params.get('debug') === '1',
+    debug: params.get('debug') === '1' || params.get('debug') === 'api',
+    debugOverlay: params.get('debug') === '1',
     season: params.get('season') === 'winter' ? 'winter' : 'summer',
     gpu: params.get('gpu') === '1',
     quality,

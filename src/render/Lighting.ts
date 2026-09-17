@@ -34,6 +34,19 @@ export class Lighting {
     this.resize(1);
   }
 
+  /** Смена разрешения карты теней на лету (автопонижение, TSK-060). */
+  setShadowResolution(size: number): void {
+    const shadow = this.sun.shadow;
+    if (shadow.mapSize.x === size && shadow.mapSize.y === size) {
+      return;
+    }
+    shadow.mapSize.set(size, size);
+    if (shadow.map !== null) {
+      shadow.map.dispose();
+      shadow.map = null;
+    }
+  }
+
   /** Ортофрустум тени зависит от соотношения сторон, как в референсе (design C12). */
   resize(aspect: number): void {
     const c = RENDER.SHADOW_CAMERA;

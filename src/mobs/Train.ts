@@ -16,7 +16,7 @@ export const CARRIAGES = 3;
 
 /**
  * Поезд ЛРТ (FR-5.3–5.6, design C10): едет по своей нитке эстакады, у станции тормозит,
- * стоит 3–5 с и разгоняется; при сближении с поездом впереди ближе одного чанка притормаживает.
+ * стоит 3–5 с и разгоняется; ближе `TRAIN_SEPARATION` до поезда впереди — останавливается.
  */
 export class Train extends MobileObject {
   state: TrainState = 'moving';
@@ -54,14 +54,15 @@ export class Train extends MobileObject {
   /** `leader` — расстояние до поезда впереди на той же нитке (юниты) или `Infinity`. */
   step(dt: number, leaderDistance: number): void {
     const accel = TRAIN.MAX_SPEED * dt; // разгон/торможение за ~1 с
-    const separation = WORLD.CHUNK_SIZE;
+    const separation = TRAIN_SEPARATION;
     switch (this.state) {
       case 'moving': {
         const ahead = this.stationAhead();
         if (ahead !== null && ahead <= TRAIN.BRAKE_DISTANCE) {
           this.state = 'braking';
         } else if (leaderDistance < separation) {
-          this.speed = Math.max(TRAIN.MAX_SPEED * 0.4, this.speed - accel);
+          // Интервал ≥ 4 чанков (AC-5.4): у границы — остановка, а не ползучий ход.
+          this.speed = Math.max(0, this.speed - accel);
         } else {
           this.speed = Math.min(TRAIN.MAX_SPEED, this.speed + accel);
         }
@@ -118,3 +119,6 @@ export class Train extends MobileObject {
 
 /** Период спавна поездов по gx (чанков); в окне 9 — 1…2 поезда на нитку (AC-5.4). */
 export const TRAIN_SPAWN_PERIOD = 5;
+
+/** Минимальный интервал до поезда впереди на той же нитке, юниты (4,5 чанка, AC-5.4). */
+export const TRAIN_SEPARATION = WORLD.CHUNK_SIZE * 4.5;

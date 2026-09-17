@@ -58,6 +58,7 @@ export class DebugOverlay {
       `emptySlots=${String(s.emptySlots)}  builds=${String(s.builds)}  cacheHits=${String(s.cacheHits)}`,
       `genErrors=${String(s.generatorErrors)}  buildErrors=${String(s.buildErrors)}  paused=${String(this.app.isPaused)}`,
       `cars=${String(s.mobs.cars)}  trains=${String(s.mobs.trains)}  clouds=${String(s.mobs.clouds)}  stuck=${String(s.mobs.stuckCars)}`,
+      `quality=L${String(s.quality.level)} ${s.quality.steps.join('>') || '-'}  shadow=${String(s.quality.shadowResolution)}  dpr<=${String(s.quality.maxDpr)}  pCar=${String(s.quality.carProbability)}`,
     ].join('\n');
   }
 

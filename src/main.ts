@@ -54,6 +54,8 @@ async function bootstrap(): Promise<void> {
 
   if (flags.debug) {
     installDebugApi(app);
+  }
+  if (flags.debugOverlay) {
     const overlay = new DebugOverlay(app);
     const refresh = (): void => {
       overlay.update();

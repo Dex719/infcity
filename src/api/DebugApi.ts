@@ -1,4 +1,6 @@
-import type { App, AppStats } from '@/app/App';
+import type { App, AppStats, CityPoint } from '@/app/App';
+import type { CarSnapshot } from '@/mobs/MobSystem';
+import type { DowngradeStep } from '@/render/Quality';
 import type { ChunkDescriptor } from '@/world/types';
 
 /** `window.__app` в debug-режиме (design → API Design, FR-12.3). */
@@ -11,6 +13,21 @@ export interface DebugApi {
   pan(dxPx: number, dyPx: number): void;
   centerOn(gx: number, gy: number): void;
   step(dt: number): void;
+  /** Ускоренное время без рендера (TSK-062). */
+  simulate(seconds: number, dt?: number): void;
+  /** Пересекающиеся пары машин в окне (AC-6.1). */
+  overlaps(): number;
+  /** Пересоздать мобов из дескрипторов — детерминированный кадр (AC-9.1). */
+  resetMobs(): void;
+  /** Снимки машин: позиция, скорость, радар, время простоя (AC-6.2). */
+  cars(): CarSnapshot[];
+  /** Поезда в окне: чанк, локальная позиция, направление, состояние (AC-5.4). */
+  trains(): { gx: number; gy: number; x: number; dirX: number; state: string }[];
+  /** Точка города под пикселем и обратная проекция (AC-8.1). */
+  groundAt(px: number, py: number): CityPoint | null;
+  project(point: CityPoint): { x: number; y: number };
+  /** Ручной шаг автопонижения (TSK-060). */
+  downgrade(): DowngradeStep | null;
   pause(): void;
   resume(): void;
 }
@@ -34,6 +51,15 @@ export function installDebugApi(app: App, target: Window = window): DebugApi {
     pan: (dx, dy) => app.pan.panByPixels(dx, dy),
     centerOn: (gx, gy) => app.centerOn(gx, gy),
     step: (dt) => app.step(dt),
+    simulate: (seconds, dt) => app.simulate(seconds, dt),
+    overlaps: () => app.mobs.overlaps(),
+    resetMobs: () => app.mobs.reset(),
+    cars: () => app.mobs.carSnapshots(),
+    trains: () =>
+      app.mobs.allTrains.map((t) => ({ gx: t.gx, gy: t.gy, x: t.x, dirX: t.dirX, state: t.state })),
+    groundAt: (px, py) => app.cityPointAt(px, py),
+    project: (point) => app.screenPointOf(point),
+    downgrade: () => app.quality.downgrade(),
     pause: () => app.pause(),
     resume: () => app.resume(),
   };

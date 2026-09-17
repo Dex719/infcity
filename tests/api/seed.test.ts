@@ -55,6 +55,7 @@ describe('generateSeed / parseFlags (FR-2.2, design → URL)', () => {
       seedGenerated: false,
       seedNormalized: true,
       debug: false,
+      debugOverlay: false,
       season: 'winter',
       gpu: true,
       quality: 'low',

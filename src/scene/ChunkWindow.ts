@@ -46,6 +46,11 @@ export class ChunkWindow {
   private buildsTotal = 0;
   private cacheHits = 0;
   private buildErrorsTotal = 0;
+  private prefetchesTotal = 0;
+  /** Смещения кольца вокруг окна (Chebyshev = half + 1), ближние первыми. */
+  private readonly ring: readonly (readonly [number, number])[];
+  /** Префетч включён, только если кэш вмещает окно и кольцо целиком. */
+  private readonly prefetchEnabled: boolean;
 
   constructor(
     readonly generator: Generator,
@@ -67,6 +72,17 @@ export class ChunkWindow {
         this.slots.push({ cx, cy, holder, key: null, node: null });
       }
     }
+    const ring: [number, number][] = [];
+    for (let cy = -half - 1; cy <= half + 1; cy++) {
+      for (let cx = -half - 1; cx <= half + 1; cx++) {
+        if (Math.max(Math.abs(cx), Math.abs(cy)) === half + 1) {
+          ring.push([cx, cy]);
+        }
+      }
+    }
+    ring.sort((a, b) => a[0] * a[0] + a[1] * a[1] - (b[0] * b[0] + b[1] * b[1]));
+    this.ring = ring;
+    this.prefetchEnabled = cacheCapacity >= this.slots.length + ring.length;
   }
 
   /** Ставит окно на чанк `(gx, gy)`; корень остаётся на месте. */
@@ -102,7 +118,31 @@ export class ChunkWindow {
       this.attach(slot, node);
       built++;
     }
+    // Свободный бюджет кадра — на префетч кольца вокруг окна: при сдвиге новые слоты
+    // берутся из кэша, и плейсхолдеров в кадре нет (AC-1.2).
+    while (built < perFrame && this.prefetchEnabled) {
+      const descriptor = this.nextPrefetch();
+      if (descriptor === null) {
+        break;
+      }
+      this.buildsTotal++;
+      this.prefetchesTotal++;
+      this.remember(descriptor.key, this.buildSafely(descriptor));
+      built++;
+    }
     return built;
+  }
+
+  /** Первый ещё не собранный чанк кольца вокруг окна или `null`. */
+  private nextPrefetch(): ChunkDescriptor | null {
+    for (const [cx, cy] of this.ring) {
+      const gx = this.gridCoords.x + cx;
+      const gy = this.gridCoords.y + cy;
+      if (!this.built.has(Generator.key(gx, gy))) {
+        return this.generator.describe(gx, gy);
+      }
+    }
+    return null;
   }
 
   /**
@@ -174,6 +214,7 @@ export class ChunkWindow {
     cached: number;
     queued: number;
     buildErrors: number;
+    prefetches: number;
   } {
     return {
       builds: this.buildsTotal,
@@ -181,6 +222,7 @@ export class ChunkWindow {
       cached: this.built.size,
       queued: this.queue.length,
       buildErrors: this.buildErrorsTotal,
+      prefetches: this.prefetchesTotal,
     };
   }
 
@@ -197,6 +239,8 @@ export class ChunkWindow {
         this.events.emit('enter', { key, descriptor: this.generator.describe(gx, gy) });
       }
       if (slot.key === key && slot.node !== null && !slot.node.placeholder) {
+        // Освежаем позицию в LRU: чанки окна вытесняются последними.
+        this.remember(key, slot.node);
         continue;
       }
       const cached = this.built.get(key);

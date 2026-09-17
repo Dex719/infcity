@@ -28,9 +28,15 @@ export const LANES: readonly Lane[] = [
 
 export const HALF_CHUNK = WORLD.CHUNK_SIZE / 2;
 
-/** Локальная стартовая позиция машины на полосе: `t ∈ [0,1)` — доля длины чанка. */
+/** Диапазон стартовых позиций вдоль полосы (вне перекрёстка), юниты. */
+export const SPAWN_FROM = -14;
+export const SPAWN_TO = 24;
+
+/** Локальная стартовая позиция машины на полосе: `t ∈ [0,1)` — доля диапазона спавна. */
 export function laneStart(lane: Lane, t: number): { x: number; z: number } {
-  const along = -HALF_CHUNK + t * WORLD.CHUNK_SIZE;
+  // Зона перекрёстка [-30, -20] и запас под самую длинную модель: машины не спавнятся
+  // друг в друге на пересечении полос (AC-6.1), а соседние чанки дают зазор ≥ 20 юнитов.
+  const along = SPAWN_FROM + t * (SPAWN_TO - SPAWN_FROM);
   return lane.axis === 'x' ? { x: along, z: lane.offset } : { x: lane.offset, z: along };
 }
 

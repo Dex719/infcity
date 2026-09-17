@@ -47,7 +47,8 @@ describe('ChunkWindow (FR-1, design C6)', () => {
       expect(cw.update()).toBeLessThanOrEqual(WORLD.BUILD_PER_FRAME);
     }
     expect(cw.emptySlots()).toBe(0);
-    expect(builder.builds).toBe(81);
+    expect(cw.stats.builds - cw.stats.prefetches).toBe(81);
+    expect(builder.builds).toBeGreaterThanOrEqual(81);
     const center = cw.chunkAt(0, 0);
     expect(center?.descriptor.key).toBe('0,0');
     expect(cw.chunkAt(0, -1)?.descriptor.landmark).toBe('baiterek');
@@ -62,28 +63,42 @@ describe('ChunkWindow (FR-1, design C6)', () => {
   });
 
   it('move(1,0): gridCoords сдвигается, пересобираются только 9 новых чанков', () => {
-    const { cw, builder } = makeWindow();
+    const { cw } = makeWindow();
     cw.setCenter(0, 0);
     cw.update(81);
     cw.move(1, 0);
     expect(cw.gridCoords).toEqual({ x: 1, y: 0 });
     expect(cw.emptySlots()).toBe(9);
     cw.update(81);
-    expect(builder.builds).toBe(90);
+    expect(cw.stats.builds - cw.stats.prefetches).toBe(90);
     expect(cw.chunkAt(5, 0)?.descriptor.key).toBe('5,0');
     expect(cw.chunkAt(-4, 0)).toBeUndefined();
   });
 
   it('возврат назад берёт чанки из LRU без пересборки', () => {
-    const { cw, builder } = makeWindow();
+    const { cw } = makeWindow();
     cw.setCenter(0, 0);
     cw.update(81);
     cw.move(1, 0);
     cw.update(81);
     cw.move(-1, 0);
     expect(cw.emptySlots()).toBe(0);
-    expect(builder.builds).toBe(90);
+    expect(cw.stats.builds - cw.stats.prefetches).toBe(90);
     expect(cw.stats.cacheHits).toBeGreaterThanOrEqual(9);
+  });
+
+  it('префетч кольца: после сборки окна и кольца сдвиг не оставляет пустых слотов (AC-1.2)', () => {
+    const { cw } = makeWindow();
+    cw.setCenter(0, 0);
+    cw.update(81);
+    expect(cw.stats.prefetches).toBe(0);
+    cw.update(40);
+    expect(cw.stats.prefetches).toBe(40);
+    cw.move(1, 0);
+    expect(cw.emptySlots()).toBe(0);
+    cw.move(0, 1);
+    expect(cw.emptySlots()).toBe(0);
+    expect(cw.stats.cacheHits).toBeGreaterThanOrEqual(18);
   });
 
   it('ноды окна остаются детьми своих слотов, слот держит ровно один чанк', () => {

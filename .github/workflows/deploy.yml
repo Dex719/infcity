@@ -1,21 +1,22 @@
-name: CI
+name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  verify:
-    name: lint / test / build
+  build:
+    name: build + e2e smoke
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,7 +37,7 @@ jobs:
       - name: Unit tests
         run: npm run test
 
-      - name: Build
+      - name: Build (dist/, ассеты с хешем в имени)
         run: npm run build
 
       - name: Install Playwright Chromium
@@ -45,10 +46,19 @@ jobs:
       - name: E2E smoke (Chromium, без сравнения эталонов)
         run: npx playwright test --project=chromium --ignore-snapshots
 
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: playwright-report
-          path: playwright-report
-          retention-days: 7
+          path: dist
+
+  deploy:
+    name: deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

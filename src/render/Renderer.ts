@@ -52,6 +52,12 @@ export class Renderer {
     this.gl.setClearColor(new Color(hex));
   }
 
+  /** Ограничение DPR на лету (автопонижение, TSK-060). */
+  setPixelRatio(maxRatio: number): void {
+    this.gl.setPixelRatio(Math.min(window.devicePixelRatio, maxRatio));
+    this.gl.setSize(this.width, this.height, false);
+  }
+
   setSize(width: number, height: number): void {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
