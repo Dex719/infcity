@@ -43,7 +43,7 @@ export class PanControls extends Emitter<PanEvents> {
   private readonly dragOrigin = new Vector3();
   private readonly targetAtDragStart = new Vector3();
   private readonly scratch = new Vector3();
-  private readonly lastFrameTarget = new Vector3();
+  private readonly previousTarget = new Vector3();
   private dragging = false;
   private lastPointer: PointerPoint | null = null;
 
@@ -54,7 +54,6 @@ export class PanControls extends Emitter<PanEvents> {
   ) {
     super();
     this.target.copy(root.position);
-    this.lastFrameTarget.copy(this.target);
     input.on('dragstart', (point) => this.onDragStart(point));
     input.on('drag', (point) => this.onDrag(point));
     input.on('dragend', () => this.onDragEnd());
@@ -78,7 +77,7 @@ export class PanControls extends Emitter<PanEvents> {
       return;
     }
     if (this.dragging && this.lastPointer !== null) {
-      this.followPointer(this.lastPointer);
+      this.followPointer(this.lastPointer, dt);
     } else {
       this.applyKeys(dt);
       this.applyInertia(dt);
@@ -102,7 +101,6 @@ export class PanControls extends Emitter<PanEvents> {
     this.dragOrigin.copy(ground);
     this.targetAtDragStart.copy(this.target);
     this.velocity.set(0, 0, 0);
-    this.lastFrameTarget.copy(this.target);
   }
 
   private onDrag(point: PointerPoint): void {
@@ -114,25 +112,33 @@ export class PanControls extends Emitter<PanEvents> {
   private onDragEnd(): void {
     this.dragging = false;
     this.lastPointer = null;
+    const speed = this.velocity.length();
+    if (speed > PAN.MAX_INERTIA_SPEED) {
+      this.velocity.multiplyScalar(PAN.MAX_INERTIA_SPEED / speed);
+    }
   }
 
-  private followPointer(point: PointerPoint): void {
+  /**
+   * Точка земли под указателем следует за указателем; скорость цели оценивается
+   * экспоненциальным средним, чтобы один «рывок» событий не давал огромной инерции.
+   */
+  private followPointer(point: PointerPoint, dt: number): void {
     const ground = this.groundAt(point);
     if (ground === null) {
       return;
     }
-    this.lastFrameTarget.copy(this.target);
+    this.previousTarget.copy(this.target);
     this.target.copy(this.targetAtDragStart).add(ground.sub(this.dragOrigin));
+    if (dt > 0) {
+      this.scratch.subVectors(this.target, this.previousTarget).divideScalar(dt);
+      this.velocity.lerp(this.scratch, 1 - Math.exp(-dt / PAN.VELOCITY_TAU));
+    }
   }
 
-  /** Скорость отпускания оценивается по последнему перемещению цели за кадр. */
+  /** Выбег после отпускания: экспоненциальное затухание скорости (FR-8.1). */
   private applyInertia(dt: number): void {
     if (dt <= 0) {
       return;
-    }
-    if (this.velocity.lengthSq() === 0 && this.lastFrameTarget.distanceToSquared(this.target) > 0) {
-      this.velocity.subVectors(this.target, this.lastFrameTarget).divideScalar(dt);
-      this.lastFrameTarget.copy(this.target);
     }
     if (this.velocity.length() < PAN.INERTIA_STOP_SPEED) {
       this.velocity.set(0, 0, 0);
@@ -142,7 +148,6 @@ export class PanControls extends Emitter<PanEvents> {
     this.scratch.copy(this.velocity).multiplyScalar(PAN.INERTIA_TAU * (1 - decay));
     this.target.add(this.scratch);
     this.velocity.multiplyScalar(decay);
-    this.lastFrameTarget.copy(this.target);
   }
 
   private applyKeys(dt: number): void {
@@ -166,7 +171,6 @@ export class PanControls extends Emitter<PanEvents> {
     this.target.x -= (kx + ky) * SQRT_HALF * step;
     this.target.z -= (ky - kx) * SQRT_HALF * step;
     this.velocity.set(0, 0, 0);
-    this.lastFrameTarget.copy(this.target);
   }
 
   /** Центр экрана всегда в центральном слоте: иначе сдвигаем всё на целые чанки. */
@@ -190,8 +194,8 @@ export class PanControls extends Emitter<PanEvents> {
     this.target.z += shiftZ;
     this.targetAtDragStart.x += shiftX;
     this.targetAtDragStart.z += shiftZ;
-    this.lastFrameTarget.x += shiftX;
-    this.lastFrameTarget.z += shiftZ;
+    this.previousTarget.x += shiftX;
+    this.previousTarget.z += shiftZ;
     this.emit('move', { dx, dy });
   }
 

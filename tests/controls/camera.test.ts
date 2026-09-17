@@ -57,4 +57,3 @@ describe('CameraRig (FR-8.2, design C11)', () => {
     expect((far?.length() ?? 0) > (near?.length() ?? 0)).toBe(true);
   });
 });
-});
