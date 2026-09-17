@@ -4,7 +4,7 @@ import { installDebugApi } from '@/api/DebugApi';
 import { parseFlags, syncSeedToLocation } from '@/api/Seed';
 import { App } from '@/app/App';
 import { retry } from '@/app/retry';
-import { UI } from '@/config';
+import { RENDER, UI } from '@/config';
 import { detectProfile } from '@/render/Profile';
 import { Renderer } from '@/render/Renderer';
 import { loadPalette } from '@/scene/palette';
@@ -45,9 +45,11 @@ async function bootstrap(): Promise<void> {
   loading.set(1, 1);
   applyPalette(palette);
   document.body.style.backgroundColor = palette.sky;
+  document.documentElement.style.setProperty('--vignette-opacity', String(RENDER.VIGNETTE_OPACITY));
   const profile = detectProfile(flags.quality);
+  const renderer = await Renderer.create(canvas, profile, flags.gpu);
 
-  app = new App({ canvas, flags, palette, profile });
+  app = new App({ canvas, flags, palette, profile, renderer });
   new Shell(app, { flags, canvas, credits: creditsMarkdown, errorOverlay });
   app.start();
   loading.finish();

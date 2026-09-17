@@ -216,7 +216,13 @@ describe('Палитра', () => {
     ] as const) {
       expect(luminance(winter[key]), key).toBeGreaterThan(0.85);
     }
-    expect(luminance(winter.sky)).toBeLessThan(luminance(parsePalette(paletteJson).sky));
+    const saturation = (hex: string): number => {
+      const n = Number.parseInt(hex.slice(1), 16);
+      const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+      return Math.max(...rgb) - Math.min(...rgb);
+    };
+    // Серо-голубое небо: заметно менее насыщенное, чем летнее.
+    expect(saturation(winter.sky)).toBeLessThan(saturation(parsePalette(paletteJson).sky) / 2);
   });
 
   it('в палитре не больше 26 цветов и ключи уникальны (FR-9.4, итерация 2: +чёрный, +жёлтый)', () => {

@@ -138,6 +138,13 @@ export const LRT = {
   PLATFORM: { length: 20, width: 4 },
   /** Детерминированный шаг спавна поездов в чанках (FR-5.6, AC-5.4). */
   SPAWN_STEP: { min: 4, max: 6 },
+  /** Коридоры N–S (TSK-072): столбцы `gx ≡ NS_OFFSET (mod NS_PERIOD)`; стартовое окно их не содержит. */
+  NS_PERIOD: 16,
+  NS_OFFSET: 8,
+  /** Эстакада N–S выше E–W: балка проходит над поездами E–W без наложения (развязка). */
+  NS_BEAM_HEIGHT: 14,
+  /** Две нитки N–S по x: южная (dir +z) и северная (dir −z). */
+  TRACK_X: { south: -26.5, north: -23.5 },
 } as const;
 
 /** Река Есиль (FR-14, FR-15.6, design D10). */

@@ -2,10 +2,15 @@
 
 Статическое WebGL-демо: бесконечный low-poly город в духе Астаны. Мир — сетка чанков 60×60,
 которые генерируются детерминированно из `seed` в адресной строке: одинаковый seed всегда даёт
-один и тот же город. Панорамирование мышью и пальцем, ландмарки (Байтерек, Хан Шатыр),
-надземное ЛРТ с поездами, автотрафик и облака.
+один и тот же город. Панорамирование мышью и пальцем, 12 процедурных ландмарков (Байтерек,
+Хан Шатыр, Нур Алем, Пирамида, Ак Орда, Абу-Даби Плаза, Астана Опера, Хазрет Султан,
+Mega Silk Way, «Северное сияние», Транспортная башня, КазМунайГаз), река Есиль с мостами,
+надземное ЛРТ с поездами (E–W и N–S с развязками), автотрафик (автобусы Астаны, Яндекс Go),
+облака, зимний режим.
 
 Без бэкенда: TypeScript + Vite + three.js, сборка кладётся в `dist/` и раздаётся как статика.
+Демо публикуется GitHub Actions на GitHub Pages: `https://<owner>.github.io/<repo>/`
+(workflow `.github/workflows/deploy.yml`, ассеты кэшируются по хешу в имени файла).
 
 ## Запуск
 
@@ -21,46 +26,50 @@ npm run preview    # раздача собранного dist/
 ## Проверки
 
 ```bash
-npm run test       # Vitest, один прогон
+npm run test       # Vitest, один прогон (159 тестов)
 npm run test:watch # Vitest в watch-режиме
 npm run lint       # ESLint + Prettier --check
 npm run format     # Prettier --write
-npm run e2e        # Playwright (перед первым запуском: npx playwright install)
+npm run e2e        # Playwright: e2e + visual regression на prod-сборке
 ```
+
+E2E локально едет на системном Chrome (`channel: 'chrome'`), в CI — на Chromium Playwright;
+WebKit включается `PW_WEBKIT=1` (нужен `npx playwright install webkit`). Эталоны скриншотов —
+`e2e/__screenshots__/*.png`, обновление: `npx playwright test --update-snapshots`.
 
 ## URL-параметры
 
-| Параметр  | Значения                  | Эффект                                                                      |
-| --------- | ------------------------- | --------------------------------------------------------------------------- |
-| `seed`    | `[a-z0-9_-]{1,64}`        | детерминированный город; без него — случайный                               |
-| `debug`   | `1`                       | оверлей статистики и `window.__app`                                         |
-| `quality` | `low` / `medium` / `high` | принудительный профиль качества                                             |
-| `v`       | число                     | версия генератора из share-ссылки; при расхождении показывается уведомление |
+| Параметр  | Значения                  | Эффект                                                          |
+| --------- | ------------------------- | --------------------------------------------------------------- |
+| `seed`    | `[a-z0-9_-]{1,64}`        | детерминированный город; без него — случайный (replaceState)    |
+| `season`  | `summer` / `winter`       | палитра: летняя или зимняя (снег, низкое солнце)                |
+| `quality` | `low` / `medium` / `high` | принудительный профиль качества (иначе авто + автопонижение)    |
+| `gpu`     | `1`                       | WebGPU-рендерер, если доступен; иначе откат на WebGL 2          |
+| `debug`   | `1` / `api`               | `1` — оверлей статистики и границы чанков; `api` — только `window.__app` |
+| `v`       | число                     | версия генератора из share-ссылки; при расхождении — уведомление |
 
 ## Управление
 
 - Перетаскивание мышью или пальцем, стрелки и WASD — панорамирование.
-- Колесо мыши и щипок — высота камеры.
+- Колесо мыши и щипок — высота камеры (60…140 юнитов).
 - `?` — окно «О проекте» (пауза), Esc — закрыть; кнопка «Поделиться» копирует ссылку с seed.
 
 ## Структура
 
 ```
 src/
-  app/        цикл приложения, resize, pause/resume
+  app/        цикл приложения, resize, pause/resume, retry
   config.ts   все числовые константы проекта
-  world/      чистая генерация без three (Hash, Generator, планировщики)
-  scene/      окно чанков, префабы, материалы, палитра, ландмарки
-  mobs/       машины, поезда ЛРТ, облака
+  world/      чистая генерация без three (Hash, Generator, планировщики ландмарков, ЛРТ, реки)
+  scene/      окно чанков с префетчем, префабы (дороги, здания, ЛРТ), материалы, палитра, ландмарки
+  mobs/       машины (перекрёстки, зазоры, тор), поезда ЛРТ, облака
   controls/   ввод, панорамирование, камера
-  render/     рендерер, свет, пост-обработка, профили качества
-  assets/     загрузка каталога glTF
+  render/     рендерер (WebGL/WebGPU), свет, профили качества и автопонижение
   api/        seed и debug-API
-  ui/         DOM-оболочка и тексты
-public/assets/ palette.json, catalog.json, модели
-tools/assets/  скачивание и оптимизация ассетов
+  ui/         DOM-оболочка (заголовок, About, тосты, оверлеи ошибок) и тексты
+public/assets/ palette.json, palette.winter.json
 tests/         unit (Vitest)
-e2e/           e2e и visual regression (Playwright)
+e2e/           e2e, симуляция и visual regression (Playwright)
 ```
 
 ## Спека
@@ -70,9 +79,11 @@ e2e/           e2e и visual regression (Playwright)
 - требования — [`.kiro/specs/astana-infinite-city/requirements.md`](.kiro/specs/astana-infinite-city/requirements.md)
 - дизайн — [`.kiro/specs/astana-infinite-city/design.md`](.kiro/specs/astana-infinite-city/design.md)
 - задачи — [`.kiro/specs/astana-infinite-city/tasks.md`](.kiro/specs/astana-infinite-city/tasks.md)
+- баги итерации 2 — [`.kiro/specs/astana-infinite-city/bugfix.md`](.kiro/specs/astana-infinite-city/bugfix.md)
+- QA-отчёт — [`.kiro/specs/astana-infinite-city/qa-evidence.md`](.kiro/specs/astana-infinite-city/qa-evidence.md)
 - контекст проекта и конвенции — [`.kiro/steering/context.md`](.kiro/steering/context.md)
 
 ## Лицензии
 
-Код — MIT. Ассеты — только CC0 и собственная процедурная геометрия; источники
+Код — MIT. Ассеты — собственная процедурная геометрия и палитра; источники и вдохновение
 перечисляются в [`CREDITS.md`](CREDITS.md) и в окне «О проекте».

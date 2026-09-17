@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { CAMERA, LANDMARK_IDS, RIVER } from '@/config';
+import { CAMERA, LANDMARK_IDS, LRT, RIVER } from '@/config';
 import { freezeFrame, gotoApp } from './helpers';
 
 /** Телепорт к чанку, высота камеры, детерминированные мобы, один кадр. */
@@ -69,6 +69,12 @@ test.describe('Visual regression (FR-9, FR-15)', () => {
     await gotoApp(page);
     await frameAt(page, 0, RIVER.OFFSET, 80);
     await expect(page).toHaveScreenshot('astana-river.png');
+  });
+
+  test('TSK-072: развязка ЛРТ N–S над E–W', async ({ page }) => {
+    await gotoApp(page);
+    await frameAt(page, LRT.NS_OFFSET, 0, 80);
+    await expect(page).toHaveScreenshot('astana-lrt-cross.png');
   });
 
   test('BUG-2: площадь без полос сквозь газоны', async ({ page }) => {

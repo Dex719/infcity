@@ -6,10 +6,9 @@ import { InputManager } from '@/controls/InputManager';
 import { PanControls } from '@/controls/PanControls';
 import { MobSystem, type MobStats } from '@/mobs/MobSystem';
 import { Lighting } from '@/render/Lighting';
-import { Vignette } from '@/render/Post';
 import type { Profile } from '@/render/Profile';
 import { QualityController, type QualityInfo } from '@/render/Quality';
-import { Renderer } from '@/render/Renderer';
+import { Renderer, type RenderBackend } from '@/render/Renderer';
 import { ChunkWindow, type ChunkBuilder } from '@/scene/ChunkWindow';
 import { Materials } from '@/scene/Materials';
 import type { Palette } from '@/scene/palette';
@@ -42,6 +41,7 @@ export interface AppStats {
   mobs: MobStats;
   paused: boolean;
   quality: QualityInfo;
+  backend: RenderBackend;
 }
 
 /** Точка города в абсолютных координатах (чанк × 60 + локальные). */
@@ -56,6 +56,8 @@ export interface AppOptions {
   readonly palette: Palette;
   readonly profile: Profile;
   readonly builder?: ChunkBuilder;
+  /** Готовый рендерер (WebGPU создаётся асинхронно фабрикой `Renderer.create`). */
+  readonly renderer?: Renderer;
 }
 
 /**
@@ -73,7 +75,6 @@ export class App extends Emitter<AppEvents> {
   readonly flags: AppFlags;
   readonly materials: Materials;
   readonly lighting: Lighting;
-  readonly vignette: Vignette;
   readonly mobs: MobSystem;
   readonly quality: QualityController;
 
@@ -90,7 +91,7 @@ export class App extends Emitter<AppEvents> {
   constructor(options: AppOptions) {
     super();
     this.flags = options.flags;
-    this.renderer = new Renderer(options.canvas, options.profile);
+    this.renderer = options.renderer ?? new Renderer(options.canvas, options.profile);
     this.renderer.setClearColor(options.palette.sky);
     this.rig = new CameraRig(1);
     this.input = new InputManager(options.canvas);
@@ -107,7 +108,6 @@ export class App extends Emitter<AppEvents> {
       options.profile,
       options.flags.season,
     );
-    this.vignette = new Vignette();
     this.mobs = new MobSystem(this.chunkWindow, this.materials, options.profile);
     this.quality = new QualityController(
       {
@@ -239,6 +239,7 @@ export class App extends Emitter<AppEvents> {
       mobs: this.mobs.stats(),
       paused: this.paused,
       quality: this.quality.info,
+      backend: this.renderer.backend,
     };
   }
 
@@ -278,7 +279,6 @@ export class App extends Emitter<AppEvents> {
 
   private render(): void {
     this.renderer.render(this.scene, this.rig.camera);
-    this.vignette.render(this.renderer.gl);
   }
 
   private countFps(): void {

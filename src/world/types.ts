@@ -70,10 +70,13 @@ export interface CloudSpawn {
   readonly speedMul: number;
 }
 
-/** ЛРТ в чанке (FR-5.1, FR-5.2). */
+/** ЛРТ в чанке (FR-5.1, FR-5.2; N–S — TSK-072). */
 export interface LrtInfo {
   readonly corridor: 'EW' | null;
   readonly station: boolean;
+  /** Коридор N–S проходит через чанк (эстакада выше E–W). */
+  readonly ns: boolean;
+  readonly nsStation: boolean;
 }
 
 /** Дороги чанка: N–S вдоль западной кромки, E–W вдоль северной, перекрёсток в NW-углу. */

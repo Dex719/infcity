@@ -16,6 +16,7 @@ export const UI_PALETTE_VARS: readonly (readonly [string, PaletteKey])[] = [
   ['--c-flag-blue', 'flag-blue'],
   ['--c-glass-navy', 'glass-navy'],
   ['--c-accent-red', 'accent-red'],
+  ['--c-black', 'black'],
 ];
 
 export function applyPalette(palette: Palette, root: HTMLElement = document.documentElement): void {

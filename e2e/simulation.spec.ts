@@ -7,26 +7,50 @@ interface Sample {
   readonly overlaps: number;
   readonly stuck: number;
   readonly trains: number;
+  readonly perCorridor: number;
   readonly cars: number;
   readonly minTrainGap: number;
   readonly emptySlots: number;
 }
 
-/** Минимальный интервал между поездами одной нитки в окне, юниты. */
-function minTrainGap(
-  trains: readonly { gx: number; gy: number; x: number; dirX: number }[],
-): number {
+interface TrainInfo {
+  gx: number;
+  gy: number;
+  x: number;
+  z: number;
+  dirX: number;
+  dirZ: number;
+  axis: 'x' | 'z';
+}
+
+/** Минимальный интервал между поездами одной нитки в окне, юниты (E–W и N–S раздельно). */
+function minTrainGap(trains: readonly TrainInfo[]): number {
   let best = Number.POSITIVE_INFINITY;
+  const along = (t: TrainInfo): number =>
+    t.axis === 'x' ? t.gx * WORLD.CHUNK_SIZE + t.x : t.gy * WORLD.CHUNK_SIZE + t.z;
+  const line = (t: TrainInfo): number => (t.axis === 'x' ? t.gy : t.gx);
   for (const a of trains) {
     for (const b of trains) {
-      if (a === b || a.dirX !== b.dirX || a.gy !== b.gy) {
+      if (a === b || a.axis !== b.axis || a.dirX !== b.dirX || a.dirZ !== b.dirZ) {
         continue;
       }
-      const gap = Math.abs(a.gx * WORLD.CHUNK_SIZE + a.x - (b.gx * WORLD.CHUNK_SIZE + b.x));
-      best = Math.min(best, gap);
+      if (line(a) !== line(b)) {
+        continue;
+      }
+      best = Math.min(best, Math.abs(along(a) - along(b)));
     }
   }
   return best;
+}
+
+/** Поездов на самом загруженном коридоре окна (AC-5.4 — на коридор). */
+function maxPerCorridor(trains: readonly TrainInfo[]): number {
+  const counts = new Map<string, number>();
+  for (const t of trains) {
+    const key = `${t.axis}:${String(t.axis === 'x' ? t.gy : t.gx)}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return Math.max(0, ...counts.values());
 }
 
 test.describe('Симуляция в ускоренном времени (TSK-062)', () => {
@@ -60,13 +84,17 @@ test.describe('Симуляция в ускоренном времени (TSK-06
           trainList: api.trains(),
         };
       }, second);
-      samples.push({ ...sample, minTrainGap: minTrainGap(sample.trainList) });
+      samples.push({
+        ...sample,
+        minTrainGap: minTrainGap(sample.trainList),
+        perCorridor: maxPerCorridor(sample.trainList),
+      });
     }
 
     const overlapping = samples.filter((s) => s.overlaps > 0);
     const stuck = samples.filter((s) => s.stuck > 0);
     const trainRange = samples.filter(
-      (s) => s.trains < TRAIN.IN_WINDOW.min || s.trains > TRAIN.IN_WINDOW.max,
+      (s) => s.trains < TRAIN.IN_WINDOW.min || s.perCorridor > TRAIN.IN_WINDOW.max,
     );
     const closeTrains = samples.filter((s) => s.minTrainGap < 4 * WORLD.CHUNK_SIZE);
     expect(overlapping, `пересечения: ${JSON.stringify(overlapping.slice(0, 5))}`).toEqual([]);

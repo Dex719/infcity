@@ -1,7 +1,7 @@
 import type { Color } from 'three';
 import { CHUNK_LAYOUT, WORLD } from '@/config';
 import type { Materials } from '@/scene/Materials';
-import type { RoadsInfo } from '@/world/types';
+import type { LrtInfo, RoadsInfo } from '@/world/types';
 import type { GeometryBatch } from './GeometryBatch';
 import type { Props } from './Props';
 
@@ -24,9 +24,10 @@ export function buildRoads(
   props: Props,
   m: Materials,
   roads: RoadsInfo,
-  hasLrt: boolean,
+  lrt: LrtInfo,
   river = false,
 ): void {
+  const hasLrt = lrt.corridor !== null;
   const asphalt = m.color('asphalt');
   const marking = m.color('marking');
   const sidewalk = m.color('sidewalk');
@@ -69,7 +70,9 @@ export function buildRoads(
     if (!hasLrt) {
       batch.box(c, MARK_Y, AXIS, DASH_LEN, 0.02, 0.25, marking); // вдоль E–W
     }
-    batch.box(AXIS, MARK_Y, c, 0.25, 0.02, DASH_LEN, marking); // вдоль N–S
+    if (!lrt.ns) {
+      batch.box(AXIS, MARK_Y, c, 0.25, 0.02, DASH_LEN, marking); // вдоль N–S
+    }
   }
   // Сплошные краевые линии.
   batch.box(blockCenter, MARK_Y, AXIS - ROAD_W / 2 + 0.3, blockSize, 0.02, 0.15, marking);

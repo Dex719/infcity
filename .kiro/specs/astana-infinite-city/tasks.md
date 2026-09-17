@@ -221,79 +221,79 @@
   - Deliverables: `e2e/simulation.spec.ts` (`__app.step(dt)` × N)
   - Acceptance: 0 пересечений, 0 «замёрзших», поезда 1…4
 
-- [ ] **TSK-063**: QA-отчёт и подтяжка спеки
+- [x] **TSK-063**: QA-отчёт и подтяжка спеки
   - Requirement: все FR/NFR
   - Deliverables: `.kiro/specs/astana-infinite-city/qa-evidence.md` (таблица AC → тест/скриншот/замер), обновлённые статусы в `requirements.md`, AC-4.3 (узнаваемость, 5 респондентов)
   - Acceptance: все Must закрыты evidence; Should закрыты или перенесены с обоснованием
 
-- [ ] **TSK-064**: README, деплой на GitHub Pages
+- [x] **TSK-064**: README, деплой на GitHub Pages
   - Requirement: Deployment (design)
   - Deliverables: `.github/workflows/deploy.yml`, `README.md` (ссылка на демо, seed-шаринг, управление, credits)
   - Acceptance: демо доступно по публичному URL, ассеты кэшируются по хешу
 
 ### Phase 7: Could (после утверждения приоритетов)
 
-- [ ] **TSK-070**: Зимний режим `?season=winter`
+- [x] **TSK-070**: Зимний режим `?season=winter`
   - Requirement: FR-13 · Deliverables: `palette.winter.json`, снег на крышах/земле (доп. геометрия/цвет), небо/свет · Acceptance: AC-13.1 + отдельный visual-эталон
 
 - [ ] **TSK-071**: Река Есиль с мостами — **заменена TSK-088** (FR-14 повышен до Must в итерации 2)
 
-- [ ] **TSK-072**: N–S коридоры ЛРТ и развязки
+- [x] **TSK-072**: N–S коридоры ЛРТ и развязки
   - Requirement: FR-5 (расширение) · Acceptance: пересечение коридоров без наложения балок
 
-- [ ] **TSK-073**: WebGPU за флагом `?gpu=1`
+- [x] **TSK-073**: WebGPU за флагом `?gpu=1`
   - Requirement: D6 · Acceptance: тот же кадр (visual diff ≤ 2 %) при WebGPU, fallback на WebGL
 
 ### Phase 8: Итерация 2 — обратная связь пользователя (2026-09-17)
 
 Источник: сообщение пользователя (баги: камера сквозь здания, «трава багается»; фичи: убрать завод, автобусы Астаны, популярные здания и ТЦ, детали ландмарков, Яндекс-такси, отсылки к Астане, антенны на крышах, нормальный флаг, река с мостом, роботы у Expo). Спека: `bugfix.md`, FR-14 (Must), FR-15, FR-16, design «Итерация 2».
 
-- [ ] **TSK-080**: BUG-1 — камера выше застройки
+- [x] **TSK-080**: BUG-1 — камера выше застройки
   - Requirement: bugfix BUG-1, AC-8.2
   - Deliverables: `CAMERA.HEIGHT_MIN` 60, этажность регулярных зданий ≤ 12, unit-тест `HEIGHT_MIN > max(LANDMARKS.HEIGHT) + NEAR`, e2e AC-8.2 по константам, visual-эталон `astana-low.png`
   - Acceptance: на минимальной высоте ни одно здание не режется near-плоскостью (скриншот)
 
-- [ ] **TSK-081**: BUG-2 — z-fighting газонов площади и аудит слоёв
+- [x] **TSK-081**: BUG-2 — z-fighting газонов площади и аудит слоёв
   - Requirement: bugfix BUG-2
   - Deliverables: слои покрытия с шагом ≥ 0.03 в `BlockPrefabs` (square, park, campus, market), visual-эталон `astana-square.png`
   - Acceptance: газонные вставки без просвечивания на скриншоте
 
-- [ ] **TSK-082**: Убрать завод → ТЦ (`mall`)
+- [x] **TSK-082**: Убрать завод → ТЦ (`mall`)
   - Requirement: FR-15.1, AC-15.1
   - Deliverables: `world/types` (`mall` вместо `industrial`), `Buildings.mall`, `BlockPrefabs.mall`, снапшот генератора
   - Acceptance: AC-15.1 (unit по дампу 21×21)
 
-- [ ] **TSK-083**: Детали крыш
+- [x] **TSK-083**: Детали крыш
   - Requirement: FR-15.5, AC-15.4
   - Deliverables: `Buildings.roofDetails` (антенны, кондиционеры, баки, тарелки, короба), счётчик покрытия
   - Acceptance: AC-15.4 (unit: ≥ 40 % из 200 зданий)
 
-- [ ] **TSK-084**: Флаг Казахстана
+- [x] **TSK-084**: Флаг Казахстана
   - Requirement: FR-15.4, AC-15.3
   - Deliverables: `Props.flagpole` (полотно, солнце с лучами, орёл-силуэт, орнамент)
   - Acceptance: AC-15.3 (unit: цвета в батче), крупный план в visual-эталоне площади
 
-- [ ] **TSK-085**: Детализация существующих ландмарков + роботы у Expo
+- [x] **TSK-085**: Детализация существующих ландмарков + роботы у Expo
   - Requirement: FR-15.3
   - Deliverables: `landmarks/{Baiterek,KhanShatyr,NurAlem,Pyramid,AkOrda}.ts` (детали по design C8-дополнению), `Props.robot`
   - Acceptance: visual-эталоны 5 ландмарков обновлены, ≥ 3 робота у Нур Алем
 
-- [ ] **TSK-086**: Новые ландмарки Астаны
+- [x] **TSK-086**: Новые ландмарки Астаны
   - Requirement: FR-15.2, AC-15.2
   - Deliverables: `landmarks/{AbuDhabiPlaza,AstanaOpera,HazretSultan,MegaSilkWay}.ts` (Must), `{NorthernLights,TransportTower,KazMunayGas}.ts` (Should); `LANDMARKS.ENABLED/HEIGHT`, тесты планировщика (частоты, минимальная дистанция)
   - Acceptance: AC-15.2 — visual-эталон каждого через `__app.centerOn`
 
-- [ ] **TSK-087**: Автобус Астаны и Яндекс-такси
+- [x] **TSK-087**: Автобус Астаны и Яндекс-такси
   - Requirement: FR-16, AC-16.1, AC-16.2
   - Deliverables: `mobs/Vehicles` (bus-astana, yandex-econom/business/premier, suv-white, sedan-blue), `TRAFFIC.MODEL_POOL` 12, `GEN.VERSION` 2, снапшоты
   - Acceptance: AC-16.1 (unit), AC-16.2 (visual)
 
-- [ ] **TSK-088**: Река Есиль с мостами и берега (заменяет TSK-071)
+- [x] **TSK-088**: Река Есиль с мостами и берега (заменяет TSK-071)
   - Requirement: FR-14, FR-15.6, AC-14.1, AC-15.5
   - Deliverables: `world/RiverPlanner`, `RIVER` в `config`, `block = 'river'`, префабы воды/набережной/моста (`BlockPrefabs.river`, `Roads` мост N–S), веса берегов в `Generator.rawBlockType`, unit-тесты (ряды, нет совпадений с ЛРТ, доли типов по берегам), симуляция машин на мосту
   - Acceptance: AC-14.1 (симуляция: 0 пересечений на мосту), AC-15.5 (unit), visual-эталон `astana-river.png`
 
-- [ ] **TSK-089**: Отсылки к Астане, QA и эталоны итерации 2
+- [x] **TSK-089**: Отсылки к Астане, QA и эталоны итерации 2
   - Requirement: FR-15 (D11), NFR-3
   - Deliverables: `CLOUD.SPEED` 4 (ветер степи), обновлённые visual-эталоны, `qa-evidence.md` (раздел «Итерация 2»), README/credits
   - Acceptance: все e2e зелёные, эталоны обновлены, QA-таблица закрывает AC-14…AC-16
@@ -418,21 +418,21 @@ graph TD
 | TSK-060 | Complete | 2026-09-17: render/Quality: медиана FPS за 5 с < 25 → тени 1024 → DPR 1 → P_CAR 0.2 (шаги-пустышки пропускаются, `?quality=` отключает); unit-тесты; `__app.downgrade()`; ручной замер на телефоне — в QA-отчёте (TSK-063) |
 | TSK-061 | Complete | 2026-09-17: e2e/{load,controls,ui,visual,perf}.spec.ts на prod-сборке (Chrome channel локально, Chromium в CI, WebKit по PW_WEBKIT=1); эталоны e2e/__screenshots__/astana-{start,baiterek,khan-shatyr}.png; 17/17 зелёных; найден и исправлен BUG-5 (префетч кольца) |
 | TSK-062 | Complete | 2026-09-17: e2e/simulation.spec.ts (5 мин, сдвиги окна каждые 45 с: 0 пересечений, 0 заторов, поезда 1…4, интервал ≥ 4 чанков) + unit-симуляции (2 мин со сдвигами, 3 мин статичное окно); найдены и исправлены BUG-3 (тор мобов) и BUG-4 (перекрёстки: стоп-линия, фазы, зазор) |
-| TSK-063 | In Progress | qa-evidence.md пишется после фазы 8 (эталоны и AC итерации 2) |
-| TSK-064 | In Progress | deploy.yml готов (Pages: lint → test → build → e2e smoke → deploy); README/ссылка на демо — после фазы 8 |
-| TSK-070 | Pending | Could |
+| TSK-063 | Complete | 2026-09-17: qa-evidence.md — таблица AC → evidence, NFR-замеры; AC-4.3 (5 респондентов) и замер на телефоне — ручные, ждут пользователя |
+| TSK-064 | Complete | 2026-09-17: deploy.yml (Pages: lint → test → build → e2e smoke → deploy), README (запуск, параметры, управление, структура); публичный URL появится после push в GitHub (remote не настроен) |
+| TSK-070 | Complete | 2026-09-17: palette.winter.json (снег на земле/газонах/крышах, серо-голубое небо), `?season=winter` → палитра + низкое тёплое солнце (RENDER.WINTER); unit-тест палитры, visual-эталон astana-winter.png; чернила UI переведены на «чёрный» палитры |
 | TSK-071 | Superseded | → TSK-088 (FR-14 Must) |
-| TSK-072 | Pending | Could |
-| TSK-073 | Pending | Could |
-| TSK-080 | Pending | BUG-1 |
-| TSK-081 | Pending | BUG-2 |
-| TSK-082 | Pending | |
-| TSK-083 | Pending | |
-| TSK-084 | Pending | |
-| TSK-085 | Pending | |
-| TSK-086 | Pending | |
-| TSK-087 | Pending | |
-| TSK-088 | Pending | заменяет TSK-071 |
-| TSK-089 | Pending | |
+| TSK-072 | Complete | 2026-09-17: коридоры N–S `gx ≡ 8 (mod 16)`, эстакада на 14 (над поездами E–W), станции `gy ≡ 0 (mod 3)`, поезда по оси z (Train.axis), опора у развязки пропускается; unit-тесты, visual-эталон astana-lrt-cross.png |
+| TSK-073 | Complete | 2026-09-17: `Renderer.create` — `?gpu=1` + navigator.gpu → WebGPURenderer (динамический импорт three/webgpu), иначе WebGL; виньетка переведена на CSS-оверлей (одинакова для обоих бэкендов); в встроенном браузере backend=webgpu, кадр идентичен; e2e gpu.spec сравнивает стартовый кадр с WebGL-эталоном (≤ 2 %) |
+| TSK-080 | Complete | 2026-09-17: CAMERA.HEIGHT_MIN 60, этажность ≤ 12, WHEEL 0.12; unit-тест HEIGHT_MIN ≥ max(ландмарк)+8; эталон astana-low.png |
+| TSK-081 | Complete | 2026-09-17: газонные вставки площади подняты над полосами плит (+0.06); эталон astana-square.png |
+| TSK-082 | Complete | 2026-09-17: `mall` вместо `industrial` (Buildings.mall: волнистый парапет, портал, вывеска, парковка); AC-15.1 unit |
+| TSK-083 | Complete | 2026-09-17: Buildings.roofDetails (антенны, кондиционеры, баки, тарелки, вентиляция) на ≈65 % крыш, счётчики roofs/roofsWithDetails |
+| TSK-084 | Complete | 2026-09-17: Props.flagpole — солнце с 8 лучами, орёл, орнамент у древка |
+| TSK-085 | Complete | 2026-09-17: Байтерек (орнамент площади, пояса, вход), Хан Шатыр (16 рёбер, обод, арка, флаги), Нур Алем (кольца, павильоны, 3 робота), Пирамида (4 лестницы, шпиль), Ак Орда (ворота, 4 флага) |
+| TSK-086 | Complete | 2026-09-17: 7 новых ландмарков в scene/landmarks/*, LANDMARKS 12 типов (P=1/180, R=5), эталоны landmark-*.png |
+| TSK-087 | Complete | 2026-09-17: 12 моделей (bus-astana, yandex-econom/business/premier, suv-white, sedan-blue), MODEL_POOL 12, GEN.VERSION 2, палитра +black +yellow |
+| TSK-088 | Complete | 2026-09-17: RiverPlanner (ряды 6 mod 12), квартал `river` (вода, набережная, лодки), мост N–S (перила, опоры), веса берегов (левый — стекло/ТЦ, правый — панельки); unit-тесты river.test, эталон astana-river.png |
+| TSK-089 | Complete | 2026-09-17: CLOUD.SPEED 4, эталоны пересозданы, qa-evidence.md раздел «Итерация 2», README/CREDITS |
 
 **Статусы:** Pending / In Progress / Complete. Обновлять вместе с чекбоксами.

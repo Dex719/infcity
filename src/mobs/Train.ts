@@ -1,6 +1,6 @@
 import { LRT, TRAIN, WORLD } from '@/config';
 import { hashUnit } from '@/world/Hash';
-import { isStationColumn } from '@/world/LrtPlanner';
+import { isStationColumn, isStationRow } from '@/world/LrtPlanner';
 import { MobileObject } from './MobileObject';
 
 /** Состояния поезда (FR-5.4). */
@@ -19,6 +19,8 @@ export const CARRIAGES = 3;
  * стоит 3–5 с и разгоняется; ближе `TRAIN_SEPARATION` до поезда впереди — останавливается.
  */
 export class Train extends MobileObject {
+  /** Ось коридора: E–W (`x`) или N–S (`z`, TSK-072). */
+  readonly axis: 'x' | 'z';
   state: TrainState = 'moving';
   /** Секунд стоянки осталось. */
   dwellLeft = 0;
@@ -26,28 +28,74 @@ export class Train extends MobileObject {
   private servedStationKey: string | null = null;
   private readonly seed: number;
 
-  constructor(seed: number, gx: number, gy: number, x: number, direction: 1 | -1) {
-    super(gx, gy, x, LRT.BEAM_HEIGHT + 0.7, direction === 1 ? LRT.TRACK_Z.east : LRT.TRACK_Z.west);
+  constructor(
+    seed: number,
+    gx: number,
+    gy: number,
+    along: number,
+    direction: 1 | -1,
+    axis: 'x' | 'z' = 'x',
+  ) {
+    if (axis === 'x') {
+      super(
+        gx,
+        gy,
+        along,
+        LRT.BEAM_HEIGHT + 0.7,
+        direction === 1 ? LRT.TRACK_Z.east : LRT.TRACK_Z.west,
+      );
+      this.dirX = direction;
+      this.dirZ = 0;
+    } else {
+      super(
+        gx,
+        gy,
+        direction === 1 ? LRT.TRACK_X.south : LRT.TRACK_X.north,
+        LRT.NS_BEAM_HEIGHT + 0.7,
+        along,
+      );
+      this.dirX = 0;
+      this.dirZ = direction;
+    }
+    this.axis = axis;
     this.seed = seed;
-    this.dirX = direction;
-    this.dirZ = 0;
     this.speed = TRAIN.MAX_SPEED;
     this.faceDirection();
   }
 
-  /** Детерминированный спавн: восточные поезда в чанках `gx ≡ 0 (mod 5)`, западные — `gx ≡ 2 (mod 5)`. */
-  static spawnsAt(gx: number, direction: 1 | -1): boolean {
+  /** Координата вдоль коридора (локальная) и направление по нему. */
+  get along(): number {
+    return this.axis === 'x' ? this.x : this.z;
+  }
+
+  get direction(): 1 | -1 {
+    return (this.axis === 'x' ? this.dirX : this.dirZ) === 1 ? 1 : -1;
+  }
+
+  /** Координата чанка вдоль коридора. */
+  get lineCoord(): number {
+    return this.axis === 'x' ? this.gx : this.gy;
+  }
+
+  /** Координата чанка поперёк коридора (номер линии). */
+  get lineIndex(): number {
+    return this.axis === 'x' ? this.gy : this.gx;
+  }
+
+  /** Детерминированный спавн: поезда `+` в чанках `c ≡ 0 (mod 5)` вдоль коридора, `−` — `c ≡ 2 (mod 5)`. */
+  static spawnsAt(coord: number, direction: 1 | -1): boolean {
     const period = TRAIN_SPAWN_PERIOD;
     const phase = direction === 1 ? 0 : Math.floor(period / 2);
-    return ((gx % period) + period) % period === phase;
+    return ((coord % period) + period) % period === phase;
   }
 
   /** Расстояние (со знаком по направлению) до центра станции текущего чанка или `null`. */
   private stationAhead(): number | null {
-    if (!isStationColumn(this.gx) || this.servedStationKey === this.key) {
+    const hasStation = this.axis === 'x' ? isStationColumn(this.gx) : isStationRow(this.gy);
+    if (!hasStation || this.servedStationKey === this.key) {
       return null;
     }
-    const distance = (0 - this.x) * this.dirX;
+    const distance = (0 - this.along) * this.direction;
     return distance >= -1 ? distance : null;
   }
 
@@ -75,10 +123,19 @@ export class Train extends MobileObject {
         this.speed = Math.max(Math.min(this.speed, Math.max(target, 1.5)), 0);
         if (ahead <= 0.4) {
           this.speed = 0;
-          this.x = 0;
+          if (this.axis === 'x') {
+            this.x = 0;
+          } else {
+            this.z = 0;
+          }
           this.state = 'dwell';
           this.servedStationKey = this.key;
-          const u = hashUnit(this.seed, this.gx, this.gy, DWELL_SALT + (this.dirX === 1 ? 0 : 1));
+          const u = hashUnit(
+            this.seed,
+            this.gx,
+            this.gy,
+            DWELL_SALT + (this.direction === 1 ? 0 : 1),
+          );
           this.dwellLeft = TRAIN.DWELL.min + u * (TRAIN.DWELL.max - TRAIN.DWELL.min);
         }
         break;

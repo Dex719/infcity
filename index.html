@@ -31,6 +31,8 @@
   </head>
   <body>
     <canvas id="app"></canvas>
+    <!-- Виньетка (FR-9.2) — CSS-оверлей: одинаков для WebGL и WebGPU, без пост-прохода. -->
+    <div id="vignette" aria-hidden="true"></div>
     <div
       id="loading"
       role="progressbar"

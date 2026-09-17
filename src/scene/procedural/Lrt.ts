@@ -1,7 +1,8 @@
+import { Matrix4 } from 'three';
 import { CHUNK_LAYOUT, LRT, WORLD } from '@/config';
 import type { Materials } from '@/scene/Materials';
 import type { LrtInfo } from '@/world/types';
-import { type GeometryBatch, Templates } from './GeometryBatch';
+import { GeometryBatch, Templates } from './GeometryBatch';
 
 const HALF = WORLD.CHUNK_SIZE / 2;
 const BEAM_W = 3.6;
@@ -14,11 +15,27 @@ const BEAM_H = 1.2;
  * Балка тянется ровно от −30 до +30 по x → стык с соседями без зазора (AC-5.2).
  */
 export function buildLrt(batch: GeometryBatch, m: Materials, lrt: LrtInfo): void {
-  if (lrt.corridor === null) {
-    return;
+  if (lrt.corridor !== null) {
+    buildViaduct(batch, m, lrt.station, LRT.BEAM_HEIGHT, null);
   }
+  if (lrt.ns) {
+    // N–S: та же эстакада, повёрнутая на +90° (x=−25) и поднятая выше E–W (развязка без наложения).
+    // На развязке пропускаем опору, которая попала бы в балку E–W (x = +22.5 → z = −22.5).
+    const temp = new GeometryBatch();
+    buildViaduct(temp, m, lrt.nsStation, LRT.NS_BEAM_HEIGHT, lrt.corridor !== null ? 22.5 : null);
+    batch.append(temp, new Matrix4().makeRotationY(Math.PI / 2));
+  }
+}
+
+/** Эстакада вдоль x на оси `AXIS_Z` с верхом на высоте `top`; `skipPillarX` — опора, которую не ставим. */
+function buildViaduct(
+  batch: GeometryBatch,
+  m: Materials,
+  station: boolean,
+  top: number,
+  skipPillarX: number | null,
+): void {
   const z = LRT.AXIS_Z;
-  const top = LRT.BEAM_HEIGHT;
   const concrete = m.color('concrete');
   const steel = m.color('steel');
   const white = m.color('white');
@@ -32,12 +49,15 @@ export function buildLrt(batch: GeometryBatch, m: Materials, lrt: LrtInfo): void
   }
 
   for (let x = -HALF + LRT.PILLAR_SPACING / 2; x < HALF; x += LRT.PILLAR_SPACING) {
+    if (skipPillarX !== null && Math.abs(x - skipPillarX) < 1) {
+      continue;
+    }
     batch.place(Templates.cylinder8, x, (top - BEAM_H) / 2, z, 0.8, top - BEAM_H, 0.8, concrete);
     batch.box(x, top - BEAM_H - 0.4, z, 2.4, 0.8, BEAM_W + 0.6, concrete);
     batch.box(x, 0.2, z, 2.2, 0.4, 2.2, concrete);
   }
 
-  if (!lrt.station) {
+  if (!station) {
     return;
   }
   const len = LRT.PLATFORM.length;

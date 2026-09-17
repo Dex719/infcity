@@ -52,7 +52,7 @@ export class DebugOverlay {
     this.refreshLabels();
     const s = this.app.stats();
     this.element.textContent = [
-      `seed=${this.app.flags.seed}`,
+      `seed=${this.app.flags.seed}  backend=${s.backend}`,
       `fps=${String(s.fps)}  draw=${String(s.drawCalls)}  tris=${String(s.triangles)}`,
       `grid=(${String(s.gridCoords.x)},${String(s.gridCoords.y)})  h=${s.cameraHeight.toFixed(1)}`,
       `emptySlots=${String(s.emptySlots)}  builds=${String(s.builds)}  cacheHits=${String(s.cacheHits)}`,

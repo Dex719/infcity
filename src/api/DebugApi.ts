@@ -22,7 +22,16 @@ export interface DebugApi {
   /** Снимки машин: позиция, скорость, радар, время простоя (AC-6.2). */
   cars(): CarSnapshot[];
   /** Поезда в окне: чанк, локальная позиция, направление, состояние (AC-5.4). */
-  trains(): { gx: number; gy: number; x: number; dirX: number; state: string }[];
+  trains(): {
+    gx: number;
+    gy: number;
+    x: number;
+    z: number;
+    dirX: number;
+    dirZ: number;
+    axis: 'x' | 'z';
+    state: string;
+  }[];
   /** Точка города под пикселем и обратная проекция (AC-8.1). */
   groundAt(px: number, py: number): CityPoint | null;
   project(point: CityPoint): { x: number; y: number };
@@ -59,7 +68,16 @@ export function installDebugApi(app: App, target: Window = window): DebugApi {
     resetMobs: () => app.mobs.reset(),
     cars: () => app.mobs.carSnapshots(),
     trains: () =>
-      app.mobs.allTrains.map((t) => ({ gx: t.gx, gy: t.gy, x: t.x, dirX: t.dirX, state: t.state })),
+      app.mobs.allTrains.map((t) => ({
+        gx: t.gx,
+        gy: t.gy,
+        x: t.x,
+        z: t.z,
+        dirX: t.dirX,
+        dirZ: t.dirZ,
+        axis: t.axis,
+        state: t.state,
+      })),
     groundAt: (px, py) => app.cityPointAt(px, py),
     project: (point) => app.screenPointOf(point),
     downgrade: () => app.quality.downgrade(),

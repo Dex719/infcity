@@ -43,7 +43,7 @@ export class PrefabBuilder implements ChunkBuilder {
       props,
       this.materials,
       descriptor.roads,
-      descriptor.lrt.corridor !== null,
+      descriptor.lrt,
       descriptor.block === 'river',
     );
     buildLrt(opaque, this.materials, descriptor.lrt);

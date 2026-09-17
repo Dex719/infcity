@@ -130,8 +130,15 @@ export class MobSystem {
     }
     if (d.lrt.corridor !== null) {
       for (const direction of [1, -1] as const) {
-        if (Train.spawnsAt(d.gx, direction) && !this.trainNear(d.gx, d.gy, direction)) {
-          this.trains.push(new Train(this.window.generator.seed, d.gx, d.gy, 0, direction));
+        if (Train.spawnsAt(d.gx, direction) && !this.trainNear(d.gx, d.gy, direction, null, 'x')) {
+          this.trains.push(new Train(this.window.generator.seed, d.gx, d.gy, 0, direction, 'x'));
+        }
+      }
+    }
+    if (d.lrt.ns) {
+      for (const direction of [1, -1] as const) {
+        if (Train.spawnsAt(d.gy, direction) && !this.trainNear(d.gx, d.gy, direction, null, 'z')) {
+          this.trains.push(new Train(this.window.generator.seed, d.gx, d.gy, 0, direction, 'z'));
         }
       }
     }
@@ -230,14 +237,22 @@ export class MobSystem {
     gx: number,
     gy: number,
     direction: 1 | -1,
-    except: Train | null = null,
+    except: Train | null,
+    axis: 'x' | 'z',
   ): boolean {
-    const spawnX = gx * WORLD.CHUNK_SIZE;
+    const line = axis === 'x' ? gy : gx;
+    const spawnAt = (axis === 'x' ? gx : gy) * WORLD.CHUNK_SIZE;
     for (const train of this.trains) {
-      if (train === except || train.dirX !== direction || train.gy !== gy) {
+      if (
+        train === except ||
+        train.axis !== axis ||
+        train.direction !== direction ||
+        train.lineIndex !== line
+      ) {
         continue;
       }
-      if (Math.abs(train.worldX(0) - spawnX) < TRAIN_SEPARATION) {
+      const at = axis === 'x' ? train.worldX(0) : train.worldZ(0);
+      if (Math.abs(at - spawnAt) < TRAIN_SEPARATION) {
         return true;
       }
     }
@@ -351,10 +366,11 @@ export class MobSystem {
         continue;
       }
       const destination = this.torusWrap(train.gx, train.gy);
-      const direction = train.dirX === 1 ? 1 : -1;
+      const sameLine =
+        train.axis === 'x' ? destination.gy === train.gy : destination.gx === train.gx;
       if (
-        destination.gy !== train.gy ||
-        this.trainNear(destination.gx, destination.gy, direction, train)
+        !sameLine ||
+        this.trainNear(destination.gx, destination.gy, train.direction, train, train.axis)
       ) {
         this.trains.splice(i, 1);
       } else {
@@ -429,7 +445,7 @@ export class MobSystem {
       if (train === undefined) {
         continue;
       }
-      train.step(dt, this.leaderDistance(train, gridX));
+      train.step(dt, this.leaderDistance(train, gridX, gridY));
       const transfer = train.wrap();
       if (transfer === null) {
         continue;
@@ -441,8 +457,7 @@ export class MobSystem {
       // Ушёл за край окна — входит с противоположного края той же нитки (AC-5.4);
       // если там ближе минимального интервала уже есть поезд, ждёт у края.
       const destination = this.torusWrap(transfer.gx, transfer.gy);
-      const direction = train.dirX === 1 ? 1 : -1;
-      if (this.trainNear(destination.gx, destination.gy, direction, train)) {
+      if (this.trainNear(destination.gx, destination.gy, train.direction, train, train.axis)) {
         MobSystem.holdAtEdge(train, transfer);
       } else {
         train.moveTo(destination);
@@ -520,14 +535,20 @@ export class MobSystem {
   }
 
   /** Ближайший поезд впереди на той же нитке, расстояние в юнитах. */
-  private leaderDistance(train: Train, gridX: number): number {
-    const wx = train.worldX(gridX);
+  private leaderDistance(train: Train, gridX: number, gridY: number): number {
+    const at = (t: Train): number => (t.axis === 'x' ? t.worldX(gridX) : t.worldZ(gridY));
+    const mine = at(train);
     let best = Number.POSITIVE_INFINITY;
     for (const other of this.trains) {
-      if (other === train || other.dirX !== train.dirX || other.gy !== train.gy) {
+      if (
+        other === train ||
+        other.axis !== train.axis ||
+        other.direction !== train.direction ||
+        other.lineIndex !== train.lineIndex
+      ) {
         continue;
       }
-      const d = (other.worldX(gridX) - wx) * train.dirX;
+      const d = (at(other) - mine) * train.direction;
       if (d > 0 && d < best) {
         best = d;
       }
@@ -560,7 +581,12 @@ export class MobSystem {
       const wz = train.worldZ(gridY);
       for (let i = 0; i < CARRIAGES; i++) {
         const offset = (i - (CARRIAGES - 1) / 2) * stride;
-        this.carriagePool.push(wx - train.dirX * offset, train.y, wz, train.yaw);
+        this.carriagePool.push(
+          wx - train.dirX * offset,
+          train.y,
+          wz - train.dirZ * offset,
+          train.yaw,
+        );
       }
     }
     this.carriagePool.end();

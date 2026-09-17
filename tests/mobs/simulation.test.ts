@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRAIN, WORLD } from '@/config';
 import { MobSystem } from '@/mobs/MobSystem';
+import type { Train } from '@/mobs/Train';
 import { profileFor } from '@/render/Profile';
 import { ChunkNode } from '@/scene/ChunkNode';
 import { ChunkWindow, type ChunkBuilder } from '@/scene/ChunkWindow';
@@ -22,6 +23,16 @@ class NodeOnlyBuilder implements ChunkBuilder {
   dispose(): void {
     // геометрии нет
   }
+}
+
+/** Поездов на самом загруженном коридоре (AC-5.4 — на коридор). */
+function maxPerCorridor(trains: readonly Train[]): number {
+  const counts = new Map<string, number>();
+  for (const t of trains) {
+    const key = `${t.axis}:${String(t.lineIndex)}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return Math.max(0, ...counts.values());
 }
 
 function setup(seed: string): { window: ChunkWindow; mobs: MobSystem } {
@@ -68,7 +79,10 @@ describe('Симуляция мобов без рендера (AC-6.1, AC-6.2, A
       if (stats.stuckCars > 0) {
         violations.push(`t=${String(second)}s stuck=${String(stats.stuckCars)}`);
       }
-      if (stats.trains < TRAIN.IN_WINDOW.min || stats.trains > TRAIN.IN_WINDOW.max) {
+      if (
+        stats.trains < TRAIN.IN_WINDOW.min ||
+        maxPerCorridor(mobs.allTrains) > TRAIN.IN_WINDOW.max
+      ) {
         violations.push(`t=${String(second)}s trains=${String(stats.trains)}`);
       }
     }
@@ -91,7 +105,10 @@ describe('Симуляция мобов без рендера (AC-6.1, AC-6.2, A
       if (stats.stuckCars > 0) {
         violations.push(`t=${String(second)}s stuck=${String(stats.stuckCars)}`);
       }
-      if (stats.trains < TRAIN.IN_WINDOW.min || stats.trains > TRAIN.IN_WINDOW.max) {
+      if (
+        stats.trains < TRAIN.IN_WINDOW.min ||
+        maxPerCorridor(mobs.allTrains) > TRAIN.IN_WINDOW.max
+      ) {
         violations.push(`t=${String(second)}s trains=${String(stats.trains)}`);
       }
     }

@@ -15,8 +15,10 @@
   --c-flag-blue: #00afca;
   --c-glass-navy: #3f6fa8;
   --c-accent-red: #d94f43;
+  --c-black: #1e2126;
 
-  --ui-ink: var(--c-roof-dark);
+  /* Чернила — «чёрный» палитры, а не roof-dark: зимой крыши белые (FR-13), текст должен читаться. */
+  --ui-ink: var(--c-black);
   --ui-paper: var(--c-white);
   --ui-accent: var(--c-glass-navy);
   --ui-focus: var(--c-flag-blue);
@@ -37,6 +39,19 @@
 
 #app {
   transition: filter 200ms ease;
+}
+
+/* Виньетка (FR-9.2, design C12): радиальный градиент поверх канваса, под UI. */
+#vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0) 52%,
+    rgba(0, 0, 0, var(--vignette-opacity, 0.25)) 100%
+  );
 }
 
 #app.is-dimmed {

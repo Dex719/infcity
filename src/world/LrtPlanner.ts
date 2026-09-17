@@ -15,10 +15,26 @@ export function isStationColumn(gx: number): boolean {
   return mod(gx, LRT.STATION_PERIOD) === 0;
 }
 
+/** Коридор N–S: столбцы `gx ≡ NS_OFFSET (mod NS_PERIOD)` (TSK-072). */
+export function isNsCorridorColumn(gx: number): boolean {
+  return mod(gx - LRT.NS_OFFSET, LRT.NS_PERIOD) === 0;
+}
+
+/** Станция N–S в рядах `gy ≡ 0 (mod STATION_PERIOD)`. */
+export function isStationRow(gy: number): boolean {
+  return mod(gy, LRT.STATION_PERIOD) === 0;
+}
+
 /** ЛРТ-информация чанка. */
 export function describeLrt(gx: number, gy: number): LrtInfo {
   const corridor = isCorridorRow(gy) ? 'EW' : null;
-  return { corridor, station: corridor !== null && isStationColumn(gx) };
+  const ns = isNsCorridorColumn(gx);
+  return {
+    corridor,
+    station: corridor !== null && isStationColumn(gx),
+    ns,
+    nsStation: ns && isStationRow(gy),
+  };
 }
 
 /** Ближайший ряд коридора к `gy` (для спавна поездов и отладки). */

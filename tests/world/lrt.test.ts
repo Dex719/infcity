@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { LRT, WORLD } from '@/config';
+import { LRT, TRAIN, WORLD } from '@/config';
 import {
   describeLrt,
   isCorridorRow,
+  isNsCorridorColumn,
   isStationColumn,
+  isStationRow,
   nearestCorridorRow,
 } from '@/world/LrtPlanner';
 
@@ -28,16 +30,34 @@ describe('LrtPlanner (FR-5.1, FR-5.2)', () => {
   it('станции только в коридоре и через каждые STATION_PERIOD чанков', () => {
     for (let gx = -20; gx <= 20; gx++) {
       expect(describeLrt(gx, 0).station).toBe(isStationColumn(gx));
-      expect(describeLrt(gx, 1)).toEqual({ corridor: null, station: false });
+      expect(describeLrt(gx, 1)).toMatchObject({ corridor: null, station: false });
     }
-    expect(describeLrt(0, 8)).toEqual({ corridor: 'EW', station: true });
-    expect(describeLrt(-3, -8)).toEqual({ corridor: 'EW', station: true });
-    expect(describeLrt(4, 16)).toEqual({ corridor: 'EW', station: false });
+    expect(describeLrt(0, 8)).toMatchObject({ corridor: 'EW', station: true });
+    expect(describeLrt(-3, -8)).toMatchObject({ corridor: 'EW', station: true });
+    expect(describeLrt(4, 16)).toMatchObject({ corridor: 'EW', station: false });
   });
 
   it('ближайший ряд коридора', () => {
     expect(nearestCorridorRow(3)).toBe(0);
     expect(nearestCorridorRow(5)).toBe(8);
     expect(nearestCorridorRow(-5)).toBe(-8);
+  });
+});
+
+describe('LRT N–S (TSK-072)', () => {
+  it('столбцы N–S каждые NS_PERIOD со смещением; стартовое окно их не содержит', () => {
+    expect(isNsCorridorColumn(LRT.NS_OFFSET)).toBe(true);
+    expect(isNsCorridorColumn(LRT.NS_OFFSET + LRT.NS_PERIOD)).toBe(true);
+    for (let gx = -4; gx <= 4; gx++) {
+      expect(isNsCorridorColumn(gx)).toBe(false);
+    }
+    expect(isStationRow(0)).toBe(true);
+    expect(isStationRow(1)).toBe(false);
+  });
+
+  it('развязка: балка N–S выше поездов E–W (нет наложения)', () => {
+    const ewTrainTop = LRT.BEAM_HEIGHT + 0.7 + 1.5 + 0.3;
+    expect(LRT.NS_BEAM_HEIGHT - 1.2).toBeGreaterThan(ewTrainTop);
+    expect(TRAIN.MAX_INSTANCES).toBeGreaterThanOrEqual(8 * 3);
   });
 });
