@@ -14,15 +14,15 @@ export const REGULAR_BLOCK_TYPES = [
   'park',
   'square',
   'campus',
-  'industrial',
+  'mall',
   'market',
 ] as const;
 
 /** Регулярный тип квартала. */
 export type RegularBlockTypeId = (typeof REGULAR_BLOCK_TYPES)[number];
 
-/** Любой тип квартала: регулярный, редкий стадион или ландмарк (FR-3, FR-4). */
-export type BlockTypeId = RegularBlockTypeId | 'stadium' | 'landmark';
+/** Любой тип квартала: регулярный, редкий стадион, ландмарк или русло реки (FR-3, FR-4, FR-14). */
+export type BlockTypeId = RegularBlockTypeId | 'stadium' | 'landmark' | 'river';
 
 /** Варианты префаба прямой дороги. */
 export type RoadVariantId = 'a' | 'b';

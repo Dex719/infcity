@@ -40,10 +40,17 @@ export function buildPyramid(ctx: LandmarkContext): void {
   ] as const) {
     b.strut(sx * half, plinthH, sz * half, 0, plinthH + h, 0, 0.35, m.color('white'));
   }
-  // Парадная лестница к южной грани.
+  // Парадные лестницы с четырёх сторон и шпиль вершины (FR-15.3).
   for (let i = 0; i < 4; i++) {
-    b.box(0, 0.25 + i * 0.5, 18 + i * 1.1, 14, 0.5, 1.2, m.color('white'));
+    const d = 18 + i * 1.1;
+    const y = 0.25 + i * 0.5;
+    b.box(0, y, d, 14, 0.5, 1.2, m.color('white'));
+    b.box(0, y, -d, 14, 0.5, 1.2, m.color('white'));
+    b.box(d, y, 0, 1.2, 0.5, 14, m.color('white'));
+    b.box(-d, y, 0, 1.2, 0.5, 14, m.color('white'));
   }
+  b.strut(0, plinthH + h - 0.5, 0, 0, plinthH + h + 3, 0, 0.3, m.color('gold'));
+  b.place(Templates.sphereLow, 0, plinthH + h + 3.2, 0, 0.5, 0.5, 0.5, m.color('gold'));
   b.box(0, LAWN_Y + 0.02, 22, 6, 0.04, 6, m.color('sand'));
   for (const [x, z] of [
     [-21, -21],

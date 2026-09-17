@@ -41,7 +41,7 @@ async function bootstrap(): Promise<void> {
   // Единственный сетевой ресурс — палитра: прогресс 0 → 100 % по факту загрузки (FR-11.1),
   // повторы с задержками из ASSETS.RETRY_BACKOFF_MS (FR-11.2).
   loading.set(0, 1);
-  const palette = await retry(() => loadPalette());
+  const palette = await retry(() => loadPalette(flags.season));
   loading.set(1, 1);
   applyPalette(palette);
   document.body.style.backgroundColor = palette.sky;

@@ -28,6 +28,9 @@ export interface DebugApi {
   project(point: CityPoint): { x: number; y: number };
   /** Ручной шаг автопонижения (TSK-060). */
   downgrade(): DowngradeStep | null;
+  /** Камера: колесо (deltaY в px) и мгновенная установка высоты (e2e, скриншоты). */
+  zoom(deltaY: number): void;
+  setHeight(height: number): void;
   pause(): void;
   resume(): void;
 }
@@ -60,6 +63,8 @@ export function installDebugApi(app: App, target: Window = window): DebugApi {
     groundAt: (px, py) => app.cityPointAt(px, py),
     project: (point) => app.screenPointOf(point),
     downgrade: () => app.quality.downgrade(),
+    zoom: (deltaY) => app.rig.wheel(deltaY),
+    setHeight: (height) => app.rig.snapHeight(height),
     pause: () => app.pause(),
     resume: () => app.resume(),
   };

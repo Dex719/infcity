@@ -54,12 +54,12 @@ describe('LandmarkPlanner — редкие ландмарки (AC-4.2)', () => {
   const SIZE = 100;
   const ORIGIN = 1000;
 
-  it('при всех 5 типах доля 1/25…1/40, одинаковые не ближе 6, соседних нет', () => {
+  it('при всех 12 типах доля 1/18…1/40, одинаковые не ближе 6, соседних нет', () => {
     const planner = new LandmarkPlanner(777, [...LANDMARK_IDS]);
     const placed = collect(planner, ORIGIN, ORIGIN, SIZE);
     const share = placed.length / (SIZE * SIZE);
     expect(share).toBeGreaterThanOrEqual(1 / 40);
-    expect(share).toBeLessThanOrEqual(1 / 25);
+    expect(share).toBeLessThanOrEqual(1 / 18);
     for (const a of placed) {
       for (const b of placed) {
         if (a === b) {
@@ -76,13 +76,13 @@ describe('LandmarkPlanner — редкие ландмарки (AC-4.2)', () => {
     expect(types.size).toBe(LANDMARK_IDS.length);
   });
 
-  it('при 2 включённых типах доля пропорционально ниже: 1/100…1/55', () => {
+  it('при 2 включённых типах доля пропорционально ниже: 1/160…1/90', () => {
     const planner = new LandmarkPlanner(777, ['baiterek', 'khan-shatyr']);
     expect(new LandmarkPlanner(777).enabledIds).toEqual(LANDMARKS.ENABLED);
     const placed = collect(planner, ORIGIN, ORIGIN, SIZE);
     const share = placed.length / (SIZE * SIZE);
-    expect(share).toBeGreaterThanOrEqual(1 / 100);
-    expect(share).toBeLessThanOrEqual(1 / 55);
+    expect(share).toBeGreaterThanOrEqual(1 / 160);
+    expect(share).toBeLessThanOrEqual(1 / 90);
   });
 
   it('включение новых типов не сдвигает уже существующие ландмарки', () => {
@@ -100,8 +100,8 @@ describe('LandmarkPlanner — редкие ландмарки (AC-4.2)', () => {
         kept++;
       }
     }
-    // Потери допустимы только из-за подавления соседями новых типов.
-    expect(kept / two.length).toBeGreaterThan(0.85);
+    // Потери допустимы только из-за подавления соседями новых типов (12 типов → больше подавления).
+    expect(kept / two.length).toBeGreaterThan(0.6);
   });
 
   it('результат детерминирован между экземплярами', () => {

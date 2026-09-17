@@ -24,6 +24,21 @@ export function buildNurAlem(ctx: LandmarkContext): void {
   g.place(Templates.sphere16, 0, centerY, 0, r, r, r, m.color('glass-blue'));
   b.place(Templates.cylinder16, 0, centerY, 0, r + 0.7, 0.5, r + 0.7, m.color('white'));
   b.place(Templates.cylinder16, 0, centerY - 4, 0, r + 0.2, 0.35, r + 0.2, m.color('white'));
+  // Панели сферы: кольца широт (FR-15.3).
+  for (const dy of [-8, 5, 9]) {
+    const rr = Math.sqrt(r * r - dy * dy) + 0.25;
+    b.place(Templates.cylinder16, 0, centerY + dy, 0, rr, 0.25, rr, m.color('white'));
+  }
+  // Павильоны Expo по бокам подиума.
+  for (const side of [-1, 1]) {
+    b.box(side * 19, 2.5, 2, 8, 5, 12, m.color('white'));
+    g.box(side * 14.95, 2.2, 2, 0.12, 3.6, 10, m.color('glass-teal'));
+    b.box(side * 19, 5.3, 2, 8.6, 0.5, 12.6, m.color('flag-blue'));
+  }
+  // Роботы-гиды у лестницы.
+  ctx.props.robot(-7, 22, 0.5);
+  ctx.props.robot(0, 23.2, 0);
+  ctx.props.robot(7, 22, -0.5);
   // Лестница-пандус к подиуму и флагштоки.
   for (let i = 0; i < 5; i++) {
     b.box(0, 0.5 + i * 1.1, 16 + i * 1.2, 12, 1.1, 1.4, m.color('white'));

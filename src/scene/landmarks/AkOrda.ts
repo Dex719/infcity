@@ -42,6 +42,13 @@ export function buildAkOrda(ctx: LandmarkContext): void {
   ctx.props.fountain(0, 15, 3.5);
   ctx.props.flagpole(-9, 20, 10);
   ctx.props.flagpole(9, 20, 10);
+  ctx.props.flagpole(-17, 20, 8);
+  ctx.props.flagpole(17, 20, 8);
+  // Парадные ворота с золотым фризом (FR-15.3).
+  b.box(-6, 3, 22.5, 1.6, 6, 1.6, white);
+  b.box(6, 3, 22.5, 1.6, 6, 1.6, white);
+  b.box(0, 6.4, 22.5, 14, 0.8, 1.8, white);
+  b.box(0, 7.1, 22.5, 14.4, 0.5, 2, gold);
   ctx.props.lamp(-20, 20, 4);
   ctx.props.lamp(20, 20, 4);
   ctx.props.tree(-21, 12, 0.9, 1);

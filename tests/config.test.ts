@@ -14,6 +14,7 @@ import {
 } from '@/config';
 import { PALETTE_KEYS, parsePalette } from '@/scene/palette';
 import paletteJson from '../public/assets/palette.json';
+import winterJson from '../public/assets/palette.winter.json';
 
 describe('WORLD', () => {
   it('окно нечётное — есть центральный слот', () => {
@@ -43,6 +44,11 @@ describe('CAMERA и PAN', () => {
     expect(CAMERA.HEIGHT_MIN).toBeLessThan(CAMERA.HEIGHT_MAX);
     expect(CAMERA.HEIGHT_START).toBeGreaterThanOrEqual(CAMERA.HEIGHT_MIN);
     expect(CAMERA.HEIGHT_START).toBeLessThanOrEqual(CAMERA.HEIGHT_MAX);
+  });
+
+  it('минимальная высота камеры выше самого высокого ландмарка (bugfix BUG-1)', () => {
+    const tallest = Math.max(...Object.values(LANDMARKS.HEIGHT));
+    expect(CAMERA.HEIGHT_MIN).toBeGreaterThanOrEqual(tallest + 8);
   });
 
   it('ближняя плоскость ближе дальней и дальняя перекрывает туман (FR-9.3)', () => {
@@ -167,12 +173,12 @@ describe('Ландмарки и геометрия чанка', () => {
     expect(Math.abs(first.gx - second.gx) + Math.abs(first.gy - second.gy)).toBeGreaterThan(1);
   });
 
-  it('плотность ландмарков при всех типах попадает в вилку 1/25…1/40 (AC-4.2)', () => {
+  it('плотность ландмарков при всех 12 типах попадает в вилку 1/17…1/26 (AC-4.2, итерация 2)', () => {
     const area = (2 * LANDMARKS.RADIUS + 1) ** 2;
     const perType = (1 - Math.exp(-LANDMARKS.PROBABILITY * area)) / area;
     const total = perType * LANDMARK_IDS.length;
-    expect(total).toBeLessThanOrEqual(1 / 25);
-    expect(total).toBeGreaterThanOrEqual(1 / 40);
+    expect(total).toBeLessThanOrEqual(1 / 17);
+    expect(total).toBeGreaterThanOrEqual(1 / 26);
     expect(LANDMARKS.RADIUS + 1).toBe(6);
     for (const id of LANDMARKS.ENABLED) {
       expect(LANDMARK_IDS).toContain(id);
@@ -192,8 +198,29 @@ describe('Ландмарки и геометрия чанка', () => {
 });
 
 describe('Палитра', () => {
-  it('в палитре не больше 24 цветов и ключи уникальны (FR-9.4)', () => {
-    expect(PALETTE_KEYS.length).toBeLessThanOrEqual(24);
+  it('зимняя палитра валидна: снег на земле, газонах, тротуарах и крышах (FR-13, AC-13.1)', () => {
+    const winter = parsePalette(winterJson);
+    expect(Object.keys(winter)).toHaveLength(PALETTE_KEYS.length);
+    const luminance = (hex: string): number => {
+      const n = Number.parseInt(hex.slice(1), 16);
+      return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+    };
+    for (const key of [
+      'ground',
+      'grass',
+      'sidewalk',
+      'stone-light',
+      'sand',
+      'roof-red',
+      'roof-dark',
+    ] as const) {
+      expect(luminance(winter[key]), key).toBeGreaterThan(0.85);
+    }
+    expect(luminance(winter.sky)).toBeLessThan(luminance(parsePalette(paletteJson).sky));
+  });
+
+  it('в палитре не больше 26 цветов и ключи уникальны (FR-9.4, итерация 2: +чёрный, +жёлтый)', () => {
+    expect(PALETTE_KEYS.length).toBeLessThanOrEqual(26);
     expect(new Set(PALETTE_KEYS).size).toBe(PALETTE_KEYS.length);
   });
 
@@ -215,6 +242,7 @@ describe('CONFIG', () => {
       'LANDMARKS',
       'BLOCKS',
       'LRT',
+      'RIVER',
       'TRAIN',
       'TRAFFIC',
       'CLOUD',

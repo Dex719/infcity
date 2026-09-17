@@ -1,4 +1,5 @@
 import { DirectionalLight, Fog, HemisphereLight, type Scene } from 'three';
+import type { Season } from '@/api/Seed';
 import { RENDER } from '@/config';
 import type { Palette } from '@/scene/palette';
 import type { Profile } from './Profile';
@@ -12,10 +13,15 @@ export class Lighting {
   readonly sun: DirectionalLight;
   readonly hemisphere: HemisphereLight;
 
-  constructor(scene: Scene, palette: Palette, profile: Profile) {
-    this.sun = new DirectionalLight(palette[RENDER.SUN.colorKey], RENDER.SUN.intensity);
+  constructor(scene: Scene, palette: Palette, profile: Profile, season: Season = 'summer') {
+    const winter = season === 'winter';
+    const sunPos = winter ? RENDER.WINTER.sunPosition : RENDER.SUN.position;
+    this.sun = new DirectionalLight(
+      palette[RENDER.SUN.colorKey],
+      winter ? RENDER.WINTER.sunIntensity : RENDER.SUN.intensity,
+    );
     this.sun.name = 'sun';
-    this.sun.position.set(RENDER.SUN.position.x, RENDER.SUN.position.y, RENDER.SUN.position.z);
+    this.sun.position.set(sunPos.x, sunPos.y, sunPos.z);
     this.sun.castShadow = profile.shadows;
     const shadow = this.sun.shadow;
     shadow.mapSize.set(profile.shadowResolution, profile.shadowResolution);
@@ -26,7 +32,11 @@ export class Lighting {
     scene.add(this.sun);
     scene.add(this.sun.target);
 
-    this.hemisphere = new HemisphereLight(palette.sky, palette.ground, RENDER.HEMISPHERE_INTENSITY);
+    this.hemisphere = new HemisphereLight(
+      palette.sky,
+      palette.ground,
+      winter ? RENDER.WINTER.hemisphereIntensity : RENDER.HEMISPHERE_INTENSITY,
+    );
     this.hemisphere.name = 'sky';
     scene.add(this.hemisphere);
 

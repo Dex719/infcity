@@ -1,4 +1,5 @@
 import { ASSETS } from '@/config';
+import type { Season } from '@/api/Seed';
 
 /**
  * Палитра «Астана»: единственный источник цветов сцены и материалов (FR-9.4, AC-9.3).
@@ -31,6 +32,8 @@ export const PALETTE_KEYS = [
   'flag-blue',
   'accent-red',
   'sun',
+  'black',
+  'yellow',
 ] as const;
 
 /** Имя цвета палитры. */
@@ -62,10 +65,14 @@ export function parsePalette(raw: unknown): Palette {
 }
 
 /**
- * Загружает палитру относительно базового URL сборки (`base: './'` в vite.config.ts).
+ * Загружает палитру сезона относительно базового URL сборки (`base: './'` в vite.config.ts);
+ * зимняя палитра (FR-13) лежит в отдельном файле и подменяет цвета без смены геометрии.
  */
-export async function loadPalette(baseUrl: string = import.meta.env.BASE_URL): Promise<Palette> {
-  const url = new URL(`${baseUrl}${ASSETS.PALETTE_FILE}`, document.baseURI);
+export async function loadPalette(
+  season: Season = 'summer',
+  baseUrl: string = import.meta.env.BASE_URL,
+): Promise<Palette> {
+  const url = new URL(`${baseUrl}${ASSETS.PALETTE_FILES[season]}`, document.baseURI);
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`palette.json: HTTP ${String(response.status)}`);

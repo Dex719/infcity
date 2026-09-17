@@ -63,7 +63,7 @@ describe('Generator — кварталы и соседство (FR-3)', () => {
   it('10 000 чанков: ни один регулярный квартал не совпадает с 8 соседями (AC-3.1)', () => {
     let violations = 0;
     for (const chunk of area) {
-      if (chunk.block === 'landmark' || chunk.block === 'stadium') {
+      if (chunk.block === 'landmark' || chunk.block === 'stadium' || chunk.block === 'river') {
         continue;
       }
       for (const [dx, dy] of NEIGHBOUR_OFFSETS) {

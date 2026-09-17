@@ -61,11 +61,27 @@ export function buildKhanShatyr(ctx: LandmarkContext): void {
   const apexY = 1.2 + Math.cos(LEAN) * tentH;
   b.strut(-apexX * 0.6, 1.2, 0, apexX * 1.05, total + 0.5, 0, 0.9, m.color('steel'));
   b.place(Templates.sphereLow, apexX * 1.05, total + 0.6, 0, 0.9, 0.9, 0.9, m.color('gold'));
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2;
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
     b.strut(apexX, apexY, 0, Math.cos(a) * (rx + 0.6), 1.4, Math.sin(a) * (rz + 0.6), 0.16, white);
   }
-  // Входной портал у южной стороны.
+  // Средний обод шатра и флагштоки (FR-15.3).
+  b.place(
+    Templates.cylinder16,
+    apexX * 0.5,
+    1.2 + tentH * 0.5,
+    0,
+    rx * 0.52,
+    0.3,
+    rz * 0.52,
+    white,
+  );
+  ctx.props.flagpole(-8, 23.5, 8);
+  ctx.props.flagpole(8, 23.5, 8);
+  // Входной портал у южной стороны с аркой.
   b.box(0, 3, rz + 2.2, 10, 6, 2.4, white);
   g.box(0, 2.6, rz + 3.5, 8, 4.4, 0.2, m.color('glass-teal'));
+  b.box(-6, 4, rz + 4.5, 1.2, 8, 1.2, white);
+  b.box(6, 4, rz + 4.5, 1.2, 8, 1.2, white);
+  b.box(0, 8.4, rz + 4.5, 13.4, 1, 1.4, m.color('gold'));
 }

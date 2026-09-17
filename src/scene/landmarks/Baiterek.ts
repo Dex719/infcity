@@ -10,6 +10,7 @@ const LAWN_Y = 0.2;
  */
 export function buildBaiterek(ctx: LandmarkContext): void {
   const b = ctx.opaque;
+  const g = ctx.glass;
   const m = ctx.m;
   const total = LANDMARKS.HEIGHT.baiterek; // 50
   const sphereR = total * 0.14; // 7
@@ -32,6 +33,14 @@ export function buildBaiterek(ctx: LandmarkContext): void {
     ctx.props.tree(x + 3, z - 3, 0.8);
   }
   b.place(Templates.cylinder16, 0, LAWN_Y + 0.01, 0, 15, 0.04, 15, m.color('sand'));
+  // Орнамент площади: кольца и лучи (FR-15.3).
+  b.place(Templates.cylinder16, 0, LAWN_Y + 0.03, 0, 11.5, 0.04, 11.5, white);
+  b.place(Templates.cylinder16, 0, LAWN_Y + 0.05, 0, 10.5, 0.04, 10.5, m.color('sand'));
+  b.place(Templates.cylinder16, 0, LAWN_Y + 0.07, 0, 9.6, 0.04, 9.6, gold);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    b.box(Math.cos(a) * 12.5, LAWN_Y + 0.03, Math.sin(a) * 12.5, 4.5, 0.04, 0.4, white, -a);
+  }
   ctx.props.fountain(0, -19, 3);
   ctx.props.fountain(0, 19, 3);
   ctx.props.fountain(-19, 0, 3);
@@ -43,8 +52,22 @@ export function buildBaiterek(ctx: LandmarkContext): void {
   ctx.props.bench(8, 9, Math.PI / 4);
   ctx.props.bench(-8, 9, -Math.PI / 4);
 
-  // Постамент и ствол.
+  // Постамент, вход и ствол с золотыми поясами.
   b.place(Templates.cylinder16, 0, 0.8, 0, 9, 1.6, 9, white);
+  b.box(0, 2.9, 7.2, 5, 2.6, 3, white);
+  g.box(0, 2.8, 8.75, 4, 2.2, 0.15, m.color('glass-blue'));
+  for (const y of [8, 15, 22]) {
+    b.place(
+      Templates.cylinder16,
+      0,
+      y,
+      0,
+      2.9 - (y / crownBottom) * 0.9,
+      0.5,
+      2.9 - (y / crownBottom) * 0.9,
+      gold,
+    );
+  }
   b.place(Templates.cylinder16, 0, 2.1, 0, 6.5, 1, 6.5, white);
   b.place(Templates.taper, 0, 2.6 + (crownBottom - 2.6) / 2, 0, 2.6, crownBottom - 2.6, 2.6, white);
 

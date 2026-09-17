@@ -38,7 +38,14 @@ export class PrefabBuilder implements ChunkBuilder {
     const glass = new GeometryBatch();
     const props = new Props(opaque, this.materials);
 
-    buildRoads(opaque, props, this.materials, descriptor.roads, descriptor.lrt.corridor !== null);
+    buildRoads(
+      opaque,
+      props,
+      this.materials,
+      descriptor.roads,
+      descriptor.lrt.corridor !== null,
+      descriptor.block === 'river',
+    );
     buildLrt(opaque, this.materials, descriptor.lrt);
 
     const block = buildBlock(descriptor, this.materials);

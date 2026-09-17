@@ -9,7 +9,20 @@
  */
 
 /** Идентификаторы ландмарков Астаны (design C8). */
-export const LANDMARK_IDS = ['baiterek', 'khan-shatyr', 'nur-alem', 'pyramid', 'ak-orda'] as const;
+export const LANDMARK_IDS = [
+  'baiterek',
+  'khan-shatyr',
+  'nur-alem',
+  'pyramid',
+  'ak-orda',
+  'abu-dhabi-plaza',
+  'astana-opera',
+  'hazret-sultan',
+  'mega-silk-way',
+  'northern-lights',
+  'transport-tower',
+  'kazmunaygas',
+] as const;
 
 /** Тип идентификатора ландмарка. */
 export type LandmarkId = (typeof LANDMARK_IDS)[number];
@@ -32,8 +45,8 @@ export const WORLD = {
 
 /** Seed и версионирование генератора (FR-2, NFR-3). */
 export const GEN = {
-  /** Версия правил генерации; попадает в share-ссылку как `?v=` (Migration and Compatibility). */
-  VERSION: 1,
+  /** Версия правил генерации; попадает в share-ссылку как `?v=` (Migration and Compatibility). v2 — итерация 2 (пул моделей 12, ТЦ вместо завода, река, берега). */
+  VERSION: 2,
   /** Допустимый формат seed в URL (FR-2.1). */
   SEED_PATTERN: /^[a-z0-9_-]{1,64}$/,
   /** Длина автоматически сгенерированного seed (FR-2.4). */
@@ -46,15 +59,28 @@ export const GEN = {
 export const LANDMARKS = {
   /**
    * Вероятность кандидата в ландмарки на чанк ДЛЯ КАЖДОГО ТИПА (FR-4.2, design C4).
-   * Итоговая плотность ≈ N·(1−e^(−p·(2R+1)²))/(2R+1)² ≈ N/150 при N включённых типах.
+   * Итоговая плотность ≈ N·(1−e^(−p·(2R+1)²))/(2R+1)² ≈ 1/20 при N = 12 типах (итерация 2).
    */
-  PROBABILITY: 1 / 74,
+  PROBABILITY: 1 / 180,
   /** Радиус подавления одинаковых ландмарков: Чебышёв ≤ R исключён → дистанция ≥ 6 (AC-4.2). */
   RADIUS: 5,
   /** Радиус, в котором не могут стоять два ландмарка разных типов (AC-4.2). */
   ADJACENCY_RADIUS: 1,
-  /** Включённые типы (FR-4.6): все пять реализованы процедурно в `scene/landmarks/`. */
-  ENABLED: ['baiterek', 'khan-shatyr', 'nur-alem', 'pyramid', 'ak-orda'],
+  /** Включённые типы (FR-4.6, FR-15.2): все реализованы процедурно в `scene/landmarks/`. */
+  ENABLED: [
+    'baiterek',
+    'khan-shatyr',
+    'nur-alem',
+    'pyramid',
+    'ak-orda',
+    'abu-dhabi-plaza',
+    'astana-opera',
+    'hazret-sultan',
+    'mega-silk-way',
+    'northern-lights',
+    'transport-tower',
+    'kazmunaygas',
+  ],
   /** Ландмарки, гарантированно попадающие в стартовое окно (FR-4.1). */
   FIXED: [
     { id: 'baiterek', gx: 0, gy: -1 },
@@ -66,6 +92,13 @@ export const LANDMARKS = {
     'khan-shatyr': 42,
     'nur-alem': 34,
     pyramid: 30,
+    'abu-dhabi-plaza': 50,
+    'astana-opera': 20,
+    'hazret-sultan': 40,
+    'mega-silk-way': 14,
+    'northern-lights': 40,
+    'transport-tower': 42,
+    kazmunaygas: 34,
     'ak-orda': 30,
   },
 } as const satisfies {
@@ -107,6 +140,41 @@ export const LRT = {
   SPAWN_STEP: { min: 4, max: 6 },
 } as const;
 
+/** Река Есиль (FR-14, FR-15.6, design D10). */
+export const RIVER = {
+  /** Период рядов русла, чанков (≥ 12); не кратен периоду ЛРТ по чётности. */
+  PERIOD: 12,
+  /** Смещение первого русла от нулевого ряда; стартовая зона |gy| ≤ 5 остаётся на одном берегу. */
+  OFFSET: 6,
+  /** Уровень воды относительно дороги, юниты. */
+  WATER_Y: -2,
+  /** Веса типов кварталов по берегам (правый — старый город, левый — современный). */
+  BANK_WEIGHTS: {
+    right: {
+      'residential-panel': 6,
+      'residential-new': 5,
+      'business-glass': 0.1,
+      commercial: 0.5,
+      park: 0.7,
+      square: 0.4,
+      campus: 0.4,
+      mall: 0.3,
+      market: 0.8,
+    },
+    left: {
+      'residential-panel': 0.05,
+      'residential-new': 3,
+      'business-glass': 6,
+      commercial: 0.5,
+      park: 0.7,
+      square: 0.5,
+      campus: 0.3,
+      mall: 4.5,
+      market: 0.15,
+    },
+  },
+} as const;
+
 /** Поезда ЛРТ (FR-5.3–5.6, design C10). */
 export const TRAIN = {
   /** Крейсерская скорость, юн/с. */
@@ -129,8 +197,8 @@ export const TRAFFIC = {
   P_CAR: { desktop: 0.35, mobile: 0.2 },
   /** Полос движения в чанке: по две на каждой из двух дорог (FR-6.1). */
   LANES: 4,
-  /** Число моделей в пуле машин; индекс модели в дескрипторе — 0..MODEL_POOL-1 (FR-6.6). */
-  MODEL_POOL: 8,
+  /** Число моделей в пуле машин; индекс модели в дескрипторе — 0..MODEL_POOL-1 (FR-6.6, FR-16). */
+  MODEL_POOL: 12,
   /** Максимальная скорость машины, юн/с (design C10). */
   MAX_SPEED: 15,
   /** Ускорение и торможение, юн/с²: эквивалент 0.0075 юн/кадр² при 60 FPS (design C10, D8). */
@@ -160,7 +228,8 @@ export const CLOUD = {
   /** Высота слоя облаков, юниты (FR-7.1). */
   ALTITUDE: 60,
   /** Базовая скорость дрейфа, юн/с (FR-7.1). */
-  SPEED: 3,
+  /** Скорость дрейфа, юн/с; выше, чем в референсе: степной ветер Астаны (D11). */
+  SPEED: 4,
   /** Максимальная добавка к скорости: множитель 1…1.25 (design C10). */
   SPEED_JITTER: 0.25,
   /** Направление дрейфа в локальных осях чанка (design C10). */
@@ -181,8 +250,8 @@ export const CAMERA = {
   FAR: 400,
   /** Горизонтальное смещение камеры от точки взгляда по X и Z (design C11). */
   OFFSET: { x: 80, z: 80 },
-  /** Минимальная высота камеры, юниты (FR-8.2). */
-  HEIGHT_MIN: 30,
+  /** Минимальная высота камеры, юниты (FR-8.2; bugfix BUG-1: точка обзора выше любой застройки — ландмарки ≤ 50). */
+  HEIGHT_MIN: 60,
   /** Максимальная высота камеры, юниты (FR-8.2). */
   HEIGHT_MAX: 140,
   /** Стартовая высота — максимальная: обзорный вид, как у референса (design C11). */
@@ -264,6 +333,12 @@ export const RENDER = {
   },
   /** Интенсивность полусферического (рассеянного) света (design C12). */
   HEMISPHERE_INTENSITY: 0.9,
+  /** Зима (FR-13): низкое тёплое солнце, длинные тени, слабее рассеянный свет. */
+  WINTER: {
+    sunIntensity: 2.0,
+    sunPosition: { x: 120, y: 70, z: -70 },
+    hemisphereIntensity: 0.75,
+  },
   /** Непрозрачность виньетки (FR-9.2). */
   VIGNETTE_OPACITY: 0.25,
   /** Бюджеты кадра, проверяются с фазы 3 (NFR-1). */
@@ -283,6 +358,8 @@ export const ASSETS = {
   CATALOG_FILE: 'assets/catalog.json',
   /** Файл палитры относительно базового URL (FR-9.4). */
   PALETTE_FILE: 'assets/palette.json',
+  /** Палитры по сезонам (FR-13): зимняя подменяет цвета земли, крыш и неба. */
+  PALETTE_FILES: { summer: 'assets/palette.json', winter: 'assets/palette.winter.json' },
   /** Повторных попыток загрузки после ошибки (FR-11.2). */
   RETRY_ATTEMPTS: 2,
   /** Задержки перед повторами, мс (FR-11.2). */
@@ -322,6 +399,7 @@ export const CONFIG = {
   LANDMARKS,
   BLOCKS,
   LRT,
+  RIVER,
   TRAIN,
   TRAFFIC,
   CLOUD,

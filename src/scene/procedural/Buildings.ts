@@ -1,6 +1,10 @@
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
+import { mulberry32 } from '@/world/Hash';
 import { type GeometryBatch, Templates } from './GeometryBatch';
+
+/** Доля крыш с деталями (FR-15.5, AC-15.4: ≥ 40 %). */
+export const ROOF_DETAIL_PROBABILITY = 0.65;
 
 /** Высота этажа, юниты. */
 export const FLOOR = 2.7;
@@ -19,10 +23,15 @@ export interface Footprint {
  * полупрозрачными вторым draw call'ом.
  */
 export class Buildings {
+  /** Счётчики покрытия деталями крыш (AC-15.4). */
+  roofs = 0;
+  roofsWithDetails = 0;
+
   constructor(
     private readonly batch: GeometryBatch,
     private readonly glass: GeometryBatch,
     private readonly m: Materials,
+    private readonly rng: () => number = mulberry32(1),
   ) {}
 
   /** Панельная/кирпичная жилая коробка с рядами окон на всех фасадах. */
@@ -38,6 +47,7 @@ export class Buildings {
     b.box(f.x, 2.8, f.z + f.d / 2 + 0.8, 3.2, 0.2, 1.6, this.m.color('white'));
     // Лифтовая надстройка.
     b.box(f.x + f.w * 0.25, h + 1.2, f.z, 3, 2, 3, this.m.color(wall));
+    this.roofDetails(f, h + 0.4);
   }
 
   /** Новостройка: светлый корпус с цветными балконными полосами. */
@@ -51,6 +61,7 @@ export class Buildings {
     b.box(f.x - f.w / 2 - 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
     b.box(f.x + f.w / 2 + 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
     b.box(f.x, h + 1, f.z, f.w * 0.5, 1.6, f.d * 0.5, this.m.color('stone-light'));
+    this.roofDetails(f, h + 0.4);
   }
 
   /** Стеклянная башня делового центра: корпус в стекле, стальные пояса, «корона». */
@@ -67,6 +78,7 @@ export class Buildings {
     b.box(f.x, h + 0.3, f.z, f.w + 0.4, 0.6, f.d + 0.4, this.m.color('white'));
     b.box(f.x, h + 0.6 + 2, f.z, f.w * 0.6, 4, f.d * 0.6, this.m.shade(tint, 0.7));
     b.box(f.x, h + 4.6 + 2.5, f.z, 0.4, 5, 0.4, this.m.color('steel'));
+    this.roofDetails(f, h + 0.6);
   }
 
   /** Торговый ряд: 2–3 этажа, витрины, маркизы, вывеска. */
@@ -90,39 +102,106 @@ export class Buildings {
     // Вывеска на крыше.
     b.box(f.x, h + 1.1, front - 0.6, f.w * 0.5, 1.4, 0.2, this.m.color('white'));
     b.box(f.x, h + 1.1, front - 0.45, f.w * 0.36, 0.5, 0.05, this.m.color(awning));
+    this.roofDetails(f, h + 0.3);
   }
 
-  /** Промышленный цех с пилообразной крышей и трубой. */
-  shed(f: Footprint, height = 6): void {
+  /** Торговый центр (FR-15.1): широкий корпус, волнистый парапет, портал входа, вывеска. */
+  mall(f: Footprint, accent: PaletteKey = 'gold'): void {
     const b = this.batch;
-    b.box(f.x, height / 2, f.z, f.w, height, f.d, this.m.color('concrete'));
-    const teeth = Math.max(2, Math.floor(f.d / 5));
-    const step = f.d / teeth;
-    for (let i = 0; i < teeth; i++) {
-      const z = f.z - f.d / 2 + step * (i + 0.5);
-      b.place(
-        Templates.pyramid4,
-        f.x,
-        height + 0.7,
-        z,
-        f.w * 0.74,
-        1.4,
-        step * 0.74,
-        this.m.color('steel'),
-        Math.PI / 4,
+    const h = 12;
+    const front = f.z + f.d / 2;
+    b.box(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
+    b.box(f.x, h + 0.25, f.z, f.w + 0.4, 0.5, f.d + 0.4, this.m.color('white'));
+    const seg = 6;
+    let up = true;
+    for (let x = f.x - f.w / 2 + seg / 2; x < f.x + f.w / 2; x += seg) {
+      b.box(
+        x,
+        h + 0.5 + (up ? 0.9 : 0.4),
+        front - 0.3,
+        seg - 0.4,
+        up ? 1.8 : 0.8,
+        0.5,
+        this.m.color(accent),
       );
+      up = !up;
     }
-    b.place(
-      Templates.cylinder8,
-      f.x + f.w / 2 - 1.5,
-      height + 4,
-      f.z - f.d / 2 + 1.5,
-      0.7,
-      8,
-      0.7,
-      this.m.color('brick'),
-    );
-    b.box(f.x, 1.5, f.z + f.d / 2 + 0.05, 4, 3, 0.1, this.m.color('roof-dark'));
+    // Ленточное остекление второго этажа по фасаду и торцам.
+    this.glass.box(f.x, 8.5, front + 0.06, f.w - 4, 2.4, 0.12, this.m.color('glass-teal'));
+    this.glass.box(f.x - f.w / 2 - 0.06, 8.5, f.z, 0.12, 2.4, f.d - 4, this.m.color('glass-teal'));
+    this.glass.box(f.x + f.w / 2 + 0.06, 8.5, f.z, 0.12, 2.4, f.d - 4, this.m.color('glass-teal'));
+    // Портал входа.
+    b.box(f.x, 3.5, front + 1.2, 12, 7, 2.4, this.m.color('white'));
+    this.glass.box(f.x, 2.6, front + 2.45, 9, 5, 0.15, this.m.color('glass-blue'));
+    b.box(f.x, 7.2, front + 1.2, 13, 0.5, 3.2, this.m.color(accent));
+    // Вывеска с «буквами».
+    b.box(f.x, h + 2.4, front - 0.6, 14, 2.2, 0.4, this.m.color('white'));
+    for (let i = 0; i < 4; i++) {
+      b.box(f.x - 4.5 + i * 3, h + 2.4, front - 0.3, 2.0, 1.3, 0.2, this.m.color(accent));
+    }
+    this.roofDetails(f, h + 0.5);
+  }
+
+  /**
+   * Детали крыши (FR-15.5): антенны, кондиционеры, баки, спутниковые тарелки, вентиляция —
+   * детерминированно по `rng`, примерно на 65 % крыш.
+   */
+  roofDetails(f: Footprint, top: number): void {
+    this.roofs++;
+    if (this.rng() >= ROOF_DETAIL_PROBABILITY) {
+      return;
+    }
+    this.roofsWithDetails++;
+    const b = this.batch;
+    const steel = this.m.color('steel');
+    const dark = this.m.color('roof-dark');
+    const white = this.m.color('white');
+    const count = 1 + Math.floor(this.rng() * 3);
+    for (let i = 0; i < count; i++) {
+      const px = f.x + (this.rng() - 0.5) * Math.max(2, f.w - 5);
+      const pz = f.z + (this.rng() - 0.5) * Math.max(2, f.d - 5);
+      switch (Math.floor(this.rng() * 5)) {
+        case 0:
+          b.box(px, top + 3, pz, 0.14, 6, 0.14, steel);
+          b.box(px, top + 4.6, pz, 1.6, 0.08, 0.08, steel);
+          b.box(px, top + 5.5, pz, 1.0, 0.08, 0.08, steel);
+          break;
+        case 1:
+          b.box(px, top + 0.5, pz, 1.6, 1.0, 1.3, this.m.color('panel-grey'));
+          b.place(Templates.cylinder8, px, top + 1.05, pz, 0.45, 0.1, 0.45, dark);
+          break;
+        case 2:
+          for (const [sx, sz] of [
+            [-1, -1],
+            [1, -1],
+            [-1, 1],
+            [1, 1],
+          ] as const) {
+            b.box(px + sx * 0.55, top + 0.6, pz + sz * 0.55, 0.12, 1.2, 0.12, steel);
+          }
+          b.place(Templates.cylinder8, px, top + 2.1, pz, 0.9, 1.8, 0.9, white);
+          break;
+        case 3:
+          b.box(px, top + 0.9, pz, 0.18, 1.8, 0.18, steel);
+          b.placeRotated(
+            Templates.cylinder16,
+            px,
+            top + 2.0,
+            pz + 0.4,
+            0.9,
+            0.12,
+            0.9,
+            -1.1,
+            0,
+            0,
+            white,
+          );
+          break;
+        default:
+          b.box(px, top + 1.0, pz, 1.2, 2.0, 1.2, this.m.color('concrete'));
+          b.box(px, top + 2.15, pz, 1.6, 0.3, 1.6, dark);
+      }
+    }
   }
 
   /** Крытый рынок: широкий низкий корпус с рядом навесов. */

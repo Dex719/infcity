@@ -1,4 +1,4 @@
-import { CHUNK_LAYOUT } from '@/config';
+import { CHUNK_LAYOUT, RIVER } from '@/config';
 import { buildLandmark } from '@/scene/landmarks';
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
@@ -36,9 +36,9 @@ function int(rng: Rng, min: number, max: number): number {
 export function buildBlock(descriptor: ChunkDescriptor, m: Materials): BlockGeometry {
   const opaque = new GeometryBatch();
   const glass = new GeometryBatch();
-  const props = new Props(opaque, m);
-  const buildings = new Buildings(opaque, glass, m);
   const rng = mulberry32(descriptor.variant);
+  const props = new Props(opaque, m);
+  const buildings = new Buildings(opaque, glass, m, rng);
   const ctx: Ctx = { b: opaque, props, buildings, m, rng };
 
   switch (descriptor.block) {
@@ -63,14 +63,17 @@ export function buildBlock(descriptor: ChunkDescriptor, m: Materials): BlockGeom
     case 'campus':
       campus(ctx);
       break;
-    case 'industrial':
-      industrial(ctx);
+    case 'mall':
+      mall(ctx);
       break;
     case 'market':
       market(ctx);
       break;
     case 'stadium':
       stadium(ctx);
+      break;
+    case 'river':
+      river(ctx);
       break;
     case 'landmark':
       if (descriptor.landmark !== null) {
@@ -181,7 +184,7 @@ function residentialNew(ctx: Ctx): void {
   for (const t of towers) {
     ctx.buildings.modernTower(
       t,
-      int(ctx.rng, 8, 13),
+      int(ctx.rng, 7, 12),
       accents[int(ctx.rng, 0, accents.length - 1)] ?? 'glass-teal',
     );
   }
@@ -198,7 +201,7 @@ function businessGlass(ctx: Ctx): void {
   lawn(ctx, 0, 0, 46, 46, 'stone-light');
   const tints: PaletteKey[] = ['glass-blue', 'glass-teal', 'glass-navy'];
   const main = { x: -5, z: -4, w: between(ctx.rng, 16, 19), d: between(ctx.rng, 16, 19) };
-  ctx.buildings.glassTower(main, int(ctx.rng, 11, 16), tints[int(ctx.rng, 0, 2)] ?? 'glass-blue');
+  ctx.buildings.glassTower(main, int(ctx.rng, 9, 12), tints[int(ctx.rng, 0, 2)] ?? 'glass-blue');
   const annex = { x: 13, z: 12, w: 12, d: 12 };
   ctx.buildings.glassTower(annex, int(ctx.rng, 4, 7), tints[int(ctx.rng, 0, 2)] ?? 'glass-teal');
   ctx.props.fountain(-13, 15, 3);
@@ -280,7 +283,8 @@ function square(ctx: Ctx): void {
     [-18, 18],
     [18, 18],
   ] as const) {
-    lawn(ctx, x, z, 8, 8);
+    // Газонные вставки выше полос плит (bugfix BUG-2).
+    ctx.b.plane(x, LAWN_Y + 0.06, z, 8, 8, ctx.m.color('grass'));
     ctx.props.tree(x, z, 1.2);
   }
   ctx.props.bench(-10, 8, 0);
@@ -311,18 +315,27 @@ function campus(ctx: Ctx): void {
   ctx.props.lamp(20, 20);
 }
 
-function industrial(ctx: Ctx): void {
-  lawn(ctx, 0, 0, 46, 46, 'concrete');
-  const a = { x: -8, z: -8, w: 24, d: 18 };
-  const b = { x: 12, z: 12, w: 16, d: 14 };
-  ctx.buildings.shed(a, int(ctx.rng, 6, 8));
-  ctx.buildings.shed(b, int(ctx.rng, 5, 6));
-  ctx.props.fence(0, 0, 47, 47);
-  for (let i = 0; i < 3; i++) {
-    ctx.b.box(-16 + i * 7, 1.6, 15, 5, 3.2, 2.4, ctx.m.color(i === 1 ? 'accent-red' : 'white'));
+/** Торговый центр (FR-15.1): корпус с вывеской и парковка перед входом. */
+function mall(ctx: Ctx): void {
+  lawn(ctx, 0, 0, 46, 46, 'sidewalk');
+  const accents: PaletteKey[] = ['gold', 'accent-red', 'flag-blue', 'glass-teal'];
+  ctx.buildings.mall(
+    { x: 0, z: -7, w: 40, d: 24 },
+    accents[int(ctx.rng, 0, accents.length - 1)] ?? 'gold',
+  );
+  ctx.b.plane(0, CURB_Y + 0.04, 15, 44, 12, ctx.m.color('asphalt'));
+  for (let i = 0; i < 9; i++) {
+    ctx.b.box(-18 + i * 4.5, CURB_Y + 0.07, 15, 0.15, 0.02, 9, ctx.m.color('marking'));
+    if (i < 8 && ctx.rng() < 0.7) {
+      ctx.props.parkedCar(-15.75 + i * 4.5, 15, Math.PI / 2, i);
+    }
   }
-  ctx.b.box(16, 2, -12, 6, 4, 6, ctx.m.color('steel'));
-  ctx.props.lamp(-20, 20);
+  ctx.props.flagpole(-20, 2, 9);
+  ctx.props.lamp(20, 2);
+  ctx.props.lamp(-20, 22);
+  ctx.props.lamp(20, 22);
+  ctx.props.tree(-22, -20, 1.0);
+  ctx.props.tree(22, -20, 1.0);
 }
 
 function market(ctx: Ctx): void {
@@ -341,6 +354,38 @@ function market(ctx: Ctx): void {
   ctx.props.tree(20, -6, 0.9);
   ctx.props.lamp(20, 20);
   ctx.props.lamp(-20, 20);
+}
+
+/**
+ * Русло Есиль (FR-14): вода на всю ширину чанка (включая полосу моста N–S), набережная
+ * с парапетом, фонарями и скамейками вдоль дороги E–W, берега-стенки, пара лодок.
+ * Квартал не поворачивается; локальный (0,0) = чанк (5,5): вода x ∈ [−35, 25], z ∈ [−25, 25].
+ */
+function river(ctx: Ctx): void {
+  const water = ctx.m.color('water');
+  const concrete = ctx.m.color('concrete');
+  const stone = ctx.m.color('stone-light');
+  ctx.b.plane(-5, RIVER.WATER_Y, 0, 60, 50, water);
+  // Берега: северная стенка под набережной и южная у следующего ряда.
+  ctx.b.box(-5, RIVER.WATER_Y / 2 - 0.1, -24.6, 60, -RIVER.WATER_Y + 0.35, 0.8, concrete);
+  ctx.b.box(-5, RIVER.WATER_Y / 2 - 0.1, 24.6, 60, -RIVER.WATER_Y + 0.35, 0.8, concrete);
+  // Набережная: настил, парапет, фонари, скамейки.
+  ctx.b.plane(-5, CURB_Y, -23.4, 60, 3.2, stone);
+  ctx.b.box(-5, CURB_Y + 0.5, -21.9, 60, 1, 0.3, ctx.m.color('white'));
+  for (let x = -30; x <= 20; x += 10) {
+    ctx.props.lamp(x, -23.2, 4);
+  }
+  ctx.props.bench(-14, -23.6, 0);
+  ctx.props.bench(6, -23.6, 0);
+  ctx.props.bench(16, -23.6, 0);
+  // Лодки на воде.
+  for (const [x, z, rot] of [
+    [8, 6, 0.4],
+    [-10, 14, -0.9],
+  ] as const) {
+    ctx.b.box(x, RIVER.WATER_Y + 0.35, z, 4, 0.7, 1.6, ctx.m.color('white'), rot);
+    ctx.b.box(x - 0.6, RIVER.WATER_Y + 1.1, z, 1.4, 0.8, 1.2, ctx.m.color('flag-blue'), rot);
+  }
 }
 
 function stadium(ctx: Ctx): void {

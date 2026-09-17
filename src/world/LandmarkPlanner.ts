@@ -1,6 +1,7 @@
 import { LANDMARKS, LANDMARK_IDS, WORLD, type LandmarkId } from '@/config';
 import { chebyshev } from './math';
 import { isRareWinner, rareRoll, type RareRule } from './Rare';
+import { isRiverRow } from './RiverPlanner';
 import { NEIGHBOUR_OFFSETS, Salt } from './types';
 
 /**
@@ -68,7 +69,7 @@ export class LandmarkPlanner {
     if (fixed !== null) {
       return fixed;
     }
-    if (LandmarkPlanner.inStartZone(gx, gy)) {
+    if (LandmarkPlanner.inStartZone(gx, gy) || isRiverRow(gy)) {
       return null;
     }
     const best = this.winnerAt(gx, gy);

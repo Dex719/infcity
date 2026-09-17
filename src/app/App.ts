@@ -101,7 +101,12 @@ export class App extends Emitter<AppEvents> {
       options.builder ?? new PrefabBuilder(this.materials),
     );
     this.scene.add(this.chunkWindow.root);
-    this.lighting = new Lighting(this.scene, options.palette, options.profile);
+    this.lighting = new Lighting(
+      this.scene,
+      options.palette,
+      options.profile,
+      options.flags.season,
+    );
     this.vignette = new Vignette();
     this.mobs = new MobSystem(this.chunkWindow, this.materials, options.profile);
     this.quality = new QualityController(

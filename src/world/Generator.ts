@@ -1,7 +1,8 @@
-import { BLOCKS, CLOUD, TRAFFIC, WORLD, type LandmarkId } from '@/config';
+import { BLOCKS, CLOUD, RIVER, TRAFFIC, WORLD, type LandmarkId } from '@/config';
 import { hash32, hashUnit, rng, seedToInt } from './Hash';
 import { LandmarkPlanner } from './LandmarkPlanner';
 import { describeLrt } from './LrtPlanner';
+import { bankOf, isRiverRow } from './RiverPlanner';
 import { mod, pick } from './math';
 import { isRareWinner, type RareRule } from './Rare';
 import {
@@ -67,12 +68,41 @@ export class Generator {
     return (mod(gx, 2) + 2 * mod(gy, 2)) as ParityClass;
   }
 
-  /** «Сырой» тип квартала — чистый хеш без учёта соседей. */
+  /**
+   * «Сырой» тип квартала — хеш без учёта соседей, взвешенный по берегу реки (FR-15.6):
+   * правый берег — панельная застройка, левый — стекло и ТЦ.
+   */
   rawBlockType(gx: number, gy: number): RegularBlockTypeId {
-    return pick(
+    return Generator.weightedPick(
       REGULAR_BLOCK_TYPES,
-      hash32(this.seed, gx, gy, Salt.BLOCK) % REGULAR_BLOCK_TYPES.length,
+      Generator.bankWeights(gy),
+      hashUnit(this.seed, gx, gy, Salt.BLOCK),
     );
+  }
+
+  /** Веса типов для берега, на котором лежит ряд `gy` (русло считается левым берегом). */
+  private static bankWeights(gy: number): Readonly<Record<RegularBlockTypeId, number>> {
+    return RIVER.BANK_WEIGHTS[bankOf(gy) === 'right' ? 'right' : 'left'];
+  }
+
+  /** Взвешенный выбор по броску `u ∈ [0, 1)`; список непустой. */
+  private static weightedPick(
+    types: readonly RegularBlockTypeId[],
+    weights: Readonly<Record<RegularBlockTypeId, number>>,
+    u: number,
+  ): RegularBlockTypeId {
+    let total = 0;
+    for (const type of types) {
+      total += weights[type];
+    }
+    let rest = u * total;
+    for (const type of types) {
+      rest -= weights[type];
+      if (rest < 0) {
+        return type;
+      }
+    }
+    return pick(types, types.length - 1);
   }
 
   /** Финальный тип квартала с учётом ландмарков, стадиона и соседей (FR-3.2, D9). */
@@ -130,6 +160,9 @@ export class Generator {
   }
 
   private computeBlockType(gx: number, gy: number): BlockTypeId {
+    if (isRiverRow(gy)) {
+      return 'river';
+    }
     if (this.landmarks.pick(gx, gy) !== null) {
       return 'landmark';
     }
@@ -156,14 +189,21 @@ export class Generator {
     if (candidates.length === 0) {
       return raw;
     }
-    return pick(candidates, hash32(this.seed, gx, gy, Salt.BLOCK_PICK) % candidates.length);
+    return Generator.weightedPick(
+      candidates,
+      Generator.bankWeights(gy),
+      hashUnit(this.seed, gx, gy, Salt.BLOCK_PICK),
+    );
   }
 
   private compute(gx: number, gy: number, key: string): ChunkDescriptor {
     const seed = this.seed;
     const landmark = this.landmarks.pick(gx, gy);
     const block = landmark !== null ? 'landmark' : this.blockType(gx, gy);
-    const rotation = landmark !== null ? 0 : ((hash32(seed, gx, gy, Salt.ROT) & 3) as Rotation);
+    const rotation =
+      landmark !== null || block === 'river'
+        ? 0
+        : ((hash32(seed, gx, gy, Salt.ROT) & 3) as Rotation);
     const variant = hash32(seed, gx, gy, Salt.VARIANT);
 
     const roadBits = hash32(seed, gx, gy, Salt.ROADS);
