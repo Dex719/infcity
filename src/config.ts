@@ -394,8 +394,8 @@ export const UI = {
   TOAST_MS: 2000,
   /** Ширина экрана, ниже которой About раскрывается на весь экран, px (FR-10.4). */
   MOBILE_BREAKPOINT_PX: 700,
-  /** Автор демо для окна About (ссылка пустая — выводится только имя). */
-  AUTHOR: { name: 'r.madiyev', url: '' },
+  /** Автор демо для окна About: ник GitHub-аккаунта и ссылка на профиль. */
+  AUTHOR: { name: 'Dex719', url: 'https://github.com/Dex719' },
   /** Страница проверки поддержки WebGL 2 для заставки без WebGL (FR-11.3). */
   WEBGL_HELP_URL: 'https://get.webgl.org/webgl2/',
 } as const;

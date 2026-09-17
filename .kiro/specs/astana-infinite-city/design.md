@@ -5,7 +5,7 @@
 - **Feature Name**: Astana Infinite City
 - **Version**: 1.0 (Draft)
 - **Date**: 2026-09-17
-- **Author**: r.madiyev
+- **Author**: Dex719
 - **Related Documents**: `requirements.md` (FR/NFR), `.kiro/steering/reference-infinitown.md` (референс), `.kiro/steering/context.md`
 
 ## Overview

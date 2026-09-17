@@ -6,7 +6,7 @@
 - **Version**: 1.1 (Approved 2026-09-17; итерация 2 от 2026-09-17 по обратной связи пользователя: FR-14 → Must, добавлены FR-15, FR-16, `bugfix.md`)
 - **Status (2026-09-17)**: FR-1…FR-16 реализованы; evidence по каждому AC — `qa-evidence.md`. Открытые ручные проверки: AC-4.3 (узнаваемость, 5 респондентов), замер FPS на телефоне (NFR-1).
 - **Date**: 2026-09-17
-- **Author**: r.madiyev
+- **Author**: Dex719
 - **Stakeholders**: автор проекта (владелец продукта и разработчик); зрители демо
 - **Reference**: `.kiro/steering/reference-infinitown.md` (разбор Infinitown), `research/infinitown/`
 
