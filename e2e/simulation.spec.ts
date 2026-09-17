@@ -59,7 +59,11 @@ test.describe('Симуляция в ускоренном времени (TSK-06
   }) => {
     test.setTimeout(240_000);
     await gotoApp(page);
-    await page.evaluate(() => window.__app?.pause());
+    // Детерминированный старт: пауза и пересоздание мобов из дескрипторов (одинаково локально и в CI).
+    await page.evaluate(() => {
+      window.__app?.pause();
+      window.__app?.resetMobs();
+    });
 
     const samples: Sample[] = [];
     for (let second = 1; second <= 300; second++) {

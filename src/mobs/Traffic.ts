@@ -7,7 +7,7 @@ const RADAR_SIN = Math.sin((TRAFFIC.RADAR_ROTATION_DEG * Math.PI) / 180);
 const RADIUS_SQ = TRAFFIC.RADAR_RADIUS * TRAFFIC.RADAR_RADIUS;
 
 /** Размер зоны перекрёстка (ширина дороги) и её локальные границы (NW-угол чанка). */
-const ZONE = CHUNK_LAYOUT.ROAD_WIDTH;
+export const ZONE = CHUNK_LAYOUT.ROAD_WIDTH;
 const ZONE_MIN = CHUNK_LAYOUT.ROAD_AXIS - ZONE / 2; // −30
 const ZONE_MAX = CHUNK_LAYOUT.ROAD_AXIS + ZONE / 2; // −20
 const HALF_CHUNK = 30;
@@ -50,11 +50,16 @@ export function detects(self: RadarCar, other: RadarCar): boolean {
     return false;
   }
   const selfOnIntersection = isOnIntersection(self.x, self.z);
+  const otherOnIntersection = isOnIntersection(other.x, other.z);
   const sameDirection = self.dirX === other.dirX && self.dirZ === other.dirZ;
-  if (selfOnIntersection && !isOnIntersection(other.x, other.z) && !sameDirection) {
+  const crossing = isCrossing(self, other);
+  // Пересекающая машина вне зоны перекрёстка радару не цель: конфликт на перекрёстке
+  // решают стоп-линия и фазы (`yieldDistance`), а радар держал бы машину у стоп-линии
+  // из-за той, что сама стоит у своей стоп-линии и уступает ей — взаимное ожидание (BUG-8).
+  if (!otherOnIntersection && (crossing || (selfOnIntersection && !sameDirection))) {
     return false;
   }
-  if (isCrossing(self, other) && hasPassedCrossing(self, other)) {
+  if (crossing && hasPassedCrossing(self, other)) {
     return false;
   }
   // Ось радара: направление, повёрнутое на RADAR_ROTATION_DEG вокруг Y.
@@ -181,7 +186,8 @@ export function yieldDistance(
     if (other === self || !isCrossing(self, other)) {
       continue;
     }
-    if (boxInZone(other, zone)) {
+    // Машина в зоне, уже проехавшая мою полосу и выезжающая, не мешает (меньше простоев).
+    if (boxInZone(other, zone) && !hasPassedCrossing(self, other)) {
       return zone.distance;
     }
   }

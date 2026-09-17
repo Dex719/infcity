@@ -5,9 +5,12 @@ import { MobileObject } from './MobileObject';
 import {
   detects,
   freeDistanceAhead,
+  GAP_MARGIN,
+  INTERSECTION_LOOKAHEAD,
   PHASE_SECONDS,
   STOP_MARGIN,
   yieldDistance,
+  ZONE,
   zoneAhead,
   type RadarCar,
 } from './Traffic';
@@ -81,11 +84,25 @@ export class Car extends MobileObject implements RadarCar {
       }
     }
 
+    // Зазор: никогда не въезжаем в чужой bbox.
+    const free = freeDistanceAhead(this, neighbours, dt);
+
     // Перекрёсток: стоп-линия, пока зона занята или справа подъезжает машина.
-    if (this.forceEntry && zoneAhead(this).distance <= 0) {
+    const zone = zoneAhead(this);
+    if (this.forceEntry && zone.distance <= 0) {
       this.forceEntry = false;
     }
-    const stop = this.forceEntry ? null : yieldDistance(this, neighbours, time);
+    let stop = this.forceEntry ? null : yieldDistance(this, neighbours, time);
+    // «Не занимай перекрёсток»: въезжаем, только если за зоной есть место для всей машины —
+    // иначе хвост очереди встаёт внутри зоны и по кругу квартала возникает gridlock (AC-6.2).
+    if (
+      stop === null &&
+      zone.distance > 0 &&
+      zone.distance <= INTERSECTION_LOOKAHEAD &&
+      free < zone.distance + ZONE + 2 * this.halfLength + GAP_MARGIN
+    ) {
+      stop = zone.distance;
+    }
     if (stop !== null) {
       const allowed = Math.sqrt(2 * TRAFFIC.ACCELERATION * Math.max(0, stop - STOP_MARGIN));
       target = Math.min(target, allowed);
@@ -100,8 +117,6 @@ export class Car extends MobileObject implements RadarCar {
       this.waitingFor = 0;
     }
 
-    // Зазор: никогда не въезжаем в чужой bbox.
-    const free = freeDistanceAhead(this, neighbours, dt);
     if (free < Number.POSITIVE_INFINITY) {
       target = Math.min(target, Math.max(0, free) / Math.max(dt, 1e-6));
     }

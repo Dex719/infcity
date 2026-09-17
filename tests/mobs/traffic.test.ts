@@ -13,6 +13,9 @@ function radarCar(
   return { wx, wz, dirX, dirZ, x: local.x, z: local.z, halfLength: 2, speed: 0, detected: null };
 }
 
+/** Локальная позиция внутри зоны перекрёстка (NW-угол чанка). */
+const IN_ZONE = { x: -25, z: -25 };
+
 describe('detects — радар (FR-6.2)', () => {
   it('видит машину прямо впереди в радиусе радара', () => {
     const self = radarCar(0, 0, 1, 0);
@@ -24,23 +27,34 @@ describe('detects — радар (FR-6.2)', () => {
     const self = radarCar(0, 0, 1, 0);
     expect(detects(self, radarCar(-10, 0, 1, 0))).toBe(false);
     expect(detects(self, radarCar(0, -8, 1, 0))).toBe(false); // слева
-    expect(detects(self, radarCar(0, 8, 0, -1))).toBe(true); // справа, едет к моей линии
-    expect(detects(self, radarCar(8, 8, 0, -1))).toBe(true); // впереди-справа
-    expect(detects(self, radarCar(8, -8, 0, 1))).toBe(false); // впереди-слева
+    expect(detects(self, radarCar(0, 8, 0, -1, IN_ZONE))).toBe(true); // справа, едет к моей линии
+    expect(detects(self, radarCar(8, 8, 0, -1, IN_ZONE))).toBe(true); // впереди-справа
+    expect(detects(self, radarCar(8, -8, 0, 1, IN_ZONE))).toBe(false); // впереди-слева
+  });
+
+  it('поперечная машина вне зоны перекрёстка радару не цель — её ведёт стоп-линия (BUG-8)', () => {
+    const self = radarCar(0, 0, 1, 0);
+    // Впереди-справа, едет к моей линии, но стоит у своей стоп-линии вне зоны: не держит.
+    expect(detects(self, radarCar(8, 8, 0, -1, { x: -22.5, z: -12 }))).toBe(false);
+    // Та же машина внутри зоны — видна.
+    expect(detects(self, radarCar(8, 8, 0, -1, IN_ZONE))).toBe(true);
+    // Попутная вне зоны по-прежнему видна.
+    expect(detects(self, radarCar(8, 0, 1, 0, { x: 5, z: 5 }))).toBe(true);
   });
 
   it('поперечная машина, уже проехавшая точку пересечения, не держит радар (AC-6.2)', () => {
     const self = radarCar(0, 0, 1, 0);
     // Справа, но удаляется от моей линии (+z): столкновение невозможно.
-    expect(detects(self, radarCar(0, 8, 0, 1))).toBe(false);
-    expect(detects(self, radarCar(6, 4, 0, 1))).toBe(false);
+    expect(detects(self, radarCar(0, 8, 0, 1, IN_ZONE))).toBe(false);
+    expect(detects(self, radarCar(6, 4, 0, 1, IN_ZONE))).toBe(false);
     // Та же точка, но едет к моей линии — видна.
-    expect(detects(self, radarCar(6, 4, 0, -1))).toBe(true);
+    expect(detects(self, radarCar(6, 4, 0, -1, IN_ZONE))).toBe(true);
   });
 
   it('взаимная блокировка не считается: если он уже видит меня, я его не вижу', () => {
     const a = radarCar(0, 0, 1, 0);
-    const b = radarCar(6, 6, 0, -1);
+    const b = radarCar(6, 6, 0, -1, IN_ZONE);
+    expect(detects(a, b)).toBe(true);
     b.detected = a;
     expect(detects(a, b)).toBe(false);
   });
