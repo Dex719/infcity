@@ -97,7 +97,8 @@ export class App extends Emitter<AppEvents> {
     this.materials = new Materials(options.palette);
     this.chunkWindow = new ChunkWindow(
       this.generator,
-      options.builder ?? new PrefabBuilder(this.materials),
+      options.builder ??
+        new PrefabBuilder(this.materials, Lighting.sunDirection(options.flags.season)),
     );
     this.scene.add(this.chunkWindow.root);
     this.lighting = new Lighting(
@@ -218,9 +219,6 @@ export class App extends Emitter<AppEvents> {
     this.pan.resetTo(0, 0);
     this.chunkWindow.setCenter(gx, gy);
     this.chunkWindow.update(this.chunkWindow.size * this.chunkWindow.size);
-    // Телепорт: гистерезис сбрасывается, иначе видимость деталей зависела бы от того,
-    // где чанк был до прыжка, и кадр перестал бы быть детерминированным (visual-эталоны).
-    this.chunkWindow.updateDetailVisibility(this.rig.camera.position, true);
   }
 
   stats(): AppStats {
@@ -277,8 +275,6 @@ export class App extends Emitter<AppEvents> {
     this.chunkWindow.update(WORLD.BUILD_PER_FRAME, WORLD.BUILD_BUDGET_MS);
     this.mobs.update(dt);
     this.rig.update(dt);
-    // LOD: детали дальних чанков гаснут в тумане (FR-18.9) — после обновления высоты камеры.
-    this.chunkWindow.updateDetailVisibility(this.rig.camera.position);
     // Облака растворяются у низкой камеры, тени остаются (FR-19.10, design D18).
     this.mobs.setCloudFade(cloudVisibility(this.rig.currentHeight));
   }

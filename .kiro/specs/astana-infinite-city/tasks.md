@@ -558,6 +558,21 @@
   - Acceptance: unit и e2e зелёные; пик ≤ 330 000 треугольников, ≤ 300 draw calls
   - Факт: полная перезапись эталонов не изменила ни одного файла — стадиона не было ни в одном кадре; добавлен e2e `astana-stadium.png` (35 тестов, все зелёные); perf 261 360 треугольников / 122 draw calls / 142 FPS; unit 325/325; подраздел «Волна 3» в qa-evidence
 
+
+#### BUG-10 (2026-09-23): «убери оптимизацию — тени и объекты появляются»
+
+- [x] **TSK-129**: Снять LOD слоя деталей и тень деталей только вблизи
+  - Requirement: BUG-10 (bugfix.md), отмена FR-18.9…18.13, NFR-1
+  - Deliverables: `PrefabBuilder` вливает батч деталей в статику; удалены `ChunkNode.details`/`setDetailsVisible`/`setDetailsShadow`, `ChunkWindow.updateDetailVisibility` и потолок слотов, вызовы в `App`, секция `DETAIL`, `tests/scene/detail.test.ts`; новый `tests/scene/statics.test.ts`; комментарии, README, спека
+  - Acceptance: у чанка нет меша деталей, статика видима и отбрасывает тень при любом положении окна (unit); `perf.spec.ts` ≤ 400 000 треугольников и ≤ 300 draw calls; visual-эталоны пересозданы
+  - Факт: 2026-09-23 — причина подтверждена расчётом: граница тени деталей 150 ближе центра кадра (180 на высоте 140). После снятия LOD: 397 152 треугольника из 400 000, 104 draw calls (было 122 — нет отдельного меша деталей на чанк), медианный FPS 142 (без изменений); unit 319/319, `statics.test.ts` 4 теста
+
+- [x] **TSK-130**: Бюджет без LOD — деление статики по солнцу
+  - Requirement: BUG-10 (часть 2), NFR-1, design D20
+  - Deliverables: `src/scene/ShadowSplit.ts`; `PrefabBuilder` — меши `statics` (тень) и `statics:lit` (без тени); `Lighting.sunDirection(season)`; `materials.opaque.shadowSide = BackSide`; тесты в `tests/scene/statics.test.ts`
+  - Acceptance: `perf.spec.ts` ≤ 400 000 треугольников с запасом; visual-эталоны до деления проходят; попиксельное сравнение до/после
+  - Факт: полный прогон без LOD дал 405 914 > 400 000 (красное); после деления 319 303 треугольника (−21 %), 123 draw calls, FPS 140; e2e 35/35 на эталонах до деления; попиксельно 2–8 пикселей на кадр из 921 600; unit 323/323
+
 ---
 
 ## Dependency Graph
@@ -773,5 +788,7 @@ graph TD
 | TSK-126 | Complete | 2026-09-23: эталоны, e2e 34/34, perf 260 172 / 122 / 142,5 FPS, qa-evidence волны 2 |
 | TSK-127 | Complete | 2026-09-23: открытая чаша стадиона — `ellipseBand`, ярусы цветов флага, кольцо кровли, поле с разметкой; unit 325/325 |
 | TSK-128 | Complete | 2026-09-23: e2e 35/35 (новый снимок стадиона), perf 261 360 / 122 / 142 FPS, qa-evidence волны 3 |
+| TSK-129 | Complete | 2026-09-23: BUG-10 — LOD слоя деталей снят по решению пользователя; 397 152 / 104 / 142 FPS; unit 319/319 |
+| TSK-130 | Complete | 2026-09-23: деление статики по солнцу (D20): 405 914 → 319 303 треугольника, тени без изменений (попиксельно); unit 323/323 |
 
 **Статусы:** Pending / In Progress / Complete. Обновлять вместе с чекбоксами.

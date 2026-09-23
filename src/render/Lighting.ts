@@ -1,4 +1,4 @@
-import { DirectionalLight, Fog, HemisphereLight, type Scene } from 'three';
+import { DirectionalLight, Fog, HemisphereLight, Vector3, type Scene } from 'three';
 import type { Season } from '@/api/Seed';
 import { RENDER } from '@/config';
 import type { Palette } from '@/scene/palette';
@@ -42,6 +42,15 @@ export class Lighting {
 
     scene.fog = new Fog(palette.sky, RENDER.FOG.near, RENDER.FOG.far);
     this.resize(1);
+  }
+
+  /**
+   * Направление от сцены на солнце для сезона (цель света — начало координат): тот же источник,
+   * что у самого света, — им делится статика чанков по солнцу (`ShadowSplit`, design D20).
+   */
+  static sunDirection(season: Season = 'summer'): Vector3 {
+    const p = season === 'winter' ? RENDER.WINTER.sunPosition : RENDER.SUN.position;
+    return new Vector3(p.x, p.y, p.z).normalize();
   }
 
   /** Смена разрешения карты теней на лету (автопонижение, TSK-060). */

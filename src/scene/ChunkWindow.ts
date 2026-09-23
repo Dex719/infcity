@@ -1,6 +1,6 @@
-import { Group, type Vector3 } from 'three';
+import { Group } from 'three';
 import { Emitter } from '@/app/Emitter';
-import { CAMERA, DETAIL, WORLD } from '@/config';
+import { WORLD } from '@/config';
 import { Generator } from '@/world/Generator';
 import type { ChunkDescriptor } from '@/world/types';
 import type { ChunkNode } from './ChunkNode';
@@ -49,10 +49,6 @@ export class ChunkWindow {
   private cacheHits = 0;
   private buildErrorsTotal = 0;
   private prefetchesTotal = 0;
-  /** Расстояние от камеры до каждого слота по земле — ключ потолка детализации (design D14). */
-  private readonly slotDistance: number[] = [];
-  /** Радиус, внутри которого слот имеет право показывать детали (потолок `MAX_DETAIL_SLOTS`). */
-  private readonly detailRadius: number;
   /** Смещения кольца вокруг окна (Chebyshev = half + 1), ближние первыми. */
   private readonly ring: readonly (readonly [number, number])[];
   /** Последнее направление сдвига окна: префетч идёт сначала по курсу (BUG-9). */
@@ -80,30 +76,8 @@ export class ChunkWindow {
         holder.updateMatrix();
         this.root.add(holder);
         this.slots.push({ index: this.slots.length, cx, cy, holder, key: null, node: null });
-        // Камера стоит в стороне от центра окна (`CAMERA.OFFSET`), поэтому «ближние» слоты —
-        // это слоты со стороны камеры, а не вокруг центра. Порядок по этой величине не зависит
-        // от высоты: расстояние hypot(ground, h) монотонно по ground.
-        this.slotDistance.push(
-          Math.hypot(
-            cx * WORLD.CHUNK_SIZE - CAMERA.OFFSET.x,
-            cy * WORLD.CHUNK_SIZE - CAMERA.OFFSET.z,
-          ),
-        );
       }
     }
-    // Радиус — наибольшее расстояние, при котором в потолок `MAX_DETAIL_SLOTS` целиком
-    // помещается группа слотов с этим расстоянием: группы равных радиусов не разрываются,
-    // поэтому симметричные соседи всегда выглядят одинаково, а потолок не превышается.
-    const sorted = [...this.slotDistance].sort((a, b) => a - b);
-    let radius = 0;
-    for (const distance of sorted) {
-      const withinGroup = sorted.filter((d) => d <= distance + 1e-6).length;
-      if (withinGroup > DETAIL.MAX_DETAIL_SLOTS) {
-        break;
-      }
-      radius = distance + 1e-6;
-    }
-    this.detailRadius = radius;
     const ring: [number, number][] = [];
     for (let cy = -half - 1; cy <= half + 1; cy++) {
       for (let cx = -half - 1; cx <= half + 1; cx++) {
@@ -229,44 +203,6 @@ export class ChunkWindow {
       this.buildErrorsTotal++;
       console.error(`chunk ${descriptor.key}: build failed, using fallback`, error);
       return this.builder.build(Generator.fallbackDescriptor(descriptor.gx, descriptor.gy));
-    }
-  }
-
-  /**
-   * LOD слоя деталей (FR-18.9, FR-18.10, design D14): детали чанка горят, пока он ближе
-   * `DETAIL.SHOW_DISTANCE` к камере, и гаснут за `DETAIL.HIDE_DISTANCE` — зазор между границами
-   * не даёт им мигать на краю. Камера стоит на месте, город едет под ней (`PanControls` двигает
-   * `root`), поэтому мировой центр чанка — это `root.position + holder.position`. Геометрия при
-   * переключении не пересобирается: меняется только `visible` готового меша.
-   */
-  updateDetailVisibility(cameraPosition: Vector3, snap = false): void {
-    for (const slot of this.slots) {
-      const node = slot.node;
-      if (node === null || node.placeholder) {
-        continue;
-      }
-      const dx = this.root.position.x + slot.holder.position.x - cameraPosition.x;
-      const dy = this.root.position.y + slot.holder.position.y - cameraPosition.y;
-      const dz = this.root.position.z + slot.holder.position.z - cameraPosition.z;
-      const distance = Math.hypot(dx, dy, dz);
-      // `snap` снимает гистерезис: после телепорта окна состояние не должно зависеть от того,
-      // где чанк был раньше, иначе кадр перестаёт быть детерминированным (visual-эталоны).
-      const near =
-        snap || !node.detailsVisible
-          ? distance < DETAIL.SHOW_DISTANCE
-          : distance <= DETAIL.HIDE_DISTANCE;
-      // Потолок по числу чанков: сравнение с радиусом, а не с рангом, чтобы слоты на
-      // одинаковом расстоянии не разрывались — иначе симметричные соседи выглядели бы по-разному.
-      const next = near && (this.slotDistance[slot.index] ?? 0) <= this.detailRadius;
-      if (next !== node.detailsVisible) {
-        node.setDetailsVisible(next);
-      }
-      // Тень мелочи читается только вблизи, а в теневой проход попадает гораздо больше
-      // чанков, чем видно глазом (FR-18.13): дальше границы детали видны, но тени не дают.
-      const castsShadow = next && distance <= DETAIL.SHADOW_DISTANCE;
-      if (castsShadow !== node.detailsShadow) {
-        node.setDetailsShadow(castsShadow);
-      }
     }
   }
 

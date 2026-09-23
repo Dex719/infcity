@@ -83,7 +83,7 @@ export function buildRoads(
   batch.box(blockCenter, CURB_Y / 2, -HALF + sw / 2, blockSize, CURB_Y, sw, sidewalk);
   batch.box(-HALF + sw / 2, CURB_Y / 2, -HALF + sw / 2, sw, CURB_Y, sw, sidewalk);
 
-  // Разметка — слой деталей (FR-18.9): с дальних чанков в тумане она не читается.
+  // Разметка — в батч деталей.
   // Осевые прерывистые линии (не в зоне перекрёстка).
   const from = blockMin + 2;
   for (let t = from; t < HALF - DASH_LEN; t += DASH_LEN + DASH_GAP) {

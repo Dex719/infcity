@@ -1,4 +1,4 @@
-import { Color, MeshBasicMaterial, MeshLambertMaterial } from 'three';
+import { BackSide, Color, MeshBasicMaterial, MeshLambertMaterial } from 'three';
 import type { Palette, PaletteKey } from './palette';
 
 /**
@@ -28,6 +28,10 @@ export class Materials {
   constructor(readonly palette: Palette) {
     this.opaque = new MeshLambertMaterial({ vertexColors: true, flatShading: true });
     this.opaque.name = 'palette-opaque';
+    // В карту теней пишутся только грани, обращённые от света, — это значение three по
+    // умолчанию, но на нём держится деление статики по солнцу (`ShadowSplit`, design D20),
+    // поэтому оно задано явно.
+    this.opaque.shadowSide = BackSide;
     this.glass = new MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.72 });
     this.glass.name = 'palette-glass';
     this.glass.depthWrite = false;

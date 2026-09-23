@@ -61,7 +61,7 @@ export function seamSegments(
 export interface BlockGeometry {
   readonly opaque: GeometryBatch;
   readonly glass: GeometryBatch;
-  /** Мелкие детали квартала (FR-18.9): всё, что строит `Props`, и детали крыш. */
+  /** Мелкие детали квартала: всё, что строит `Props`, и детали крыш; вливаются в статику чанка. */
   readonly detail: GeometryBatch;
 }
 
@@ -89,7 +89,7 @@ function int(rng: Rng, min: number, max: number): number {
 export function buildBlock(descriptor: ChunkDescriptor, m: Materials): BlockGeometry {
   const opaque = new GeometryBatch();
   const glass = new GeometryBatch();
-  // Мелочь квартала уходит в отдельный батч — слой деталей LOD (D14).
+  // Мелочь квартала — отдельным батчем; `PrefabBuilder` вливает его в статику чанка (BUG-10).
   const detail = new GeometryBatch();
   const rng = mulberry32(descriptor.variant);
   const props = new Props(detail, m);
@@ -160,7 +160,7 @@ interface Ctx {
   readonly rng: Rng;
   /** Скрытые локальные стороны квартала (design D13): плоские накладки на них не строятся. */
   readonly hidden: HiddenSides;
-  /** Батч мелких деталей квартала (design D14): в него пишет `props`, туда же — мелочь раскладок. */
+  /** Батч мелких деталей квартала: в него пишет `props`, туда же — мелочь раскладок. */
   readonly detail: GeometryBatch;
   /** `descriptor.variant` (TSK-104, FR-18.5): источник вариативности без обращения к `rng`. */
   readonly variant: number;
@@ -213,7 +213,7 @@ function insideRect(
 /**
  * Разметка мест на парковке (TSK-104, design «C7 (дополнение): улицы», FR-18.5, AC-18.5):
  * линии `box` 0.12 × 2.4 с шагом 2.6 вдоль края площадки, ряд идёт вдоль Z на фиксированном
- * `cross` (X); машины смотрят вдоль X (`rotationY = 0`). Линии — в батче деталей (D14), на
+ * `cross` (X); машины смотрят вдоль X (`rotationY = 0`). Линии — в батче деталей, на
  * уровне покрытия площадки + 0.02 (без z-fighting, `y` — уже с этим отступом).
  *
  * Машина ставится на каждое второе место, но не на крайней линии — иначе кузов (глубина
@@ -244,7 +244,7 @@ function parkingMarkings(
 /**
  * Швы мощения (FR-19.7, AC-19.7, design «C7 (дополнение, итерация 5): мощение площадей»):
  * тонкие плоские полосы цвета `m.shade(ground, PAVING.SEAM_SHADE)` на линиях `lines` по обеим
- * осям, в слое деталей (D14). Полоса разрезается вокруг `avoid`: здания вместе с ореолами AO
+ * осям, в батче деталей. Полоса разрезается вокруг `avoid`: здания вместе с ореолами AO
  * (светлый шов не должен перечёркивать тёмный ореол), парковки, фонтаны, газонные вставки.
  * Там, где швы пересекаются, лежат две одинаковые плоскости одного цвета — спорить по
  * глубине им не о чем. Без обращений к `rng` (FR-19.8).
@@ -583,9 +583,7 @@ function mall(ctx: Ctx): void {
   );
   ctx.b.plane(0, LAWN_Y + 0.03, 15, 44, 12, ctx.m.color('asphalt'));
   for (let i = 0; i < 9; i++) {
-    // Разделители мест — в слой деталей, как и вся остальная разметка: иначе на чанках за
-    // границей LOD половина разметки одной парковки гаснет, а половина остаётся
-    // (рецензия 2026-09-19).
+    // Разделители мест — в батч деталей, как и вся остальная разметка парковок.
     ctx.detail.box(-18 + i * 4.5, LAWN_Y + 0.05, 15, 0.15, 0.02, 9, ctx.m.color('marking'));
     if (i < 8 && ctx.rng() < 0.7) {
       ctx.props.parkedCar(-15.75 + i * 4.5, 15, Math.PI / 2, i);

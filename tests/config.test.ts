@@ -263,7 +263,6 @@ describe('CONFIG', () => {
       'PAN',
       'CHUNK_LAYOUT',
       'RENDER',
-      'DETAIL',
       'AO',
       'FACADE',
       'ROOF',
