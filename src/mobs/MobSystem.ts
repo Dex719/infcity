@@ -56,6 +56,8 @@ export class MobSystem {
   private readonly carPools: InstancePool[] = [];
   private readonly carriagePool: InstancePool;
   private readonly cloudPools: InstancePool[] = [];
+  /** Общий материал облаков: его прозрачность меняет `setCloudFade` (design D18). */
+  private readonly cloudMaterial: Materials['cloud'];
   private elapsed = 0;
   private carProbability: number;
   private readonly neighbourScratch: Car[] = [];
@@ -67,6 +69,7 @@ export class MobSystem {
     profile: Profile,
   ) {
     this.carProbability = profile.carProbability;
+    this.cloudMaterial = materials.cloud;
     for (const model of CAR_MODELS) {
       this.carPools.push(
         new InstancePool(
@@ -93,12 +96,13 @@ export class MobSystem {
       this.cloudPools.push(
         new InstancePool(
           geometryOf((b, m) => buildCloud(b, m, variant), materials),
-          materials.opaque,
+          materials.cloud,
           CLOUD.MAX_INSTANCES,
           window.root,
           {
             name: `clouds:${String(variant)}`,
             receiveShadow: false,
+            shadowTwin: materials.shadowOnly,
           },
         ),
       );
@@ -493,10 +497,20 @@ export class MobSystem {
     return { cars, trains: this.trains.length, clouds: this.clouds.length, stuckCars: stuck };
   }
 
-  /** Облака скрываются, когда камера опускается к их высоте (FR-7, FR-8.2). */
-  setCloudsVisible(visible: boolean): void {
+  /**
+   * Затухание облаков по высоте камеры (FR-19.10, design D18): прозрачность общего материала
+   * облаков и флаги пулов (`InstancePool.setFade`). Смена `transparent` меняет программу
+   * шейдера (define `OPAQUE`), поэтому `needsUpdate` ставится только при смене режима.
+   */
+  setCloudFade(v: number): void {
+    const transparent = v < 1;
+    if (this.cloudMaterial.transparent !== transparent) {
+      this.cloudMaterial.transparent = transparent;
+      this.cloudMaterial.needsUpdate = true;
+    }
+    this.cloudMaterial.opacity = v;
     for (const pool of this.cloudPools) {
-      pool.mesh.visible = visible;
+      pool.setFade(v);
     }
   }
 

@@ -1,9 +1,10 @@
-import { Color, MeshLambertMaterial } from 'three';
+import { Color, MeshBasicMaterial, MeshLambertMaterial } from 'three';
 import type { Palette, PaletteKey } from './palette';
 
 /**
  * Материалы сцены (FR-9.4, AC-9.3): все цвета — из палитры, попадают в геометрию как
- * вершинные цвета, поэтому на весь город хватает двух материалов: непрозрачный и стекло.
+ * вершинные цвета, поэтому весь город рисуется двумя материалами: непрозрачный и стекло
+ * (облакам и их теневому двойнику — свои, design D18).
  * Lambert выбран как «low»-профиль дизайна D4: плоский игрушечный вид и дёшево на мобильных.
  * Непрозрачный материал затеняется по граням (FR-19.3, design D16): нормаль грани считается
  * в шейдере, поэтому кроны, облака и купола становятся гранёными, как у референса, без
@@ -12,6 +13,16 @@ import type { Palette, PaletteKey } from './palette';
 export class Materials {
   readonly opaque: MeshLambertMaterial;
   readonly glass: MeshLambertMaterial;
+  /**
+   * Облака (FR-19.10, design D18): те же вершинные цвета и грани, что у `opaque`, но свой
+   * экземпляр — у низкой камеры облака растворяются прозрачностью, не трогая город.
+   */
+  readonly cloud: MeshLambertMaterial;
+  /**
+   * Теневой двойник (design D18): в основном проходе не пишет ни цвет, ни глубину, а теневой
+   * проход рисует объект своим материалом глубины — тень остаётся, сам объект не виден.
+   */
+  readonly shadowOnly: MeshBasicMaterial;
   private readonly colors = new Map<PaletteKey, Color>();
 
   constructor(readonly palette: Palette) {
@@ -20,6 +31,10 @@ export class Materials {
     this.glass = new MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.72 });
     this.glass.name = 'palette-glass';
     this.glass.depthWrite = false;
+    this.cloud = new MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    this.cloud.name = 'palette-cloud';
+    this.shadowOnly = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+    this.shadowOnly.name = 'shadow-only';
   }
 
   /** Цвет палитры (кэшируется, не мутировать). */
@@ -46,5 +61,7 @@ export class Materials {
   dispose(): void {
     this.opaque.dispose();
     this.glass.dispose();
+    this.cloud.dispose();
+    this.shadowOnly.dispose();
   }
 }

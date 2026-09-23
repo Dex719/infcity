@@ -21,6 +21,11 @@ const AXIS_Y = new Vector3(0, 1, 0);
  */
 export class InstancePool {
   readonly mesh: InstancedMesh;
+  /**
+   * Теневой двойник (design D18): та же геометрия и тот же буфер матриц инстансов, материал
+   * без записи цвета и глубины — только тень. Есть у пулов, которые умеют растворяться.
+   */
+  readonly twin: InstancedMesh | null;
   private cursor = 0;
 
   constructor(
@@ -28,7 +33,12 @@ export class InstancePool {
     material: Material,
     readonly capacity: number,
     parent: Object3D,
-    options: { castShadow?: boolean; receiveShadow?: boolean; name?: string } = {},
+    options: {
+      castShadow?: boolean;
+      receiveShadow?: boolean;
+      name?: string;
+      shadowTwin?: Material;
+    } = {},
   ) {
     this.mesh = new InstancedMesh(geometry, material, capacity);
     this.mesh.instanceMatrix.setUsage(DynamicDrawUsage);
@@ -38,6 +48,20 @@ export class InstancePool {
     this.mesh.receiveShadow = options.receiveShadow ?? false;
     this.mesh.name = options.name ?? 'instances';
     parent.add(this.mesh);
+    if (options.shadowTwin === undefined) {
+      this.twin = null;
+    } else {
+      const twin = new InstancedMesh(geometry, options.shadowTwin, capacity);
+      twin.instanceMatrix = this.mesh.instanceMatrix;
+      twin.count = 0;
+      twin.frustumCulled = false;
+      twin.castShadow = true;
+      twin.receiveShadow = false;
+      twin.visible = false;
+      twin.name = `${this.mesh.name}:shadow`;
+      parent.add(twin);
+      this.twin = twin;
+    }
   }
 
   begin(): void {
@@ -58,6 +82,23 @@ export class InstancePool {
   end(): void {
     this.mesh.count = this.cursor;
     this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.twin !== null) {
+      this.twin.count = this.cursor;
+    }
+  }
+
+  /**
+   * Затухание пула (облака, FR-19.10, design D18): при `v` = 1 инстансы непрозрачны и сами
+   * отбрасывают тень, двойник выключен; при 0 < `v` < 1 инстансы видны без тени, тень рисует
+   * двойник; при `v` = 0 видимые инстансы выключены совсем. Прозрачность общего материала
+   * задаёт его владелец (`MobSystem.setCloudFade`).
+   */
+  setFade(v: number): void {
+    this.mesh.visible = v > 0;
+    this.mesh.castShadow = v >= 1;
+    if (this.twin !== null) {
+      this.twin.visible = v < 1;
+    }
   }
 
   get active(): number {
@@ -65,6 +106,10 @@ export class InstancePool {
   }
 
   dispose(): void {
+    if (this.twin !== null) {
+      // Двойник делит геометрию и буфер матриц — освобождаются один раз, вместе с основным мешем.
+      this.twin.removeFromParent();
+    }
     this.mesh.removeFromParent();
     this.mesh.geometry.dispose();
     this.mesh.dispose();

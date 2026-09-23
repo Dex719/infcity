@@ -1,9 +1,10 @@
 import { Scene, Vector3 } from 'three';
-import { CLOUD, WORLD } from '@/config';
+import { WORLD } from '@/config';
 import type { AppFlags } from '@/api/Seed';
 import { CameraRig } from '@/controls/CameraRig';
 import { InputManager } from '@/controls/InputManager';
 import { PanControls } from '@/controls/PanControls';
+import { cloudVisibility } from '@/mobs/Cloud';
 import { MobSystem, type MobStats } from '@/mobs/MobSystem';
 import { Lighting } from '@/render/Lighting';
 import type { Profile } from '@/render/Profile';
@@ -15,9 +16,6 @@ import type { Palette } from '@/scene/palette';
 import { PrefabBuilder } from '@/scene/PrefabBuilder';
 import { Generator } from '@/world/Generator';
 import { Emitter } from './Emitter';
-
-/** Запас высоты камеры над облаками, ниже которого облака скрываются, юниты. */
-const CLOUD_CLEARANCE = 12;
 
 /** События приложения для UI-оболочки (design C1). */
 export interface AppEvents extends Record<string, unknown> {
@@ -281,7 +279,8 @@ export class App extends Emitter<AppEvents> {
     this.rig.update(dt);
     // LOD: детали дальних чанков гаснут в тумане (FR-18.9) — после обновления высоты камеры.
     this.chunkWindow.updateDetailVisibility(this.rig.camera.position);
-    this.mobs.setCloudsVisible(this.rig.currentHeight > CLOUD.ALTITUDE + CLOUD_CLEARANCE);
+    // Облака растворяются у низкой камеры, тени остаются (FR-19.10, design D18).
+    this.mobs.setCloudFade(cloudVisibility(this.rig.currentHeight));
   }
 
   private render(): void {
