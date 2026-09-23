@@ -1,9 +1,9 @@
-import { Vector3 } from 'three';
+import { type BufferGeometry, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { AO, ROOF } from '@/config';
 import { Materials } from '@/scene/Materials';
 import { parsePalette, type PaletteKey } from '@/scene/palette';
-import { Buildings, FLOOR, type Footprint } from '@/scene/procedural/Buildings';
+import { AWNING_TILT, Buildings, FLOOR, type Footprint } from '@/scene/procedural/Buildings';
 import { GeometryBatch } from '@/scene/procedural/GeometryBatch';
 import { CHUNK_HIDDEN, type HiddenSides } from '@/scene/procedural/Visibility';
 import { mulberry32 } from '@/world/Hash';
@@ -612,4 +612,97 @@ describe('Стеклянные башни — навесная стена (FR-19
     // На скрытых сторонах импостов нет: дальше угловых импостов видимых сторон ничего.
     expect(bottoms.some((v) => v.x < -tower.w / 2 - 0.09 || v.z < -tower.d / 2 - 0.09)).toBe(false);
   });
+});
+
+describe('Полосатые наклонные маркизы (FR-19.17, AC-19.18)', () => {
+  const f: Footprint = { x: 0, z: 0, w: 26, d: 11 };
+  const count = Math.floor(f.w / 4);
+  const step = f.w / count;
+  const tilt = { sin: Math.sin(AWNING_TILT), cos: Math.cos(AWNING_TILT) };
+
+  interface Vertex {
+    p: Vector3;
+    n: Vector3;
+  }
+
+  /** Вершины цвета `key` из готовой геометрии (батч после `build()` пуст, поэтому один раз). */
+  function ofColor(geometry: BufferGeometry, key: PaletteKey): Vertex[] {
+    const position = geometry.getAttribute('position');
+    const normal = geometry.getAttribute('normal');
+    const color = geometry.getAttribute('color');
+    const wanted = materials.color(key);
+    const found: Vertex[] = [];
+    for (let i = 0; i < position.count; i++) {
+      if (
+        Math.abs(color.getX(i) - wanted.r) < 1e-4 &&
+        Math.abs(color.getY(i) - wanted.g) < 1e-4 &&
+        Math.abs(color.getZ(i) - wanted.b) < 1e-4
+      ) {
+        found.push({
+          p: new Vector3(position.getX(i), position.getY(i), position.getZ(i)),
+          n: new Vector3(normal.getX(i), normal.getY(i), normal.getZ(i)),
+        });
+      }
+    }
+    return found;
+  }
+
+  /** Номер маркизы по x вершины. */
+  function slot(v: Vertex): number {
+    return Math.floor((v.p.x - (f.x - f.w / 2)) / step);
+  }
+
+  it.each<[string, HiddenSides]>([
+    ['видимая +Z', CHUNK_HIDDEN],
+    ['видимая −Z', { x: 1, z: 1 }],
+  ])(
+    '%s: у каждой маркизы ≥ 2 белые полосы поверх, внешний край ниже, всё на видимой стороне',
+    (_, hidden) => {
+      const visibleZ = -hidden.z;
+      const wallZ = f.z + (visibleZ * f.d) / 2;
+      const { buildings, opaque } = freshBuildings(hidden);
+      buildings.shopRow(f, 1, 'sand', 'accent-red');
+      const geometry = opaque.build();
+      // Верхняя грань наклонена наружу: нормаль (0, cos, ±sin) в сторону фасада.
+      const facingUpOut = (v: Vertex): boolean =>
+        Math.abs(v.n.y - tilt.cos) < 1e-3 && Math.abs(v.n.z * visibleZ - tilt.sin) < 1e-3;
+      const tops = ofColor(geometry, 'accent-red').filter(facingUpOut);
+      const stripes = ofColor(geometry, 'white').filter(facingUpOut);
+      expect(tops).toHaveLength(count * 4);
+
+      for (let i = 0; i < count; i++) {
+        const top = tops.filter((v) => slot(v) === i);
+        const own = stripes.filter((v) => slot(v) === i);
+        expect(top).toHaveLength(4);
+        // ≥ 2 полосы по 4 вершины — и все лежат над верхней гранью своей маркизы, не в ней.
+        expect(own.length).toBeGreaterThanOrEqual(8);
+        const anchor = top[0];
+        expect(anchor).toBeDefined();
+        if (anchor === undefined) {
+          return;
+        }
+        for (const v of own) {
+          const lift = v.p.clone().sub(anchor.p).dot(anchor.n);
+          expect(lift).toBeGreaterThan(0.001);
+          expect(lift).toBeLessThan(0.05);
+        }
+        // Внешний край (дальше от стены) ниже внутреннего.
+        const out = (v: Vertex): number => (v.p.z - wallZ) * visibleZ;
+        const near = top.filter((v) => out(v) < 0.7);
+        const far = top.filter((v) => out(v) > 0.7);
+        expect(near).toHaveLength(2);
+        expect(far).toHaveLength(2);
+        expect(Math.max(...far.map((v) => v.p.y))).toBeLessThan(
+          Math.min(...near.map((v) => v.p.y)) - 0.3,
+        );
+      }
+
+      // Все грани маркиз и полосы — снаружи видимой стены.
+      for (const v of [...ofColor(geometry, 'accent-red'), ...stripes]) {
+        if (Math.abs(v.n.z) > 0.1 && Math.abs(v.n.z) < 0.99) {
+          expect((v.p.z - f.z) * visibleZ).toBeGreaterThan(f.d / 2);
+        }
+      }
+    },
+  );
 });

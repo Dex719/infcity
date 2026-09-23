@@ -11,6 +11,12 @@ export const ROOF_DETAIL_PROBABILITY = 0.65;
 /** Высота этажа, юниты. */
 export const FLOOR = 2.7;
 
+/** Наклон маркизы от стены, радианы (FR-19.17): внешний край ниже внутреннего. */
+export const AWNING_TILT = 0.35;
+
+/** Вынос маркизы от стены, юниты (до наклона). */
+export const AWNING_DEPTH = 1.4;
+
 /** Верх газона футбольного поля стадиона (FR-19.13): поле — цилиндр 6.0…7.1 на цоколе чаши. */
 export const FIELD_TOP = 7.1;
 
@@ -180,8 +186,7 @@ export class Buildings implements GroundAo {
     const awningCount = Math.max(1, Math.floor(f.w / 4));
     const step = f.w / awningCount;
     for (let i = 0; i < awningCount; i++) {
-      const ax = f.x - f.w / 2 + step * (i + 0.5);
-      b.box(ax, 2.9, front + frontSign * 0.7, step - 0.6, 0.15, 1.4, this.m.color(awning));
+      this.awning(f.x - f.w / 2 + step * (i + 0.5), front, frontSign, step - 0.6, awning);
     }
     if (floors > 1) {
       this.windows(f, floors, 'glass-navy', 0.5, 1);
@@ -190,6 +195,38 @@ export class Buildings implements GroundAo {
     b.box(f.x, h + 1.1, front - frontSign * 0.6, f.w * 0.5, 1.4, 0.2, this.m.color('white'));
     b.box(f.x, h + 1.1, front - frontSign * 0.45, f.w * 0.36, 0.5, 0.05, this.m.color(awning));
     this.roofDetails(f, h + 0.3);
+  }
+
+  /**
+   * Полосатая маркиза над витриной (FR-19.17, AC-19.18, design «Волна 6»): бокс цвета маркизы,
+   * наклонённый от стены на `AWNING_TILT` (внешний край ниже), и три белые полосы поверх
+   * верхней грани — семь полос по ширине, белые через одну. Полосы — плоские четырёхугольники
+   * с тем же наклоном и выносом 0.01 по нормали грани: 12 вершин вместо семи боксов.
+   */
+  private awning(
+    x: number,
+    front: number,
+    frontSign: 1 | -1,
+    width: number,
+    key: PaletteKey,
+  ): void {
+    const b = this.batch;
+    const depth = AWNING_DEPTH;
+    const y = 2.9;
+    const z = front + (frontSign * depth) / 2;
+    // Поворот вокруг X: при фасаде на +Z внешний край (локальная +z) опускается при tilt > 0.
+    const tilt = frontSign * AWNING_TILT;
+    b.placeRotated(Templates.box, x, y, z, width, 0.15, depth, tilt, 0, 0, this.m.color(key));
+    // Нормаль верхней грани после поворота: (0, cos, sin); полосы — чуть выше грани.
+    const lift = 0.075 + 0.01;
+    const ny = Math.cos(tilt) * lift;
+    const nz = Math.sin(tilt) * lift;
+    const band = width / 7;
+    const white = this.m.color('white');
+    for (const k of [1, 3, 5]) {
+      const sx = x - width / 2 + band * (k + 0.5);
+      b.placeRotated(Templates.planeXZ, sx, y + ny, z + nz, band, 1, depth, tilt, 0, 0, white);
+    }
   }
 
   /** Торговый центр (FR-15.1): широкий корпус, волнистый парапет, портал входа, вывеска. */

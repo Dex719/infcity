@@ -269,6 +269,20 @@ export class Props {
     b.box(x, height + 0.15, z, 1.2, 0.3, 0.5, this.m.color('white'));
   }
 
+  /**
+   * Столик кафе под зонтом (FR-19.18, design «Волна 6»): стойка зонта сквозь столешницу,
+   * купол-конус цвета `canopy`, два стула по бокам. ≈ 160 вершин. `baseY` — уровень покрытия.
+   */
+  cafeTable(x: number, z: number, canopy: PaletteKey, baseY = HEDGE_BASE_Y): void {
+    const b = this.batch;
+    b.box(x, baseY + 1.15, z, 0.08, 2.3, 0.08, this.m.color('steel'));
+    b.place(Templates.cone8, x, baseY + 2.3 + 0.225, z, 1, 0.45, 1, this.m.color(canopy));
+    b.place(Templates.cylinder8, x, baseY + 0.72, z, 0.5, 0.06, 0.5, this.m.color('white'));
+    for (const side of [-1, 1]) {
+      b.box(x + side * 0.75, baseY + 0.225, z, 0.4, 0.45, 0.4, this.m.color('brick'));
+    }
+  }
+
   /** Скамейка вдоль оси X (поворот `rot`). */
   bench(x: number, z: number, rot = 0): void {
     this.batch.box(x, 0.45, z, 1.8, 0.12, 0.6, this.m.color('brick'), rot);

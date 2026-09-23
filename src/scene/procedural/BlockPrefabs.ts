@@ -434,6 +434,43 @@ export const COMMERCIAL_TREES: readonly (readonly [number, number, number])[] = 
 ];
 export const COMMERCIAL_HEDGE = { x: 12, z: -12, w: 12, d: 0.8 } as const;
 
+/** Задний торговый ряд коммерческого квартала: перед его фасадом стоит кафе-терраса. */
+const COMMERCIAL_BACK_ROW = { x: -8, z: -12, w: 26, d: 11 } as const;
+
+/** Столики кафе-террасы: смещения по x от центра заднего ряда (FR-19.18). */
+export const CAFE_TABLES_X: readonly number[] = [-6, -2, 2, 6];
+
+/**
+ * Z кафе-террасы: на 2.5 от фасада заднего ряда, со стороны, куда он смотрит (FR-19.18).
+ * Фасады рядов обращены к видимой стороне (`storefront`, D13): при видимой +Z фасад на −6.5
+ * смотрит на парковку — терраса на z −4, между маркизами и столбиками; при видимой −Z фасад на
+ * −17.5 смотрит на улицу — терраса на z −20. 2.5 = вынос маркизы 1.4 + радиус зонта 1 + зазор.
+ * У переднего ряда при видимой −Z места нет: от его маркиз (до 8.2) до столбиков парковки
+ * (6.6) всего 1.5.
+ */
+export function cafeTerraceZ(visibleZ: 1 | -1): number {
+  return COMMERCIAL_BACK_ROW.z + visibleZ * (COMMERCIAL_BACK_ROW.d / 2 + 2.5);
+}
+
+/**
+ * Кафе-терраса (FR-19.18, AC-19.19, design «Волна 6»): настил и четыре столика под зонтиками
+ * перед фасадом заднего ряда, по его центру. Цвета зонтиков — по `variant`, без `rng`.
+ */
+function cafeTerrace(ctx: Ctx): void {
+  const z = cafeTerraceZ(-ctx.hidden.z as 1 | -1);
+  const cx = COMMERCIAL_BACK_ROW.x;
+  ctx.b.plane(cx, LAWN_Y + 0.03, z, 16, 3, ctx.m.shade('sand', 0.8));
+  const canopies: PaletteKey[] = ['accent-red', 'flag-blue', 'gold', 'glass-teal'];
+  CAFE_TABLES_X.forEach((dx, i) => {
+    ctx.props.cafeTable(
+      cx + dx,
+      z,
+      canopies[(ctx.variant + i) % canopies.length] ?? 'accent-red',
+      LAWN_Y + 0.03,
+    );
+  });
+}
+
 function commercial(ctx: Ctx): void {
   lawn(ctx, 0, 0, 46, 46, 'sidewalk');
   const walls: PaletteKey[] = ['sand', 'brick', 'stone-light', 'white'];
@@ -445,7 +482,7 @@ function commercial(ctx: Ctx): void {
     walls[int(ctx.rng, 0, 3)] ?? 'sand',
     awnings[int(ctx.rng, 0, 3)] ?? 'accent-red',
   );
-  const back = { x: -8, z: -12, w: 26, d: 11 };
+  const back = COMMERCIAL_BACK_ROW;
   ctx.buildings.shopRow(
     back,
     int(ctx.rng, 1, 2),
@@ -472,6 +509,7 @@ function commercial(ctx: Ctx): void {
   ctx.props.bollards(-12, -2.6, 20, -2.6, 4);
   ctx.props.bollards(-12, 6.6, 20, 6.6, 4);
   ctx.props.hedge(COMMERCIAL_HEDGE.x, COMMERCIAL_HEDGE.z, COMMERCIAL_HEDGE.w, COMMERCIAL_HEDGE.d);
+  cafeTerrace(ctx);
   ctx.props.bush(-20, -20, 1);
   ctx.props.bush(20, -20, 1);
 }

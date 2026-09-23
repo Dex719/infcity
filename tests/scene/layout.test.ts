@@ -1,10 +1,16 @@
 import { Vector3 } from 'three';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
-import { buildBlock, COMMERCIAL_HEDGE, COMMERCIAL_TREES } from '@/scene/procedural/BlockPrefabs';
-import { Buildings, type Footprint } from '@/scene/procedural/Buildings';
+import {
+  buildBlock,
+  CAFE_TABLES_X,
+  COMMERCIAL_HEDGE,
+  COMMERCIAL_TREES,
+} from '@/scene/procedural/BlockPrefabs';
+import { AWNING_DEPTH, Buildings, type Footprint } from '@/scene/procedural/Buildings';
 import { GeometryBatch } from '@/scene/procedural/GeometryBatch';
+import { Props } from '@/scene/procedural/Props';
 import { CHUNK_HIDDEN, hiddenSides, type HiddenSides } from '@/scene/procedural/Visibility';
 import { Generator } from '@/world/Generator';
 import { mulberry32 } from '@/world/Hash';
@@ -93,4 +99,81 @@ describe('BUG-13: торговый центр стоит к камере фас�
       }
     }
   });
+});
+
+describe('Кафе-терраса коммерческого квартала (FR-19.18, AC-19.19)', () => {
+  /** Радиус купола зонта; стулья (до 0.95 от стойки) — под ним. */
+  const CANOPY = 1;
+  const commercial = new Generator('astana')
+    .describeWindow(0, 0, 21)
+    .find((d) => d.block === 'commercial' && d.landmark === null);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  interface Rect {
+    x0: number;
+    x1: number;
+    z0: number;
+    z1: number;
+  }
+
+  function rectOf(x: number, z: number, w: number, d: number): Rect {
+    return { x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 };
+  }
+
+  function overlaps(a: Rect, b: Rect): boolean {
+    return a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  }
+
+  it('квартал есть в окне 21×21 seed astana', () => {
+    expect(commercial).toBeDefined();
+  });
+
+  it.each([0, 1, 2, 3] as const)(
+    'поворот %i: ≥ 3 зонтика перед фасадом заднего ряда — мимо корпусов, маркиз и парковки',
+    (rotation) => {
+      if (commercial === undefined) {
+        return;
+      }
+      const tables = vi.spyOn(Props.prototype, 'cafeTable');
+      const rows = vi.spyOn(Buildings.prototype, 'shopRow');
+      const planes = vi.spyOn(GeometryBatch.prototype, 'plane');
+      const block = buildBlock({ ...commercial, rotation }, materials);
+      const visibleZ = -hiddenSides(rotation).z;
+
+      const footprints = rows.mock.calls.map(([f]) => f);
+      expect(footprints).toHaveLength(2);
+      const back = footprints.reduce((a, b) => (b.z < a.z ? b : a));
+      const facade = back.z + (visibleZ * back.d) / 2;
+      const asphalt = materials.color('asphalt');
+      const parking = planes.mock.calls
+        .filter(([, , , , , color]) => color.equals(asphalt))
+        .map(([x, , z, w, d]) => rectOf(x, z, w, d));
+      expect(parking).toHaveLength(1);
+
+      expect(tables.mock.calls.length).toBeGreaterThanOrEqual(3);
+      expect(tables.mock.calls).toHaveLength(CAFE_TABLES_X.length);
+      for (const [x, z] of tables.mock.calls) {
+        const canopy = rectOf(x, z, 2 * CANOPY, 2 * CANOPY);
+        // Перед фасадом заднего ряда, в его ширину.
+        expect(x).toBeGreaterThan(back.x - back.w / 2);
+        expect(x).toBeLessThan(back.x + back.w / 2);
+        // Дальше вылета маркиз: купол не заходит под них.
+        expect((z - facade) * visibleZ - CANOPY).toBeGreaterThanOrEqual(AWNING_DEPTH);
+        // Не в корпусе ни одного ряда и не на асфальте парковки, в пределах плиты квартала.
+        for (const f of footprints) {
+          expect(overlaps(canopy, rectOf(f.x, f.z, f.w, f.d))).toBe(false);
+        }
+        for (const p of parking) {
+          expect(overlaps(canopy, p)).toBe(false);
+        }
+        expect(Math.abs(z) + CANOPY).toBeLessThanOrEqual(23);
+      }
+
+      const vertices = block.opaque.vertices + block.glass.vertices + block.detail.vertices;
+      expect(vertices).toBeLessThanOrEqual(7000);
+    },
+  );
 });
