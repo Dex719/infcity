@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CLOUD } from '@/config';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
 import paletteJson from '../../public/assets/palette.json';
@@ -25,6 +26,16 @@ describe('Материалы облаков (FR-19.10, design D18)', () => {
     expect(materials.cloud).not.toBe(materials.opaque);
     expect(materials.cloud.flatShading).toBe(true);
     expect(materials.cloud.vertexColors).toBe(true);
+  });
+
+  it('облака светятся (FR-19.19, design D21): множитель альбедо и свечение — из CLOUD.LOOK', () => {
+    const { color, emissive } = materials.cloud;
+    for (const channel of [color.r, color.g, color.b]) {
+      expect(channel).toBeCloseTo(CLOUD.LOOK.ALBEDO, 6);
+    }
+    expect(emissive.r).toBeCloseTo(CLOUD.LOOK.GLOW.r, 6);
+    expect(emissive.g).toBeCloseTo(CLOUD.LOOK.GLOW.g, 6);
+    expect(emissive.b).toBeCloseTo(CLOUD.LOOK.GLOW.b, 6);
   });
 
   it('теневой двойник не пишет ни цвет, ни глубину в основном проходе', () => {

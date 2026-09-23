@@ -1,4 +1,5 @@
 import { BackSide, Color, MeshBasicMaterial, MeshLambertMaterial } from 'three';
+import { CLOUD } from '@/config';
 import type { Palette, PaletteKey } from './palette';
 
 /**
@@ -15,7 +16,8 @@ export class Materials {
   readonly glass: MeshLambertMaterial;
   /**
    * Облака (FR-19.10, design D18): те же вершинные цвета и грани, что у `opaque`, но свой
-   * экземпляр — у низкой камеры облака растворяются прозрачностью, не трогая город.
+   * экземпляр — у низкой камеры облака растворяются прозрачностью, не трогая город, и светятся
+   * изнутри, чтобы читаться белыми, а не серыми (FR-19.19, design D21).
    */
   readonly cloud: MeshLambertMaterial;
   /**
@@ -35,7 +37,12 @@ export class Materials {
     this.glass = new MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.72 });
     this.glass.name = 'palette-glass';
     this.glass.depthWrite = false;
-    this.cloud = new MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    this.cloud = new MeshLambertMaterial({
+      vertexColors: true,
+      flatShading: true,
+      color: new Color().setScalar(CLOUD.LOOK.ALBEDO),
+      emissive: new Color(CLOUD.LOOK.GLOW.r, CLOUD.LOOK.GLOW.g, CLOUD.LOOK.GLOW.b),
+    });
     this.cloud.name = 'palette-cloud';
     this.shadowOnly = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
     this.shadowOnly.name = 'shadow-only';

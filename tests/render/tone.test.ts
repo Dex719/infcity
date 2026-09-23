@@ -1,6 +1,7 @@
 import { Color, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { RENDER } from '@/config';
+import { Materials } from '@/scene/Materials';
 import { parsePalette, type Palette, type PaletteKey } from '@/scene/palette';
 import summerJson from '../../public/assets/palette.json';
 import winterJson from '../../public/assets/palette.winter.json';
@@ -141,5 +142,58 @@ describe('Кровля (FR-19.11, AC-19.12)', () => {
     expect(brightness(radiance(winter, WINTER, 'roof', UP, true))).toBeGreaterThan(
       brightness(radiance(summer, SUMMER, 'roof', UP, true)),
     );
+  });
+});
+
+describe('Облака (FR-19.19, AC-19.20, design D21)', () => {
+  const FRONT = new Vector3(0, 0, 1);
+  const SIDE = new Vector3(1, 0, 0);
+  /** Замер референса: грань облака в тени, sRGB (стартовый кадр, p10 области облака). */
+  const REFERENCE_SHADE = [195, 200, 209] as const;
+
+  /**
+   * Грань белого объёма облака в sRGB 0…255: альбедо палитры × цвет материала облаков под
+   * светом (облака тень не принимают) плюс свечение материала — как считает Lambert three.
+   */
+  function cloudFace(palette: Palette, light: Light, normal: Vector3): [number, number, number] {
+    const cloud = new Materials(palette).cloud;
+    const base = radiance(palette, light, 'white', normal, true);
+    return [
+      toSrgb(base.r * cloud.color.r + cloud.emissive.r) * 255,
+      toSrgb(base.g * cloud.color.g + cloud.emissive.g) * 255,
+      toSrgb(base.b * cloud.color.b + cloud.emissive.b) * 255,
+    ];
+  }
+
+  it('летом грань в тени — как у референса ± 8, верх 238…252, освещённый бок между ними', () => {
+    const shade = cloudFace(summer, SUMMER, FRONT);
+    const top = cloudFace(summer, SUMMER, UP);
+    const side = cloudFace(summer, SUMMER, SIDE);
+    for (let c = 0; c < 3; c++) {
+      expect(Math.abs((shade[c] ?? 0) - (REFERENCE_SHADE[c] ?? 0))).toBeLessThanOrEqual(8);
+      expect(top[c]).toBeGreaterThanOrEqual(238);
+      expect(top[c]).toBeLessThanOrEqual(252);
+      expect(side[c]).toBeGreaterThan(shade[c] ?? 0);
+      expect(side[c]).toBeLessThan(top[c] ?? 0);
+    }
+  });
+
+  it('без свечения та же грань была бы серой (≤ 120): так облака выглядели до волны 7', () => {
+    const base = radiance(summer, SUMMER, 'white', FRONT, true);
+    expect(Math.max(toSrgb(base.r), toSrgb(base.g), toSrgb(base.b)) * 255).toBeLessThanOrEqual(120);
+  });
+
+  it('зимой грань в тени ≥ 185, освещённые грани не выжжены', () => {
+    const shade = cloudFace(winter, WINTER, FRONT);
+    for (const normal of [UP, SIDE]) {
+      expect(Math.max(...cloudFace(winter, WINTER, normal))).toBeLessThan(254.5);
+    }
+    expect(Math.min(...shade)).toBeGreaterThanOrEqual(185);
+  });
+
+  it('город не тронут: у непрозрачного материала нет свечения и множителя цвета', () => {
+    const materials = new Materials(summer);
+    expect(materials.opaque.emissive.getHex()).toBe(0x000000);
+    expect(materials.opaque.color.getHex()).toBe(0xffffff);
   });
 });
