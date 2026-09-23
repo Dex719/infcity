@@ -107,7 +107,7 @@ export class Buildings implements GroundAo {
     b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, roof);
     this.parapet(f, 0.4, h + 0.4, PANEL_RIM[wall] ?? 'white');
     this.cornice(f, h);
-    this.windows(f, floors, 'glass-navy', 0.55);
+    this.windows(f, floors, 0.55);
     this.balconies(f, floors, 'panel-grey');
     this.entrance(f, 'z');
     // Лифтовая надстройка.
@@ -124,7 +124,7 @@ export class Buildings implements GroundAo {
     b.box(f.x, h + 0.2, f.z, f.w + 0.3, 0.4, f.d + 0.3, this.m.color('roof'));
     this.parapet(f, 0.3, h + 0.4, accent);
     this.cornice(f, h);
-    this.windows(f, floors, 'glass-blue', 0.6, 0, f.d * 0.175);
+    this.windows(f, floors, 0.6, 0, f.d * 0.175);
     this.balconies(f, floors, accent);
     // Вертикальная акцентная полоса (лоджии).
     b.boxAo(f.x - f.w / 2 - 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
@@ -189,7 +189,7 @@ export class Buildings implements GroundAo {
       this.awning(f.x - f.w / 2 + step * (i + 0.5), front, frontSign, step - 0.6, awning);
     }
     if (floors > 1) {
-      this.windows(f, floors, 'glass-navy', 0.5, 1);
+      this.windows(f, floors, 0.5, 1);
     }
     // Вывеска на крыше.
     b.box(f.x, h + 1.1, front - frontSign * 0.6, f.w * 0.5, 1.4, 0.2, this.m.color('white'));
@@ -385,7 +385,7 @@ export class Buildings implements GroundAo {
     b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, this.m.color('roof'));
     this.parapet(f, 0.4, h + 0.4, 'glass-teal');
     this.cornice(f, h);
-    this.windows(f, floors, 'glass-navy', 0.5);
+    this.windows(f, floors, 0.5);
     this.entrance(f, 'z');
     // Колоннада и портик — на той же стороне, что и вход (`entrance` выбирает её по `hidden`);
     // при жёстком +Z они расходились по разным стенам (рецензия 2026-09-19).
@@ -773,7 +773,7 @@ export class Buildings implements GroundAo {
 
     // Витрина — стекло, основной глянцевый батч.
     const glassZ = wallZ + zSign * 0.05;
-    this.glass.box(f.x, 1.4, glassZ, f.w - 1, 2.2, 0.1, this.m.color('glass-blue'));
+    this.glass.box(f.x, 1.4, glassZ, f.w - 1, 2.2, 0.1, this.m.color('window'));
 
     // Три вертикальные стойки, обрамляющие витрину.
     const d = this.detail;
@@ -798,17 +798,17 @@ export class Buildings implements GroundAo {
    * 4 вершины и 2 треугольника против 24 и 12 у прежней ленты-бокса, поэтому отдельные окна
    * дешевле ленты по треугольникам. `skipCenterX` — полуширина центральной зоны боковой
    * стороны без окон (за вертикальной полосой лоджий новостройки проёмов не видно).
+   * Стекло у всех проёмов одно — тёмное `window`, как у референса (FR-19.20, design D22).
    */
   private windows(
     f: Footprint,
     floors: number,
-    color: PaletteKey,
     ratio: number,
     fromFloor = 0,
     skipCenterX = 0,
   ): void {
     const b = this.batch;
-    const c = this.m.color(color);
+    const c = this.m.color('window');
     const zSign = -this.hidden.z as 1 | -1;
     const xSign = -this.hidden.x as 1 | -1;
     const width = FACADE.WINDOW_STEP * ratio;

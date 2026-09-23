@@ -29,6 +29,7 @@ export const PALETTE_KEYS = [
   'glass-blue',
   'glass-teal',
   'glass-navy',
+  'window',
   'gold',
   'flag-blue',
   'accent-red',

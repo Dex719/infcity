@@ -233,7 +233,9 @@ describe('Палитра', () => {
   it('в палитре не больше 26 цветов и ключи уникальны (FR-9.4, итерация 2: +чёрный, +жёлтый)', () => {
     // 27-й ключ `roof` (FR-19.11): кровле нужен свой сезонный цвет — летом серый, зимой снег;
     // `roof-dark` занят полутора десятками тёмных деталей (урны, светофоры, машины, UI).
-    expect(PALETTE_KEYS.length).toBeLessThanOrEqual(27);
+    // 28-й ключ `window` (FR-19.20, D22): тёмное стекло окон — ни один прежний цвет не даёт
+    // холодный почти чёрный тон референса, а `roof-dark` зимой становится снегом.
+    expect(PALETTE_KEYS.length).toBeLessThanOrEqual(28);
     expect(new Set(PALETTE_KEYS).size).toBe(PALETTE_KEYS.length);
   });
 

@@ -384,7 +384,7 @@ describe('Витрина торгового ряда (TSK-108, FR-18.6, AC-18.6)
     buildings.shopRow(f, 2, 'sand', 'accent-red');
 
     expect(glass.isEmpty).toBe(false);
-    const glassVertices = verticesOfColor(glass, 'glass-blue');
+    const glassVertices = verticesOfColor(glass, 'window');
     expect(glassVertices.length).toBeGreaterThan(0);
 
     // Вывеска над витриной (storefront) — белый бокс с цветной накладкой, слой деталей.
@@ -451,7 +451,7 @@ describe('Окна отдельными проёмами (FR-19.6, AC-19.6)', ()
   it('панельный дом 16 × 10, 9 этажей: ≥ 4 проёма на этаж на длинной видимой стороне', () => {
     const { buildings, opaque } = freshBuildings();
     buildings.panelHouse(house, FLOORS, 'sand');
-    const centers = windowCenters(opaque, 'glass-navy');
+    const centers = windowCenters(opaque, 'window');
     // Видимые стороны при CHUNK_HIDDEN (−X, −Z скрыты): +Z (длинная, 16) и +X (короткая, 10).
     const longSide = centers.filter((c) => c.z > house.d / 2);
     const shortSide = centers.filter((c) => c.x > house.w / 2);
@@ -465,7 +465,7 @@ describe('Окна отдельными проёмами (FR-19.6, AC-19.6)', ()
   it('проёмы дешевле ленты итерации 4 по треугольникам и не выходят за углы', () => {
     const { buildings, opaque } = freshBuildings();
     buildings.panelHouse(house, FLOORS, 'sand');
-    const windows = verticesOfColor(opaque, 'glass-navy');
+    const windows = verticesOfColor(opaque, 'window');
     const windowTriangles = (windows.length / 4) * 2;
     const bandTriangles = 2 * FLOORS * 12;
     expect(windowTriangles).toBeLessThanOrEqual(bandTriangles);
@@ -479,7 +479,7 @@ describe('Окна отдельными проёмами (FR-19.6, AC-19.6)', ()
     const { buildings, opaque } = freshBuildings();
     const tower: Footprint = { x: 0, z: 0, w: 14, d: 14 };
     buildings.modernTower(tower, 10, 'glass-teal');
-    const side = windowCenters(opaque, 'glass-blue').filter((c) => c.x > tower.w / 2);
+    const side = windowCenters(opaque, 'window').filter((c) => c.x > tower.w / 2);
     expect(side.length).toBeGreaterThan(0);
     for (const c of side) {
       expect(Math.abs(c.z)).toBeGreaterThanOrEqual(tower.d * 0.175);

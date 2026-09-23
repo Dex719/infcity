@@ -53,7 +53,7 @@ describe('Скрытые стороны квартала (FR-18.1, AC-18.2, desi
 });
 
 /** Вершины цвета `key`, добытые из построенной геометрии батча. */
-function verticesOfColor(batch: GeometryBatch, key: 'glass-navy'): Vector3[] {
+function verticesOfColor(batch: GeometryBatch, key: 'window'): Vector3[] {
   const geometry = batch.build();
   const position = geometry.getAttribute('position');
   const color = geometry.getAttribute('color');
@@ -86,7 +86,7 @@ describe('Окна строятся только на видимых фасад�
   for (const rotation of [0, 1, 2, 3]) {
     it(`rotation ${String(rotation)}: все окна на видимых сторонах`, () => {
       const hidden = hiddenSides(rotation);
-      const windows = verticesOfColor(panelHouse(rotation), 'glass-navy');
+      const windows = verticesOfColor(panelHouse(rotation), 'window');
       expect(windows.length).toBeGreaterThan(0);
       const visibleX = -hidden.x * (FOOTPRINT.w / 2);
       const visibleZ = -hidden.z * (FOOTPRINT.d / 2);
@@ -105,7 +105,7 @@ describe('Окна строятся только на видимых фасад�
     // Итерация 5 (FR-19.6): отдельные проёмы по 4 вершины, число — по шагу FACADE.
     const perSide = (length: number): number =>
       Math.max(1, Math.floor((length - 2 * FACADE.WINDOW_MARGIN) / FACADE.WINDOW_STEP));
-    const windows = verticesOfColor(panelHouse(0), 'glass-navy');
+    const windows = verticesOfColor(panelHouse(0), 'window');
     expect(windows.length).toBe(FLOORS * (perSide(FOOTPRINT.w) + perSide(FOOTPRINT.d)) * 4);
     expect(windows.length).toBeLessThan(2 * FLOORS * 24);
   });

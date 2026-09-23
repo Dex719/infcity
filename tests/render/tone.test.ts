@@ -197,3 +197,51 @@ describe('Облака (FR-19.19, AC-19.20, design D21)', () => {
     expect(materials.opaque.color.getHex()).toBe(0xffffff);
   });
 });
+
+describe('Стекло окон (FR-19.20, AC-19.21, design D22)', () => {
+  const SIDE = new Vector3(1, 0, 0);
+  const FRONT = new Vector3(0, 0, 1);
+  /** Замер ближних окон референса (зелёный дом среднего плана), sRGB. */
+  const REFERENCE_GLASS = [37, 39, 48] as const;
+  const WALLS: PaletteKey[] = ['panel-grey', 'brick', 'sand', 'stone-light'];
+
+  function srgb(c: Color): [number, number, number] {
+    return [toSrgb(c.r) * 255, toSrgb(c.g) * 255, toSrgb(c.b) * 255];
+  }
+
+  it('на свету — как ближние окна референса ± 6, в тени темнее, но не чёрная дыра', () => {
+    const lit = srgb(radiance(summer, SUMMER, 'window', SIDE, true));
+    const shade = srgb(radiance(summer, SUMMER, 'window', FRONT, true));
+    for (let c = 0; c < 3; c++) {
+      expect(Math.abs((lit[c] ?? 0) - (REFERENCE_GLASS[c] ?? 0))).toBeLessThanOrEqual(6);
+      expect(shade[c]).toBeLessThan(lit[c] ?? 0);
+      expect(shade[c]).toBeGreaterThanOrEqual(8);
+    }
+  });
+
+  it('на свету стекло не ярче 0,4 любой стены жилых домов летом и зимой; прежнее синее — ярче', () => {
+    for (const [palette, light] of [
+      [summer, SUMMER],
+      [winter, WINTER],
+    ] as const) {
+      const glass = brightness(radiance(palette, light, 'window', SIDE, true));
+      for (const wall of WALLS) {
+        const lit = brightness(radiance(palette, light, wall, SIDE, true));
+        expect(glass).toBeLessThanOrEqual(0.4 * lit);
+      }
+    }
+    // Самая тёмная стена — кирпич: прежнее стекло `glass-navy` на нём было ярче 0,7.
+    const brick = brightness(radiance(summer, SUMMER, 'brick', SIDE, true));
+    expect(brightness(radiance(summer, SUMMER, 'glass-navy', SIDE, true))).toBeGreaterThan(
+      0.7 * brick,
+    );
+  });
+
+  it('оракул воспроизводит прежний проём кадра: синий (48, 87, 122) на свету', () => {
+    const old = srgb(radiance(summer, SUMMER, 'glass-navy', SIDE, true));
+    const frame = [48, 87, 122];
+    for (let c = 0; c < 3; c++) {
+      expect(Math.abs((old[c] ?? 0) - (frame[c] ?? 0))).toBeLessThanOrEqual(3);
+    }
+  });
+});
