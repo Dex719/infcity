@@ -269,7 +269,57 @@ export class Buildings implements GroundAo {
     for (let i = 0; i < 4; i++) {
       b.box(f.x - 4.5 + i * 3, h + 2.4, front - s * 0.3, 2.0, 1.3, 0.2, this.m.color(accent));
     }
-    this.roofDetails(f, h + 0.5);
+    // Кровля (FR-19.21, design D23): постоянная раскладка установок, а случайные детали — в
+    // полосе у фасада. Расход `rng` прежний: число вызовов `roofDetails` не зависит от габарита.
+    this.mallRoof(f, h + 0.5, s);
+    this.roofDetails({ x: f.x, z: f.z + s * 8, w: 41, d: 7 }, h + 0.5);
+  }
+
+  /**
+   * Кровля ТЦ (FR-19.21, AC-19.22, design D23): ряд световых фонарей-пирамид и два ряда
+   * кондиционеров с вентиляторами, у каждого — ореол AO цвета кровли. Раскладка постоянная, без
+   * `rng`, в осях кровли: `x` вдоль фасада, `v` — от фасада вглубь (`z = f.z − s·v`, фасад на
+   * `v = −12`); рассчитана на ТЦ 40 × 24 — единственный габарит раскладки `mall`.
+   */
+  private mallRoof(f: Footprint, top: number, s: 1 | -1): void {
+    const d = this.detail;
+    const roof = this.m.color('roof');
+    const haloY = top + AO.GROUND_LIFT;
+    const ring: HaloWidths = { px: 1, nx: 1, pz: 1, nz: 1 };
+    const z = (v: number): number => f.z - s * v;
+    // Фонари атриума: бортик и стеклянная пирамида, повёрнутая на 45° — стороны вдоль осей.
+    for (const x of [-13.5, -4.5, 4.5, 13.5]) {
+      d.box(f.x + x, top + 0.15, z(-3), 4, 0.3, 4, this.m.color('white'));
+      d.place(
+        Templates.pyramid4,
+        f.x + x,
+        top + 0.3 + 0.7,
+        z(-3),
+        2.55,
+        1.4,
+        2.55,
+        this.m.color('glass-blue'),
+        Math.PI / 4,
+      );
+      d.halo(f.x + x, z(-3), 4, 4, haloY, ring, roof, AO.GROUND_MIN);
+    }
+    // Кондиционеры: светло-серый корпус и тёмная решётка вентилятора сверху.
+    for (const v of [3.5, 8]) {
+      for (const x of [-15, -5, 5, 15]) {
+        d.box(f.x + x, top + 0.65, z(v), 3, 1.3, 2, this.m.color('panel-grey'));
+        d.place(
+          Templates.cone8,
+          f.x + x,
+          top + 1.34,
+          z(v),
+          0.55,
+          0.08,
+          0.55,
+          this.m.color('black'),
+        );
+        d.halo(f.x + x, z(v), 3, 2, haloY, ring, roof, AO.GROUND_MIN);
+      }
+    }
   }
 
   /**

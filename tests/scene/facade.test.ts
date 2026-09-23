@@ -1,5 +1,5 @@
 import { type BufferGeometry, Vector3 } from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AO, ROOF } from '@/config';
 import { Materials } from '@/scene/Materials';
 import { parsePalette, type PaletteKey } from '@/scene/palette';
@@ -705,4 +705,105 @@ describe('Полосатые наклонные маркизы (FR-19.17, AC-19.
       }
     },
   );
+});
+
+describe('Кровля ТЦ: кондиционеры и фонари (FR-19.21, AC-19.22)', () => {
+  const f: Footprint = { x: 0, z: -7, w: 40, d: 24 };
+  const top = 12.5;
+
+  /** Вершины цвета `key` из готовой геометрии. */
+  function ofColor(geometry: BufferGeometry, key: PaletteKey, factor = 1): Vector3[] {
+    const position = geometry.getAttribute('position');
+    const color = geometry.getAttribute('color');
+    const wanted = materials.color(key).clone().multiplyScalar(factor);
+    const found: Vector3[] = [];
+    for (let i = 0; i < position.count; i++) {
+      if (
+        Math.abs(color.getX(i) - wanted.r) < 1e-4 &&
+        Math.abs(color.getY(i) - wanted.g) < 1e-4 &&
+        Math.abs(color.getZ(i) - wanted.b) < 1e-4
+      ) {
+        found.push(new Vector3(position.getX(i), position.getY(i), position.getZ(i)));
+      }
+    }
+    return found;
+  }
+
+  /** Объекты как группы вершин: соседние ближе `gap` по XZ — один объект (углы пирамиды — 2.55 от вершины). */
+  function clusters(vertices: Vector3[], gap = 3): Vector3[][] {
+    const groups: Vector3[][] = [];
+    for (const v of vertices) {
+      const near = groups.filter((g) => g.some((u) => Math.hypot(u.x - v.x, u.z - v.z) < gap));
+      const merged = near.flat();
+      merged.push(v);
+      for (const g of near) {
+        groups.splice(groups.indexOf(g), 1);
+      }
+      groups.push(merged);
+    }
+    return groups;
+  }
+
+  /** Центр габарита группы: у шаблонов с дублями вершин на шве среднее смещено к шву. */
+  function center(group: Vector3[]): Vector3 {
+    const xs = group.map((v) => v.x);
+    const zs = group.map((v) => v.z);
+    return new Vector3(
+      (Math.min(...xs) + Math.max(...xs)) / 2,
+      0,
+      (Math.min(...zs) + Math.max(...zs)) / 2,
+    );
+  }
+
+  it.each<[string, HiddenSides]>([
+    ['видимая +Z', CHUNK_HIDDEN],
+    ['видимая −Z', { x: 1, z: 1 }],
+  ])(
+    '%s: ≥ 8 вентиляторов и ≥ 3 фонаря внутри кровли, мимо полосы случайных деталей, с ореолами',
+    (_, hidden) => {
+      const s = -hidden.z;
+      const { buildings, detail } = freshBuildings(hidden);
+      buildings.mall(f, 'gold');
+      const geometry = detail.build();
+      const fans = clusters(ofColor(geometry, 'black'));
+      const lights = clusters(ofColor(geometry, 'glass-blue'));
+      expect(fans.length).toBeGreaterThanOrEqual(8);
+      expect(lights.length).toBeGreaterThanOrEqual(3);
+      // Ось вглубь кровли от фасада: полоса случайных деталей — v ∈ [−9.9, −6.1] с их размером.
+      const v = (p: Vector3): number => (f.z - p.z) * s;
+      for (const p of [...fans.flat(), ...lights.flat()]) {
+        expect(p.y).toBeGreaterThan(top);
+        expect(Math.abs(p.x - f.x)).toBeLessThan(f.w / 2 - 1);
+        expect(Math.abs(p.z - f.z)).toBeLessThan(f.d / 2 - 1);
+        expect(v(p)).toBeGreaterThan(-6.1);
+      }
+      // Ореол у каждой установки: внутренние углы кольца — цвет кровли × GROUND_MIN на кровле.
+      const inner = ofColor(geometry, 'roof', AO.GROUND_MIN).filter(
+        (p) => Math.abs(p.y - (top + AO.GROUND_LIFT)) < 1e-4,
+      );
+      for (const group of [...fans, ...lights]) {
+        const c = center(group);
+        const corners = inner.filter((p) => Math.hypot(p.x - c.x, p.z - c.z) < 3);
+        expect(corners.length).toBeGreaterThanOrEqual(4);
+      }
+    },
+  );
+
+  it('случайные детали — в полосе у фасада; mall() тратит rng ровно как один roofDetails', () => {
+    for (const hidden of [CHUNK_HIDDEN, { x: 1, z: 1 } as HiddenSides]) {
+      const s = -hidden.z;
+      const spy = vi.spyOn(Buildings.prototype, 'roofDetails');
+      const a = mulberry32(42);
+      new Buildings(new GeometryBatch(), new GeometryBatch(), materials, a, hidden).mall(f, 'gold');
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0]?.[0]).toEqual({ x: f.x, z: f.z + s * 8, w: 41, d: 7 });
+      spy.mockRestore();
+      const b = mulberry32(42);
+      new Buildings(new GeometryBatch(), new GeometryBatch(), materials, b, hidden).roofDetails(
+        f,
+        top,
+      );
+      expect(a()).toBe(b());
+    }
+  });
 });
