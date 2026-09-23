@@ -14,6 +14,27 @@ import {
   Vector3,
   type Color,
 } from 'three';
+import { AO } from '@/config';
+
+/**
+ * Множитель запечённого AO стены на высоте `t` над основанием (FR-19.1, design D15):
+ * `AO.WALL_MIN` у земли, линейно до 1 на `AO.WALL_HEIGHT` и выше.
+ */
+export function wallAo(t: number): number {
+  return AO.WALL_MIN + (1 - AO.WALL_MIN) * Math.min(Math.max(t, 0) / AO.WALL_HEIGHT, 1);
+}
+
+/**
+ * Боковые грани бокса в локальных осях: начальный угол (x, z), направление обхода `u` и длина
+ * вдоль него, нормаль. Обход выбран так, что `u × up` = нормаль — грань смотрит наружу (CCW).
+ */
+const AO_SIDES: readonly (readonly [number, number, number, number, 'w' | 'd', number, number])[] =
+  [
+    [1, 1, 0, -1, 'd', 1, 0],
+    [-1, -1, 0, 1, 'd', -1, 0],
+    [-1, 1, 1, 0, 'w', 0, 1],
+    [1, -1, -1, 0, 'w', 0, -1],
+  ];
 
 /** Неизменяемый шаблон геометрии: позиции, нормали, индексы. */
 export interface Template {
@@ -202,6 +223,75 @@ export class GeometryBatch {
     tmpMatrix.scale(tmpScale.set(w, h, d));
     tmpMatrix.setPosition(x, y, z);
     this.add(Templates.box, tmpMatrix, color);
+  }
+
+  /**
+   * Бокс с запечённым AO контакта (FR-19.1, design D15): те же аргументы, что у `box`, но
+   * боковые грани темнеют к основанию (`wallAo`). У стены выше `AO.WALL_HEIGHT` боковые грани
+   * получают третий пояс вершин на этой высоте, поэтому затемнение занимает ровно
+   * `AO.WALL_HEIGHT` при любой высоте корпуса: 32 вершины и 20 треугольников вместо 24 и 12.
+   * Бокс остаётся замкнутым: теневой проход рисует обратные грани, и без дна у основания стены
+   * на теневой стороне появилась бы светлая щель.
+   */
+  boxAo(
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    h: number,
+    d: number,
+    color: Color,
+    rotationY = 0,
+  ): void {
+    this.partCount++;
+    const base = y - h / 2;
+    const hw = w / 2;
+    const hd = d / 2;
+    const cos = Math.cos(rotationY);
+    const sin = Math.sin(rotationY);
+    // Поворот вокруг Y как у `Matrix4.makeRotationY`: (x, z) → (x·cos + z·sin, −x·sin + z·cos).
+    const vertex = (
+      lx: number,
+      ly: number,
+      lz: number,
+      nx: number,
+      ny: number,
+      nz: number,
+      f: number,
+    ): void => {
+      this.positions.push(x + lx * cos + lz * sin, ly, z - lx * sin + lz * cos);
+      this.normals.push(nx * cos + nz * sin, ny, -nx * sin + nz * cos);
+      this.colors.push(color.r * f, color.g * f, color.b * f);
+      this.vertexCount++;
+    };
+    const rows = h > AO.WALL_HEIGHT ? [0, AO.WALL_HEIGHT, h] : [0, h];
+    for (const [sx, sz, ux, uz, along, nx, nz] of AO_SIDES) {
+      const len = along === 'w' ? w : d;
+      const first = this.vertexCount;
+      for (const t of rows) {
+        const f = wallAo(t);
+        vertex(sx * hw, base + t, sz * hd, nx, 0, nz, f);
+        vertex(sx * hw + ux * len, base + t, sz * hd + uz * len, nx, 0, nz, f);
+      }
+      for (let i = 0; i + 1 < rows.length; i++) {
+        const l0 = first + 2 * i;
+        this.indices.push(l0, l0 + 1, l0 + 3, l0, l0 + 3, l0 + 2);
+      }
+    }
+    const top = base + h;
+    const t0 = this.vertexCount;
+    vertex(-hw, top, hd, 0, 1, 0, 1);
+    vertex(hw, top, hd, 0, 1, 0, 1);
+    vertex(hw, top, -hd, 0, 1, 0, 1);
+    vertex(-hw, top, -hd, 0, 1, 0, 1);
+    this.indices.push(t0, t0 + 1, t0 + 2, t0, t0 + 2, t0 + 3);
+    const b0 = this.vertexCount;
+    const fb = wallAo(0);
+    vertex(-hw, base, hd, 0, -1, 0, fb);
+    vertex(hw, base, hd, 0, -1, 0, fb);
+    vertex(hw, base, -hd, 0, -1, 0, fb);
+    vertex(-hw, base, -hd, 0, -1, 0, fb);
+    this.indices.push(b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2);
   }
 
   /** Перенести содержимое другого батча (в его локальных координатах), применив матрицу. */

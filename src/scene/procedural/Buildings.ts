@@ -43,7 +43,7 @@ export class Buildings {
   panelHouse(f: Footprint, floors: number, wall: PaletteKey = 'panel-grey'): void {
     const b = this.batch;
     const h = floors * FLOOR;
-    b.box(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(wall));
+    b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(wall));
     this.plinth(f);
     const roof = this.m.shade('roof-dark', 1);
     b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, roof);
@@ -60,15 +60,15 @@ export class Buildings {
   modernTower(f: Footprint, floors: number, accent: PaletteKey = 'glass-teal'): void {
     const b = this.batch;
     const h = floors * FLOOR;
-    b.box(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
+    b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
     this.plinth(f);
     b.box(f.x, h + 0.2, f.z, f.w + 0.3, 0.4, f.d + 0.3, this.m.color('white'));
     this.cornice(f, h);
     this.windowRows(f, floors, 'glass-blue', 0.6);
     this.balconies(f, floors, accent);
     // Вертикальная акцентная полоса (лоджии).
-    b.box(f.x - f.w / 2 - 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
-    b.box(f.x + f.w / 2 + 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
+    b.boxAo(f.x - f.w / 2 - 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
+    b.boxAo(f.x + f.w / 2 + 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
     b.box(f.x, h + 1, f.z, f.w * 0.5, 1.6, f.d * 0.5, this.m.color('stone-light'));
     this.roofDetails(f, h + 0.4);
   }
@@ -78,8 +78,8 @@ export class Buildings {
     const b = this.batch;
     const h = floors * FLOOR;
     // Непрозрачное ядро чуть меньше габарита, стеклянная оболочка — в glass-батче.
-    b.box(f.x, h / 2, f.z, f.w - 0.8, h, f.d - 0.8, this.m.shade(tint, 0.55));
-    this.glass.box(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(tint));
+    b.boxAo(f.x, h / 2, f.z, f.w - 0.8, h, f.d - 0.8, this.m.shade(tint, 0.55));
+    this.glass.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(tint));
     const band = this.m.color('steel');
     for (let i = 1; i < floors; i += 2) {
       b.box(f.x, i * FLOOR, f.z, f.w + 0.2, 0.18, f.d + 0.2, band);
@@ -94,7 +94,7 @@ export class Buildings {
   shopRow(f: Footprint, floors: number, wall: PaletteKey, awning: PaletteKey): void {
     const b = this.batch;
     const h = floors * FLOOR;
-    b.box(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(wall));
+    b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(wall));
     this.plinth(f);
     b.box(f.x, h + 0.15, f.z, f.w + 0.3, 0.3, f.d + 0.3, this.m.color('roof-dark'));
     this.cornice(f, h);
@@ -125,7 +125,7 @@ export class Buildings {
     const b = this.batch;
     const h = 12;
     const front = f.z + f.d / 2;
-    b.box(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
+    b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
     this.plinth(f);
     b.box(f.x, h + 0.25, f.z, f.w + 0.4, 0.5, f.d + 0.4, this.m.color('white'));
     this.cornice(f, h);
@@ -148,7 +148,7 @@ export class Buildings {
     this.glass.box(f.x - f.w / 2 - 0.06, 8.5, f.z, 0.12, 2.4, f.d - 4, this.m.color('glass-teal'));
     this.glass.box(f.x + f.w / 2 + 0.06, 8.5, f.z, 0.12, 2.4, f.d - 4, this.m.color('glass-teal'));
     // Портал входа.
-    b.box(f.x, 3.5, front + 1.2, 12, 7, 2.4, this.m.color('white'));
+    b.boxAo(f.x, 3.5, front + 1.2, 12, 7, 2.4, this.m.color('white'));
     this.glass.box(f.x, 2.6, front + 2.45, 9, 5, 0.15, this.m.color('glass-blue'));
     b.box(f.x, 7.2, front + 1.2, 13, 0.5, 3.2, this.m.color(accent));
     // Вывеска с «буквами».
@@ -226,7 +226,7 @@ export class Buildings {
   marketHall(f: Footprint): void {
     const b = this.batch;
     const h = 5;
-    b.box(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('sand'));
+    b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('sand'));
     b.place(
       Templates.cylinder8,
       f.x,
@@ -255,7 +255,7 @@ export class Buildings {
   campusHall(f: Footprint, floors = 3): void {
     const b = this.batch;
     const h = floors * FLOOR;
-    b.box(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('white'));
+    b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('white'));
     this.plinth(f);
     b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, this.m.color('glass-teal'));
     this.cornice(f, h);
@@ -313,7 +313,7 @@ export class Buildings {
    * безусловно (это не однобокая накладка, а симметричный обхват, правило D13 его не касается).
    */
   private plinth(f: Footprint): void {
-    this.batch.box(f.x, 0.3, f.z, f.w + 0.3, 0.6, f.d + 0.3, this.m.color('concrete'));
+    this.batch.boxAo(f.x, 0.3, f.z, f.w + 0.3, 0.6, f.d + 0.3, this.m.color('concrete'));
   }
 
   /**

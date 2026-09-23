@@ -1,5 +1,6 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import { AO } from '@/config';
 import { Materials } from '@/scene/Materials';
 import { parsePalette, type PaletteKey } from '@/scene/palette';
 import { Buildings, type Footprint } from '@/scene/procedural/Buildings';
@@ -54,17 +55,41 @@ function verticesOfColor(batch: GeometryBatch, key: PaletteKey): Vector3[] {
   return found;
 }
 
+/**
+ * Вершины оттенка `key` с запечённым AO (FR-19.1): цвет вершины — цвет палитры, умноженный на
+ * один множитель из `[AO.WALL_MIN, 1]` по всем трём каналам.
+ */
+function verticesOfHue(batch: GeometryBatch, key: PaletteKey): Vector3[] {
+  const geometry = batch.build();
+  const position = geometry.getAttribute('position');
+  const color = geometry.getAttribute('color');
+  const wanted = materials.color(key);
+  const found: Vector3[] = [];
+  for (let i = 0; i < position.count; i++) {
+    const k = color.getY(i) / wanted.g;
+    if (
+      k >= AO.WALL_MIN - 1e-6 &&
+      k <= 1 + 1e-6 &&
+      Math.abs(color.getX(i) - wanted.r * k) < 1e-4 &&
+      Math.abs(color.getZ(i) - wanted.b * k) < 1e-4
+    ) {
+      found.push(new Vector3(position.getX(i), position.getY(i), position.getZ(i)));
+    }
+  }
+  return found;
+}
+
 describe('plinth/cornice — примитивы (FR-18.6, design «C7: фасады»)', () => {
   const f: Footprint = { x: 5, z: -3, w: 16, d: 12 };
   const top = 24.3;
 
-  it('plinth: один бокс (w+0.3)×0.6×(d+0.3) цвета concrete у земли', () => {
+  it('plinth: один бокс (w+0.3)×0.6×(d+0.3) цвета concrete у земли, с AO контакта (FR-19.1)', () => {
     const { buildings, opaque } = freshBuildings();
     const internals = buildings as unknown as FacadeInternals;
     internals.plinth(f);
     expect(opaque.parts).toBe(1);
     expect(opaque.vertices).toBe(24);
-    const vertices = verticesOfColor(opaque, 'concrete');
+    const vertices = verticesOfHue(opaque, 'concrete');
     expect(vertices.length).toBe(24);
     const xs = vertices.map((v) => v.x);
     const ys = vertices.map((v) => v.y);
