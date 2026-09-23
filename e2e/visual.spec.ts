@@ -100,6 +100,34 @@ test.describe('Visual regression (FR-9, FR-15)', () => {
     }
   });
 
+  test('AC-19.14: стадион — открытая чаша, ярусы трибун, поле с разметкой', async ({ page }) => {
+    await gotoApp(page);
+    const stadium = await page.evaluate(() => {
+      const api = window.__app;
+      if (api === undefined) {
+        throw new Error('no api');
+      }
+      for (let r = 0; r <= 12; r++) {
+        for (let gy = -r; gy <= r; gy++) {
+          for (let gx = -r; gx <= r; gx++) {
+            if (
+              Math.max(Math.abs(gx), Math.abs(gy)) === r &&
+              api.describe(gx, gy).block === 'stadium'
+            ) {
+              return [gx, gy] as [number, number];
+            }
+          }
+        }
+      }
+      return null;
+    });
+    expect(stadium, 'стадион не найден в ±12 чанках').not.toBeNull();
+    if (stadium !== null) {
+      await frameAt(page, stadium[0], stadium[1], 80);
+      await expect(page).toHaveScreenshot('astana-stadium.png');
+    }
+  });
+
   for (const id of LANDMARK_IDS) {
     test(`AC-15.2: ландмарк ${id} крупным планом`, async ({ page }) => {
       await gotoApp(page);
