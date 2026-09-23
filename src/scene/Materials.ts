@@ -5,6 +5,9 @@ import type { Palette, PaletteKey } from './palette';
  * Материалы сцены (FR-9.4, AC-9.3): все цвета — из палитры, попадают в геометрию как
  * вершинные цвета, поэтому на весь город хватает двух материалов: непрозрачный и стекло.
  * Lambert выбран как «low»-профиль дизайна D4: плоский игрушечный вид и дёшево на мобильных.
+ * Непрозрачный материал затеняется по граням (FR-19.3, design D16): нормаль грани считается
+ * в шейдере, поэтому кроны, облака и купола становятся гранёными, как у референса, без
+ * единой новой вершины. Стекло остаётся гладким — прозрачный объём с гранями читается как сетка.
  */
 export class Materials {
   readonly opaque: MeshLambertMaterial;
@@ -12,7 +15,7 @@ export class Materials {
   private readonly colors = new Map<PaletteKey, Color>();
 
   constructor(readonly palette: Palette) {
-    this.opaque = new MeshLambertMaterial({ vertexColors: true });
+    this.opaque = new MeshLambertMaterial({ vertexColors: true, flatShading: true });
     this.opaque.name = 'palette-opaque';
     this.glass = new MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.72 });
     this.glass.name = 'palette-glass';
