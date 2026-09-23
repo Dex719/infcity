@@ -59,6 +59,25 @@ test.describe('Visual regression (FR-9, FR-15)', () => {
     await expect(page).toHaveScreenshot('astana-winter.png');
   });
 
+  test('AC-19.20: облако в стартовом виде — белое и мягкое, как у референса', async ({ page }) => {
+    await gotoApp(page);
+    await page.evaluate(() => {
+      const api = window.__app;
+      if (api === undefined) {
+        throw new Error('no api');
+      }
+      api.pause();
+      api.resetMobs();
+      document.getElementById('title')?.remove();
+      // В стартовом кадре облаков нет, только их тени; за 120 с дрейфа облако выходит на рынок.
+      api.simulate(120, 1 / 30);
+      api.step(0);
+    });
+    // Порог строже общего (0,2 YIQ): при нём проходили и прежние серые облака — тон облака
+    // и есть предмет проверки. Шум окружения (±1–2 уровня) порог 0,05 пропускает.
+    await expect(page).toHaveScreenshot('astana-clouds.png', { threshold: 0.05 });
+  });
+
   test('BUG-1: минимальная высота камеры — здания не режутся near-плоскостью', async ({ page }) => {
     await gotoApp(page);
     await frameAt(page, 0, 0, CAMERA.HEIGHT_MIN);
