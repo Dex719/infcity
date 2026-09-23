@@ -18,7 +18,9 @@ export function buildMegaSilkWay(ctx: LandmarkContext): void {
   const body = { x: 0, z: -8, w: 44, d: 26 };
 
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('sidewalk'));
-  b.box(body.x, h / 2, body.z, body.w, h, body.d, m.color('stone-light'));
+  ctx.ao.ground('sidewalk');
+  b.boxAo(body.x, h / 2, body.z, body.w, h, body.d, m.color('stone-light'));
+  ctx.ao.footprint(body.x, body.z, body.w, body.d);
   // Ленточное остекление и стеклянный фасад со стороны входа.
   g.box(
     body.x,

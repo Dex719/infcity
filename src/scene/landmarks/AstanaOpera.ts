@@ -16,12 +16,14 @@ export function buildAstanaOpera(ctx: LandmarkContext): void {
   const stone = m.color('stone-light');
 
   b.plane(0, LAWN_Y, 0, 46, 46, stone);
+  ctx.ao.ground('stone-light');
   b.plane(-19, LAWN_Y + 0.06, -4, 7, 30, m.color('grass'));
   b.plane(19, LAWN_Y + 0.06, -4, 7, 30, m.color('grass'));
 
   // Корпус и сценическая коробка.
   const bodyH = h * 0.7;
-  b.box(0, bodyH / 2, -4, 30, bodyH, 24, white);
+  b.boxAo(0, bodyH / 2, -4, 30, bodyH, 24, white);
+  ctx.ao.footprint(0, -4, 30, 24);
   b.box(0, h / 2, -10, 20, h, 10, white);
   b.box(0, bodyH + 0.3, -4, 31, 0.6, 25, m.color('sand'));
   b.box(0, h + 0.3, -10, 21, 0.6, 11, m.color('sand'));

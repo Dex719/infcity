@@ -19,7 +19,9 @@ export function buildHazretSultan(ctx: LandmarkContext): void {
 
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('sand'));
   b.plane(0, LAWN_Y + 0.02, 0, 40, 40, m.color('stone-light'));
-  b.box(0, bodyH / 2, 0, 32, bodyH, 32, white);
+  ctx.ao.ground('stone-light', LAWN_Y + 0.02, 20);
+  b.boxAo(0, bodyH / 2, 0, 32, bodyH, 32, white);
+  ctx.ao.footprint(0, 0, 32, 32);
   b.box(0, bodyH + 0.3, 0, 33, 0.6, 33, m.color('sand'));
   // Главный купол.
   b.place(Templates.cylinder16, 0, bodyH + 2, 0, 9, 4, 9, white);

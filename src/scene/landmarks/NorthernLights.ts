@@ -47,7 +47,9 @@ export function buildNorthernLights(ctx: LandmarkContext): void {
   const total = LANDMARKS.HEIGHT['northern-lights']; // 40
 
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('stone-light'));
-  b.box(0, 1.5, 0, 42, 3, 30, m.color('white'));
+  ctx.ao.ground('stone-light');
+  b.boxAo(0, 1.5, 0, 42, 3, 30, m.color('white'));
+  ctx.ao.footprint(0, 0, 42, 30);
   ctx.glass.box(0, 1.4, 0, 42.4, 2.2, 30.4, m.color('glass-teal'));
   waveTower(ctx, -14, 0, 10, total, 'glass-blue', 0);
   waveTower(ctx, 0, 0, 10, total * 0.85, 'glass-teal', 1.1);

@@ -15,7 +15,9 @@ export function buildPyramid(ctx: LandmarkContext): void {
   const plinthH = 2;
 
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('grass'));
-  b.box(0, plinthH / 2, 0, 36, plinthH, 36, m.color('stone-light'));
+  ctx.ao.ground('grass');
+  b.boxAo(0, plinthH / 2, 0, 36, plinthH, 36, m.color('stone-light'));
+  ctx.ao.footprint(0, 0, 36, 36);
   b.place(Templates.pyramid4, 0, plinthH + h / 2, 0, base, h, base, m.color('sand'), Math.PI / 4);
   // Стеклянная верхняя треть чуть больше каменной, чтобы просвечивать поверх.
   const tipH = h / 3;

@@ -15,10 +15,12 @@ export function buildNurAlem(ctx: LandmarkContext): void {
   const centerY = podiumH + r;
 
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('stone-light'));
+  ctx.ao.ground('stone-light');
   for (let i = -20; i <= 20; i += 10) {
     b.box(i, LAWN_Y + 0.02, 0, 0.5, 0.04, 46, m.color('sand'));
   }
-  b.box(0, podiumH / 2, 0, 26, podiumH, 26, m.color('white'));
+  b.boxAo(0, podiumH / 2, 0, 26, podiumH, 26, m.color('white'));
+  ctx.ao.footprint(0, 0, 26, 26);
   b.box(0, podiumH + 0.3, 0, 27, 0.6, 27, m.color('glass-teal'));
   b.place(Templates.sphere16, 0, centerY, 0, r - 0.6, r - 0.6, r - 0.6, m.color('glass-navy'));
   g.place(Templates.sphere16, 0, centerY, 0, r, r, r, m.color('glass-blue'));

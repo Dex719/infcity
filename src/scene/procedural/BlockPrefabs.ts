@@ -143,7 +143,7 @@ export function buildBlock(descriptor: ChunkDescriptor, m: Materials): BlockGeom
       break;
     case 'landmark':
       if (descriptor.landmark !== null) {
-        buildLandmark(descriptor.landmark, { opaque, glass, props, m, rng });
+        buildLandmark(descriptor.landmark, { opaque, glass, props, m, rng, ao: buildings });
       }
       break;
   }

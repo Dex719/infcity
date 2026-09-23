@@ -21,6 +21,7 @@ export function buildKhanShatyr(ctx: LandmarkContext): void {
 
   // Площадь, парковка, зелень.
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('stone-light'));
+  ctx.ao.ground('stone-light');
   b.plane(0, LAWN_Y + 0.02, 21, 40, 6, m.color('asphalt'));
   for (let i = 0; i < 7; i++) {
     if (ctx.rng() < 0.75) {
@@ -39,6 +40,7 @@ export function buildKhanShatyr(ctx: LandmarkContext): void {
 
   // Основание-подиум (эллипс) и внутренний корпус, чтобы шатёр не выглядел пустым.
   b.place(Templates.cylinder16, 0, 0.6, 0, rx + 1.5, 1.2, rz + 1.5, white);
+  ctx.ao.ellipse(0, 0, rx + 1.5, rz + 1.5);
   b.place(Templates.cylinder16, 0, 1.2 + 4, 0, rx * 0.72, 8, rz * 0.72, m.color('sand'));
   b.place(Templates.cylinder16, 0, 9.5, 0, rx * 0.5, 3, rz * 0.5, m.color('sand'));
 

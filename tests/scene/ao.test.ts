@@ -1,11 +1,13 @@
 import { Color, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { AO, LRT } from '@/config';
+import { AO, LANDMARK_IDS, LRT, type LandmarkId } from '@/config';
+import { buildLandmark } from '@/scene/landmarks';
 import { Materials } from '@/scene/Materials';
-import { parsePalette } from '@/scene/palette';
+import { parsePalette, type PaletteKey } from '@/scene/palette';
 import { buildBlock } from '@/scene/procedural/BlockPrefabs';
 import { Buildings } from '@/scene/procedural/Buildings';
 import { buildLrt } from '@/scene/procedural/Lrt';
+import { Props } from '@/scene/procedural/Props';
 import { GeometryBatch, wallAo } from '@/scene/procedural/GeometryBatch';
 import { Generator } from '@/world/Generator';
 import { mulberry32 } from '@/world/Hash';
@@ -426,4 +428,73 @@ describe('AO малых форм (FR-19.12, AC-19.13)', () => {
     expect(ring).toHaveLength(pillars * 8);
     expect(ring.filter((v) => factor(v, asphalt) < 1 - EPS)).toHaveLength(pillars * 4);
   });
+});
+
+describe('AO контакта у ландмарков (FR-19.14, AC-19.15)', () => {
+  // [плита, верх плиты, полуширина плиты]
+  const plates: Readonly<Partial<Record<LandmarkId, readonly [PaletteKey, number, number]>>> = {
+    'abu-dhabi-plaza': ['stone-light', 0.2, 23],
+    'ak-orda': ['stone-light', 0.2, 23],
+    'astana-opera': ['stone-light', 0.2, 23],
+    'hazret-sultan': ['stone-light', 0.22, 20],
+    kazmunaygas: ['stone-light', 0.22, 20],
+    'khan-shatyr': ['stone-light', 0.2, 23],
+    'mega-silk-way': ['sidewalk', 0.2, 23],
+    'northern-lights': ['stone-light', 0.2, 23],
+    'nur-alem': ['stone-light', 0.2, 23],
+    pyramid: ['grass', 0.2, 23],
+    'transport-tower': ['stone-light', 0.2, 23],
+  };
+
+  function landmarkOpaque(id: LandmarkId): GeometryBatch {
+    const opaque = new GeometryBatch();
+    const glass = new GeometryBatch();
+    const ao = new Buildings(opaque, glass, materials, mulberry32(7));
+    buildLandmark(id, {
+      opaque,
+      glass,
+      props: new Props(opaque, materials),
+      m: materials,
+      rng: mulberry32(7),
+      ao,
+    });
+    ao.flushHalos(0.2 + AO.GROUND_LIFT, 23);
+    return opaque;
+  }
+
+  for (const id of LANDMARK_IDS) {
+    const plate = plates[id];
+    if (plate === undefined) {
+      it(`${id}: ореола нет — вокруг основания разноцветные кольца`, () => {
+        const ground = materials.color('stone-light');
+        const { vertices } = verticesOf(landmarkOpaque(id));
+        const dark = vertices.filter(
+          (v) =>
+            Math.abs(v.p.y - (0.2 + AO.GROUND_LIFT)) < 1e-5 &&
+            Math.abs(factor(v, ground) - AO.GROUND_MIN) < 1e-5,
+        );
+        expect(dark).toHaveLength(0);
+      });
+      continue;
+    }
+    const [key, top, half] = plate;
+    it(`${id}: ореол цвета плиты ${key} на её высоте и в её границах`, () => {
+      const ground = materials.color(key);
+      const { vertices } = verticesOf(landmarkOpaque(id));
+      const ring = vertices.filter(
+        (v) =>
+          Math.abs(v.p.y - (top + AO.GROUND_LIFT)) < 1e-5 &&
+          v.n.y > 0.99 &&
+          Math.abs(v.c.r / ground.r - v.c.g / ground.g) < 1e-4,
+      );
+      const dark = ring.filter((v) => Math.abs(factor(v, ground) - AO.GROUND_MIN) < 1e-5);
+      const edge = ring.filter((v) => Math.abs(factor(v, ground) - 1) < 1e-5);
+      expect(dark.length).toBeGreaterThanOrEqual(4);
+      expect(edge.length).toBeGreaterThanOrEqual(4);
+      for (const v of ring) {
+        expect(Math.abs(v.p.x)).toBeLessThanOrEqual(half + 1e-5);
+        expect(Math.abs(v.p.z)).toBeLessThanOrEqual(half + 1e-5);
+      }
+    });
+  }
 });

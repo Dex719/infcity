@@ -16,7 +16,9 @@ export function buildTransportTower(ctx: LandmarkContext): void {
   const bodyH = total - 5;
 
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('stone-light'));
-  b.box(0, 2, 0, 30, 4, 24, m.color('white'));
+  ctx.ao.ground('stone-light');
+  b.boxAo(0, 2, 0, 30, 4, 24, m.color('white'));
+  ctx.ao.footprint(0, 0, 30, 24);
   ctx.glass.box(0, 1.9, 0, 30.4, 3, 24.4, m.color('glass-blue'));
   b.box(0, bodyH / 2, -2, w - 1, bodyH, w - 1, m.shade('glass-navy', 0.6));
   ctx.glass.box(0, bodyH / 2, -2, w, bodyH, w, m.color('glass-navy'));

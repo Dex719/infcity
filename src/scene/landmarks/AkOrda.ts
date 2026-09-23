@@ -15,11 +15,15 @@ export function buildAkOrda(ctx: LandmarkContext): void {
   const gold = m.color('gold');
 
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('stone-light'));
+  ctx.ao.ground('stone-light');
   b.plane(0, LAWN_Y + 0.02, 17, 40, 10, m.color('grass'));
   // Корпус, крылья, карниз.
-  b.box(0, bodyH / 2, -4, 30, bodyH, 18, white);
-  b.box(-19, 5, -4, 8, 10, 16, white);
-  b.box(19, 5, -4, 8, 10, 16, white);
+  b.boxAo(0, bodyH / 2, -4, 30, bodyH, 18, white);
+  ctx.ao.footprint(0, -4, 30, 18);
+  b.boxAo(-19, 5, -4, 8, 10, 16, white);
+  ctx.ao.footprint(-19, -4, 8, 16);
+  b.boxAo(19, 5, -4, 8, 10, 16, white);
+  ctx.ao.footprint(19, -4, 8, 16);
   b.box(0, bodyH + 0.3, -4, 31, 0.6, 19, m.color('sand'));
   // Колоннада по южному фасаду.
   for (let i = 0; i < 9; i++) {

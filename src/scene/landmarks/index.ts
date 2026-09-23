@@ -1,5 +1,6 @@
 import type { LandmarkId } from '@/config';
 import type { Materials } from '@/scene/Materials';
+import type { GroundAo } from '@/scene/procedural/Buildings';
 import type { GeometryBatch } from '@/scene/procedural/GeometryBatch';
 import type { Props } from '@/scene/procedural/Props';
 import { buildAbuDhabiPlaza } from './AbuDhabiPlaza';
@@ -22,6 +23,8 @@ export interface LandmarkContext {
   readonly props: Props;
   readonly m: Materials;
   readonly rng: () => number;
+  /** AO контакта с землёй (FR-19.14): плита под объёмами и их отпечатки. */
+  readonly ao: GroundAo;
 }
 
 /** Строит ландмарк по идентификатору (FR-4.3–4.6, design C8). */

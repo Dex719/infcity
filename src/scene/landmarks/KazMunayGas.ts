@@ -19,9 +19,11 @@ export function buildKazMunayGas(ctx: LandmarkContext): void {
 
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('sand'));
   b.plane(0, LAWN_Y + 0.02, 0, 40, 40, stone);
+  ctx.ao.ground('stone-light', LAWN_Y + 0.02, 20);
   for (const side of [-1, 1]) {
     const x = side * 12;
-    b.box(x, wingH / 2, -2, wingW, wingH, wingD, stone);
+    b.boxAo(x, wingH / 2, -2, wingW, wingH, wingD, stone);
+    ctx.ao.footprint(x, -2, wingW, wingD);
     const floors = Math.floor(wingH / FLOOR);
     for (let i = 0; i < floors; i++) {
       const y = i * FLOOR + FLOOR * 0.55;

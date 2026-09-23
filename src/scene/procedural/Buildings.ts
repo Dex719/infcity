@@ -41,11 +41,28 @@ export interface Halo {
 }
 
 /**
+ * Регистрация AO контакта с землёй (FR-19.2, FR-19.14): плита под объёмами и их отпечатки;
+ * ореолы строит `Buildings.flushHalos` в конце сборки квартала. Ландмарки получают её в
+ * контексте сборки (`LandmarkContext.ao`).
+ */
+export interface GroundAo {
+  /**
+   * Плита под объёмами: цвет, высота её верха (по умолчанию — газон квартала) и полуширина
+   * (по умолчанию — покрытие квартала): ореолы ложатся на неё и режутся по её краю.
+   */
+  ground(key: PaletteKey, top?: number, half?: number): void;
+  /** Прямоугольный отпечаток объёма на плите: центр и размеры. */
+  footprint(x: number, z: number, w: number, d: number): void;
+  /** Эллиптическое основание: центр и полуоси. */
+  ellipse(cx: number, cz: number, rx: number, rz: number): void;
+}
+
+/**
  * Процедурные здания low-poly (FR-3.4, D2/D3): корпус с AO у основания, окна проёмами по
  * этажам, кровля с цветным парапетом, вход (FR-19). Стеклянные части идут в отдельный батч
  * (`glass`), чтобы рендериться полупрозрачными вторым draw call'ом.
  */
-export class Buildings {
+export class Buildings implements GroundAo {
   /** Счётчики покрытия деталями крыш (AC-15.4). */
   roofs = 0;
   roofsWithDetails = 0;
@@ -58,6 +75,10 @@ export class Buildings {
   private readonly footprints: Footprint[] = [];
   /** Круглые основания у земли (чаша стадиона) для эллиптических ореолов (FR-19.12). */
   private readonly ellipses: { cx: number; cz: number; rx: number; rz: number }[] = [];
+  /** Верх плиты под объёмами, если это не газон квартала (FR-19.14). */
+  private groundTop: number | null = null;
+  /** Полуширина плиты под объёмами, если она меньше покрытия квартала (FR-19.14). */
+  private groundHalf: number | null = null;
 
   constructor(
     private readonly batch: GeometryBatch,
@@ -432,6 +453,20 @@ export class Buildings {
     this.registerFootprint(f, 0.15);
   }
 
+  ground(key: PaletteKey, top?: number, half?: number): void {
+    this.groundKey = key;
+    this.groundTop = top ?? null;
+    this.groundHalf = half ?? null;
+  }
+
+  footprint(x: number, z: number, w: number, d: number): void {
+    this.registerFootprint({ x, z, w, d }, 0);
+  }
+
+  ellipse(cx: number, cz: number, rx: number, rz: number): void {
+    this.ellipses.push({ cx, cz, rx, rz });
+  }
+
   /** Запомнить отпечаток корпуса у земли для ореола AO (`pad` — выступ цоколя за стену). */
   private registerFootprint(f: Footprint, pad: number): void {
     this.footprints.push({ x: f.x, z: f.z, w: f.w + 2 * pad, d: f.d + 2 * pad });
@@ -457,18 +492,21 @@ export class Buildings {
     }
     const color = this.m.color(this.groundKey);
     const full = AO.GROUND_WIDTH;
+    // Своя плита ландмарка (FR-19.14): ореол ложится на её верх и режется по её краю.
+    const haloY = this.groundTop === null ? y : this.groundTop + AO.GROUND_LIFT;
+    const edge = this.groundHalf ?? limit;
     for (const e of this.ellipses) {
       // Эллипс не режется по соседям (на квартале он один), только по краю покрытия.
-      const wx = Math.max(0, Math.min(full, limit - (Math.abs(e.cx) + e.rx)));
-      const wz = Math.max(0, Math.min(full, limit - (Math.abs(e.cz) + e.rz)));
-      this.batch.haloEllipse(e.cx, e.cz, e.rx, e.rz, wx, wz, y, color, AO.GROUND_MIN);
+      const wx = Math.max(0, Math.min(full, edge - (Math.abs(e.cx) + e.rx)));
+      const wz = Math.max(0, Math.min(full, edge - (Math.abs(e.cz) + e.rz)));
+      this.batch.haloEllipse(e.cx, e.cz, e.rx, e.rz, wx, wz, haloY, color, AO.GROUND_MIN);
     }
     this.ellipses.length = 0;
     for (const f of this.footprints) {
-      let px = Math.min(full, limit - (f.x + f.w / 2));
-      let nx = Math.min(full, f.x - f.w / 2 + limit);
-      let pz = Math.min(full, limit - (f.z + f.d / 2));
-      let nz = Math.min(full, f.z - f.d / 2 + limit);
+      let px = Math.min(full, edge - (f.x + f.w / 2));
+      let nx = Math.min(full, f.x - f.w / 2 + edge);
+      let pz = Math.min(full, edge - (f.z + f.d / 2));
+      let nz = Math.min(full, f.z - f.d / 2 + edge);
       for (const o of this.footprints) {
         if (o === f) {
           continue;
@@ -498,7 +536,7 @@ export class Buildings {
         pz: Math.max(0, pz),
         nz: Math.max(0, nz),
       };
-      this.batch.halo(f.x, f.z, f.w, f.d, y, widths, color, AO.GROUND_MIN);
+      this.batch.halo(f.x, f.z, f.w, f.d, haloY, widths, color, AO.GROUND_MIN);
       halos.push({ footprint: f, widths });
     }
     this.footprints.length = 0;

@@ -4,6 +4,7 @@ import { buildLandmark } from '@/scene/landmarks';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
 import { buildBlock } from '@/scene/procedural/BlockPrefabs';
+import { Buildings } from '@/scene/procedural/Buildings';
 import { GeometryBatch } from '@/scene/procedural/GeometryBatch';
 import { Props } from '@/scene/procedural/Props';
 import { Generator } from '@/world/Generator';
@@ -63,13 +64,17 @@ const LANDMARK_GROWTH_FLOOR = 1.35;
 function landmarkVertices(id: LandmarkId): number {
   const opaque = new GeometryBatch();
   const glass = new GeometryBatch();
+  // Ореолы AO ландмарка (FR-19.14) строит тот же `Buildings`, что и в квартале, — считаем их.
+  const ao = new Buildings(opaque, glass, materials, mulberry32(7));
   buildLandmark(id, {
     opaque,
     glass,
     props: new Props(opaque, materials),
     m: materials,
     rng: mulberry32(7),
+    ao,
   });
+  ao.flushHalos(0.21, 23);
   return opaque.vertices + glass.vertices;
 }
 

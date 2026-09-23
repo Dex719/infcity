@@ -35,8 +35,10 @@ export function buildAbuDhabiPlaza(ctx: LandmarkContext): void {
   const total = LANDMARKS.HEIGHT['abu-dhabi-plaza']; // 50
 
   b.plane(0, LAWN_Y, 0, 46, 46, m.color('stone-light'));
+  ctx.ao.ground('stone-light');
   // Подиум с торговой галереей.
-  b.box(0, 3, 0, 40, 6, 40, m.color('white'));
+  b.boxAo(0, 3, 0, 40, 6, 40, m.color('white'));
+  ctx.ao.footprint(0, 0, 40, 40);
   ctx.glass.box(0, 2.4, 0, 40.6, 4.2, 40.6, m.color('glass-teal'));
   b.box(0, 6.3, 0, 41, 0.6, 41, m.color('steel'));
 
