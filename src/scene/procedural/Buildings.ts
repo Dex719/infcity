@@ -2,7 +2,7 @@ import { AO, FACADE, ROOF } from '@/config';
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
 import { mulberry32 } from '@/world/Hash';
-import { type GeometryBatch, type HaloWidths, Templates } from './GeometryBatch';
+import { type EllipseRing, type GeometryBatch, type HaloWidths, Templates } from './GeometryBatch';
 import { CHUNK_HIDDEN, type HiddenSides } from './Visibility';
 
 /** Доля крыш с деталями (FR-15.5, AC-15.4: ≥ 40 %). */
@@ -10,6 +10,9 @@ export const ROOF_DETAIL_PROBABILITY = 0.65;
 
 /** Высота этажа, юниты. */
 export const FLOOR = 2.7;
+
+/** Верх газона футбольного поля стадиона (FR-19.13): поле — цилиндр 6.0…7.1 на цоколе чаши. */
+export const FIELD_TOP = 7.1;
 
 /**
  * Цвет парапета панельного дома по цвету стен (FR-19.5): акцент без `rng`, как цветные
@@ -315,26 +318,52 @@ export class Buildings {
     b.place(Templates.sphereLow, f.x, h + 1.5, f.z, 3.2, 2.4, 3.2, this.m.color('flag-blue'));
   }
 
-  /** Стадион: овальная чаша, трибуны, поле, мачты освещения. */
+  /**
+   * Стадион (FR-19.13, AC-19.14, design «Волна 3»): открытая сверху чаша, как у референса.
+   * Цоколь-цилиндр 0…6; на нём поле с полосами газона и разметкой, нижний и верхний ярусы
+   * трибун наклонными кольцами (цвета флага: голубой и золотой), проход между ними, внешняя
+   * стена кольцом и открытое кольцо кровли — раздвижная крыша «Астана Арены». Прежний сплошной
+   * диск кровли на высоте 8 закрывал поле и трибуны — сверху стадион читался белым овалом.
+   */
   stadium(cx: number, cz: number, rx: number, rz: number): void {
     const b = this.batch;
+    const m = this.m;
     // Ореол AO вокруг чаши и её рёбер-опор (FR-19.12): основание — эллипс чуть шире рёбер.
     this.ellipses.push({ cx, cz, rx: rx * 1.02 + 0.3, rz: rz * 1.02 + 0.3 });
-    b.place(Templates.cylinder16, cx, 3, cz, rx, 6, rz, this.m.color('stone-light'));
-    b.place(Templates.cylinder16, cx, 6.5, cz, rx * 0.92, 1, rz * 0.92, this.m.color('flag-blue'));
-    b.place(Templates.cylinder16, cx, 6.6, cz, rx * 0.72, 1, rz * 0.72, this.m.color('grass'));
-    b.place(Templates.cylinder16, cx, 8, cz, rx * 1.05, 0.6, rz * 1.05, this.m.color('white'));
-    // Внешние рёбра-опоры.
+    const ring = (k: number, y: number): EllipseRing => ({ rx: rx * k, rz: rz * k, y });
+    const stone = m.color('stone-light');
+    const white = m.color('white');
+    // Цоколь чаши: его верхняя крышка на 6 закрыта полем и ярусами.
+    b.place(Templates.cylinder16, cx, 3, cz, rx, 6, rz, stone);
+    // Поле: верх на FIELD_TOP; нижний ярус начинается на 0.74 · r — внутри поля, без щели.
+    b.place(Templates.cylinder16, cx, 6.55, cz, rx * 0.76, 1.1, rz * 0.76, m.color('grass'));
+    this.pitch(cx, cz, rx * 0.76 * 0.7, rz * 0.76 * 0.62);
+    // Ярусы: у поля темнее (AO), к проходу — полный цвет.
+    b.ellipseBand(
+      cx,
+      cz,
+      ring(0.74, 7.15),
+      ring(0.87, 8.7),
+      m.shade('flag-blue', 0.75),
+      m.color('flag-blue'),
+    );
+    b.ellipseBand(cx, cz, ring(0.87, 8.7), ring(0.89, 8.7), white, white);
+    b.ellipseBand(cx, cz, ring(0.89, 8.7), ring(1, 10.4), m.shade('gold', 0.8), m.color('gold'));
+    // Внешняя стена чаши — сверху вниз, чтобы смотрела наружу; продолжает цоколь.
+    b.ellipseBand(cx, cz, ring(1, 10.4), ring(1, 6), stone, stone);
+    // Открытое кольцо кровли над внешним краем верхнего яруса.
+    b.ellipseBand(cx, cz, ring(0.93, 11), ring(1.06, 11), white, white);
+    // Внешние рёбра-опоры держат кольцо кровли.
     for (let i = 0; i < 16; i++) {
       const a = (i / 16) * Math.PI * 2;
       b.box(
         cx + Math.cos(a) * rx * 1.02,
-        4,
+        5.6,
         cz + Math.sin(a) * rz * 1.02,
         0.5,
-        8.5,
+        11.2,
         0.5,
-        this.m.color('steel'),
+        m.color('steel'),
         -a,
       );
     }
@@ -345,8 +374,51 @@ export class Buildings {
       [-rx * 0.8, -rz * 0.8],
     ];
     for (const [mx, mz] of masts) {
-      b.box(cx + mx, 9, cz + mz, 0.5, 18, 0.5, this.m.color('steel'));
-      b.box(cx + mx, 18.5, cz + mz, 3, 1.2, 0.6, this.m.color('white'));
+      b.box(cx + mx, 9, cz + mz, 0.5, 18, 0.5, m.color('steel'));
+      b.box(cx + mx, 18.5, cz + mz, 3, 1.2, 0.6, white);
+    }
+  }
+
+  /**
+   * Газон и разметка футбольного поля (FR-19.13) в слое деталей: три тёмные полосы стрижки,
+   * контур, центральная линия и круг, две штрафные площади. `hw` × `hd` — полуразмеры поля,
+   * которое лежит на верхе газона `FIELD_TOP`.
+   */
+  private pitch(cx: number, cz: number, hw: number, hd: number): void {
+    const d = this.detail;
+    const white = this.m.color('white');
+    const stripe = this.m.shade('grass', 0.9);
+    const y = FIELD_TOP + 0.01;
+    const lineY = FIELD_TOP + 0.03;
+    const w = 0.2;
+    const band = (2 * hw) / 6;
+    for (const k of [0, 2, 4]) {
+      d.plane(cx - hw + band * (k + 0.5), y, cz, band, 2 * hd, stripe);
+    }
+    // Контур и центральная линия.
+    d.box(cx, lineY, cz - hd, 2 * hw, 0.04, w, white);
+    d.box(cx, lineY, cz + hd, 2 * hw, 0.04, w, white);
+    d.box(cx - hw, lineY, cz, w, 0.04, 2 * hd, white);
+    d.box(cx + hw, lineY, cz, w, 0.04, 2 * hd, white);
+    d.box(cx, lineY, cz, w, 0.04, 2 * hd, white);
+    // Центральный круг — плоское белое кольцо.
+    const r = hd * 0.3;
+    d.ellipseBand(
+      cx,
+      cz,
+      { rx: r, rz: r, y: lineY + 0.02 },
+      { rx: r + w, rz: r + w, y: lineY + 0.02 },
+      white,
+      white,
+    );
+    // Штрафные площади у ворот (по короткой стороне поля).
+    const depth = hw * 0.18;
+    const half = hd * 0.45;
+    for (const side of [-1, 1] as const) {
+      const gx = cx + side * hw;
+      d.box(gx - side * depth, lineY, cz, w, 0.04, 2 * half, white);
+      d.box(gx - (side * depth) / 2, lineY, cz - half, depth, 0.04, w, white);
+      d.box(gx - (side * depth) / 2, lineY, cz + half, depth, 0.04, w, white);
     }
   }
 

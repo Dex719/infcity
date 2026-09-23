@@ -12,7 +12,7 @@ import {
   Quaternion,
   SphereGeometry,
   Vector3,
-  type Color,
+  Color,
 } from 'three';
 import { AO } from '@/config';
 
@@ -35,6 +35,13 @@ const AO_SIDES: readonly (readonly [number, number, number, number, 'w' | 'd', n
     [-1, 1, 1, 0, 'w', 0, 1],
     [1, -1, -1, 0, 'w', 0, -1],
   ];
+
+/** Эллиптическое кольцо: полуоси по X и Z и высота (FR-19.13, `GeometryBatch.ellipseBand`). */
+export interface EllipseRing {
+  readonly rx: number;
+  readonly rz: number;
+  readonly y: number;
+}
 
 /** Ширина ореола AO по сторонам прямоугольника: +X, −X, +Z, −Z (FR-19.2). */
 export interface HaloWidths {
@@ -124,6 +131,7 @@ const tmpB = new Vector3();
 const tmpQuat = new Quaternion();
 const tmpEuler = new Euler();
 const UP = new Vector3(0, 1, 0);
+const tmpColor = new Color();
 
 /**
  * Накопитель геометрии с вершинными цветами (design → Prefabs): все статические детали
@@ -352,10 +360,64 @@ export class GeometryBatch {
   }
 
   /**
-   * Эллиптический ореол AO (FR-19.12, design «Волна 2»): кольцо между эллипсами с полуосями
-   * `(rx, rz)` и `(rx + wx, rz + wz)` из `segments` сегментов на высоте `y`, нормаль вверх.
-   * Внутренний край — `color · minFactor`, внешний — `color`: как `halo`, но для круглых форм
-   * (чаша стадиона). `2 · segments` вершин и столько же треугольников.
+   * Полоса между двумя эллиптическими кольцами `a` и `b` с центром `(cx, cz)` (FR-19.13, design
+   * «Волна 3»): `segments` сегментов, `2 · segments` вершин и столько же треугольников; кольца
+   * могут лежать на разных высотах. Ориентация задаётся порядком колец: нормаль ≈ касательная ×
+   * (b − a), касательная идёт по росту угла (от +X к +Z). Поэтому плоское кольцо наружу смотрит
+   * вверх, наклонный ярус (`b` шире и выше `a`) — вверх и к центру, стена, заданная сверху вниз
+   * (`a` выше `b`, радиусы равны), — наружу. Цвета краёв — `colorA` и `colorB` (запечённый AO).
+   */
+  ellipseBand(
+    cx: number,
+    cz: number,
+    a: EllipseRing,
+    b: EllipseRing,
+    colorA: Color,
+    colorB: Color,
+    segments = 16,
+  ): void {
+    this.partCount++;
+    const first = this.vertexCount;
+    for (let i = 0; i < segments; i++) {
+      const t = (i / segments) * Math.PI * 2;
+      const c = Math.cos(t);
+      const s = Math.sin(t);
+      // Нормаль = T × D: T — касательная кольца `a`, D — отрезок от `a` к `b` в этой точке.
+      const tx = -a.rx * s;
+      const tz = a.rz * c;
+      const dx = (b.rx - a.rx) * c;
+      const dy = b.y - a.y;
+      const dz = (b.rz - a.rz) * s;
+      const nx = -tz * dy;
+      const ny = tz * dx - tx * dz;
+      const nz = tx * dy;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      for (const [ring, color] of [
+        [a, colorA],
+        [b, colorB],
+      ] as const) {
+        this.positions.push(cx + ring.rx * c, ring.y, cz + ring.rz * s);
+        this.normals.push(nx / len, ny / len, nz / len);
+        this.colors.push(color.r, color.g, color.b);
+      }
+    }
+    this.vertexCount += 2 * segments;
+    // Сегмент i: `a` — вершины 2i и 2i+2, `b` — 2i+1 и 2i+3; обход (a_i, a_i+1, b_i+1) и
+    // (a_i, b_i+1, b_i) даёт нормаль T × D — см. описание.
+    for (let i = 0; i < segments; i++) {
+      const ai = first + 2 * i;
+      const bi = ai + 1;
+      const aj = first + 2 * ((i + 1) % segments);
+      const bj = aj + 1;
+      this.indices.push(ai, aj, bj, ai, bj, bi);
+    }
+  }
+
+  /**
+   * Эллиптический ореол AO (FR-19.12, design «Волна 2»): плоское кольцо между эллипсами
+   * `(rx, rz)` и `(rx + wx, rz + wz)` на высоте `y`, нормаль вверх — частный случай
+   * `ellipseBand`. Внутренний край — `color · minFactor`, внешний — `color`: как `halo`, но для
+   * круглых форм (чаша стадиона).
    */
   haloEllipse(
     cx: number,
@@ -369,32 +431,15 @@ export class GeometryBatch {
     minFactor: number,
     segments = 16,
   ): void {
-    this.partCount++;
-    const first = this.vertexCount;
-    for (let i = 0; i < segments; i++) {
-      const a = (i / segments) * Math.PI * 2;
-      const c = Math.cos(a);
-      const s = Math.sin(a);
-      for (const [px, pz, f] of [
-        [cx + rx * c, cz + rz * s, minFactor],
-        [cx + (rx + wx) * c, cz + (rz + wz) * s, 1],
-      ] as const) {
-        this.positions.push(px, y, pz);
-        this.normals.push(0, 1, 0);
-        this.colors.push(color.r * f, color.g * f, color.b * f);
-      }
-    }
-    this.vertexCount += 2 * segments;
-    // Сегмент i: внутренние вершины 2i, 2i+2, внешние 2i+1, 2i+3. Угол растёт от +X к +Z —
-    // при взгляде сверху это по часовой, поэтому гранью вверх смотрит обход
-    // (внутр. i, внешн. i+1, внешн. i) и (внутр. i, внутр. i+1, внешн. i+1).
-    for (let i = 0; i < segments; i++) {
-      const inner = first + 2 * i;
-      const outer = inner + 1;
-      const nextInner = first + 2 * ((i + 1) % segments);
-      const nextOuter = nextInner + 1;
-      this.indices.push(inner, nextOuter, outer, inner, nextInner, nextOuter);
-    }
+    this.ellipseBand(
+      cx,
+      cz,
+      { rx, rz, y },
+      { rx: rx + wx, rz: rz + wz, y },
+      tmpColor.copy(color).multiplyScalar(minFactor),
+      color,
+      segments,
+    );
   }
 
   /** Перенести содержимое другого батча (в его локальных координатах), применив матрицу. */
