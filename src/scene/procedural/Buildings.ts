@@ -1,7 +1,8 @@
+import { AO } from '@/config';
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
 import { mulberry32 } from '@/world/Hash';
-import { type GeometryBatch, Templates } from './GeometryBatch';
+import { type GeometryBatch, type HaloWidths, Templates } from './GeometryBatch';
 import { CHUNK_HIDDEN, type HiddenSides } from './Visibility';
 
 /** Доля крыш с деталями (FR-15.5, AC-15.4: ≥ 40 %). */
@@ -18,6 +19,12 @@ export interface Footprint {
   readonly d: number;
 }
 
+/** Ореол AO одного корпуса: прямоугольник у основания и ширины кольца по сторонам (FR-19.2). */
+export interface Halo {
+  readonly footprint: Footprint;
+  readonly widths: HaloWidths;
+}
+
 /**
  * Процедурные здания low-poly (FR-3.4, D2/D3): корпус, оконные полосы по этажам,
  * крыша, вход. Стеклянные части идут в отдельный батч (`glass`), чтобы рендериться
@@ -27,6 +34,13 @@ export class Buildings {
   /** Счётчики покрытия деталями крыш (AC-15.4). */
   roofs = 0;
   roofsWithDetails = 0;
+  /**
+   * Цвет покрытия квартала под зданиями (FR-19.2): его задаёт раскладка вместе с полным
+   * газоном квартала; `null` — ореолы не строятся.
+   */
+  groundKey: PaletteKey | null = null;
+  /** Отпечатки корпусов у земли — основание цоколя или стены, если цоколя нет (FR-19.2). */
+  private readonly footprints: Footprint[] = [];
 
   constructor(
     private readonly batch: GeometryBatch,
@@ -80,6 +94,7 @@ export class Buildings {
     // Непрозрачное ядро чуть меньше габарита, стеклянная оболочка — в glass-батче.
     b.boxAo(f.x, h / 2, f.z, f.w - 0.8, h, f.d - 0.8, this.m.shade(tint, 0.55));
     this.glass.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(tint));
+    this.registerFootprint(f, 0);
     const band = this.m.color('steel');
     for (let i = 1; i < floors; i += 2) {
       b.box(f.x, i * FLOOR, f.z, f.w + 0.2, 0.18, f.d + 0.2, band);
@@ -227,6 +242,7 @@ export class Buildings {
     const b = this.batch;
     const h = 5;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('sand'));
+    this.registerFootprint(f, 0);
     b.place(
       Templates.cylinder8,
       f.x,
@@ -314,6 +330,72 @@ export class Buildings {
    */
   private plinth(f: Footprint): void {
     this.batch.boxAo(f.x, 0.3, f.z, f.w + 0.3, 0.6, f.d + 0.3, this.m.color('concrete'));
+    this.registerFootprint(f, 0.15);
+  }
+
+  /** Запомнить отпечаток корпуса у земли для ореола AO (`pad` — выступ цоколя за стену). */
+  private registerFootprint(f: Footprint, pad: number): void {
+    this.footprints.push({ x: f.x, z: f.z, w: f.w + 2 * pad, d: f.d + 2 * pad });
+  }
+
+  /**
+   * Ореолы AO вокруг всех корпусов квартала (FR-19.2, AC-19.2, design D15): кольцо цвета
+   * покрытия (`groundKey`) шириной `AO.GROUND_WIDTH`, у стены затемнённое до `AO.GROUND_MIN`.
+   * Строятся разом в конце сборки квартала, потому что ширина зависит от соседей: сторона,
+   * обращённая к соседнему корпусу, урезается до половины зазора — кольца касаются, но не
+   * перекрываются (совпадающие плоскости дали бы z-fighting). Внешний край не выходит за
+   * покрытие квартала (±`limit`): дальше лежит тротуар другого цвета.
+   * @param y высота кольца — покрытие квартала + `AO.GROUND_LIFT`
+   * @param limit полуширина покрытия квартала
+   * @returns ширины построенных колец (тесты и диагностика)
+   */
+  flushHalos(y: number, limit: number): Halo[] {
+    const halos: Halo[] = [];
+    if (this.groundKey === null) {
+      this.footprints.length = 0;
+      return halos;
+    }
+    const color = this.m.color(this.groundKey);
+    const full = AO.GROUND_WIDTH;
+    for (const f of this.footprints) {
+      let px = Math.min(full, limit - (f.x + f.w / 2));
+      let nx = Math.min(full, f.x - f.w / 2 + limit);
+      let pz = Math.min(full, limit - (f.z + f.d / 2));
+      let nz = Math.min(full, f.z - f.d / 2 + limit);
+      for (const o of this.footprints) {
+        if (o === f) {
+          continue;
+        }
+        const gapX = Math.max(o.x - o.w / 2 - (f.x + f.w / 2), f.x - f.w / 2 - (o.x + o.w / 2));
+        const gapZ = Math.max(o.z - o.d / 2 - (f.z + f.d / 2), f.z - f.d / 2 - (o.z + o.d / 2));
+        if (gapX >= 2 * full || gapZ >= 2 * full) {
+          continue;
+        }
+        // Разводим по оси, вдоль которой корпуса разнесены сильнее: половина зазора — каждому.
+        const half = Math.max(0, Math.max(gapX, gapZ) / 2);
+        if (gapX >= gapZ) {
+          if (o.x > f.x) {
+            px = Math.min(px, half);
+          } else {
+            nx = Math.min(nx, half);
+          }
+        } else if (o.z > f.z) {
+          pz = Math.min(pz, half);
+        } else {
+          nz = Math.min(nz, half);
+        }
+      }
+      const widths: HaloWidths = {
+        px: Math.max(0, px),
+        nx: Math.max(0, nx),
+        pz: Math.max(0, pz),
+        nz: Math.max(0, nz),
+      };
+      this.batch.halo(f.x, f.z, f.w, f.d, y, widths, color, AO.GROUND_MIN);
+      halos.push({ footprint: f, widths });
+    }
+    this.footprints.length = 0;
+    return halos;
   }
 
   /**

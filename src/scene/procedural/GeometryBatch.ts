@@ -36,6 +36,14 @@ const AO_SIDES: readonly (readonly [number, number, number, number, 'w' | 'd', n
     [1, -1, -1, 0, 'w', 0, -1],
   ];
 
+/** Ширина ореола AO по сторонам прямоугольника: +X, −X, +Z, −Z (FR-19.2). */
+export interface HaloWidths {
+  readonly px: number;
+  readonly nx: number;
+  readonly pz: number;
+  readonly nz: number;
+}
+
 /** Неизменяемый шаблон геометрии: позиции, нормали, индексы. */
 export interface Template {
   readonly positions: Float32Array;
@@ -292,6 +300,53 @@ export class GeometryBatch {
     vertex(hw, base, -hd, 0, -1, 0, fb);
     vertex(-hw, base, -hd, 0, -1, 0, fb);
     this.indices.push(b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2);
+  }
+
+  /**
+   * Ореол AO на земле вокруг прямоугольника `w × d` с центром `(x, z)` (FR-19.2, design D15):
+   * плоское кольцо из четырёх трапеций на высоте `y`, 8 вершин и 8 треугольников, нормаль вверх.
+   * Внутренний край — `color · minFactor`, внешний — ровно `color`, поэтому кольцо цвета земли
+   * растворяется в покрытии без шва. `widths` — ширина кольца по сторонам (+X, −X, +Z, −Z);
+   * нулевая ширина схлопывает сторону в линию.
+   */
+  halo(
+    x: number,
+    z: number,
+    w: number,
+    d: number,
+    y: number,
+    widths: HaloWidths,
+    color: Color,
+    minFactor: number,
+  ): void {
+    this.partCount++;
+    const x0 = x - w / 2;
+    const x1 = x + w / 2;
+    const z0 = z - d / 2;
+    const z1 = z + d / 2;
+    const corners: readonly (readonly [number, number, number])[] = [
+      [x0, z0, minFactor],
+      [x1, z0, minFactor],
+      [x1, z1, minFactor],
+      [x0, z1, minFactor],
+      [x0 - widths.nx, z0 - widths.nz, 1],
+      [x1 + widths.px, z0 - widths.nz, 1],
+      [x1 + widths.px, z1 + widths.pz, 1],
+      [x0 - widths.nx, z1 + widths.pz, 1],
+    ];
+    const first = this.vertexCount;
+    for (const [cx, cz, f] of corners) {
+      this.positions.push(cx, y, cz);
+      this.normals.push(0, 1, 0);
+      this.colors.push(color.r * f, color.g * f, color.b * f);
+    }
+    this.vertexCount += corners.length;
+    // Сторона k: внутреннее ребро (k, k+1) и внешнее (k+4, k+5); обход CCW при взгляде сверху.
+    for (let k = 0; k < 4; k++) {
+      const a = first + k;
+      const c = first + ((k + 1) % 4);
+      this.indices.push(a, c, c + 4, a, c + 4, a + 4);
+    }
   }
 
   /** Перенести содержимое другого батча (в его локальных координатах), применив матрицу. */

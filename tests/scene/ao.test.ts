@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { AO } from '@/config';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
+import { buildBlock } from '@/scene/procedural/BlockPrefabs';
 import { Buildings } from '@/scene/procedural/Buildings';
 import { GeometryBatch, wallAo } from '@/scene/procedural/GeometryBatch';
+import { Generator } from '@/world/Generator';
 import { mulberry32 } from '@/world/Hash';
 import paletteJson from '../../public/assets/palette.json';
 
@@ -169,6 +171,157 @@ describe('Buildings: AO контакта у корпусов (FR-19.1)', () => {
     }
     for (const v of high) {
       expect(factor(v, brick)).toBeCloseTo(1, 5);
+    }
+  });
+});
+
+describe('GeometryBatch.halo (FR-19.2, design D15)', () => {
+  const ground = new Color(0.3, 0.6, 0.2);
+
+  it('кольцо: 8 вершин и 8 треугольников, внутренний край × GROUND_MIN, внешний — цвет земли', () => {
+    const b = new GeometryBatch();
+    b.halo(0, 0, 10, 6, 0.21, { px: 2.5, nx: 2.5, pz: 1, nz: 0 }, ground, AO.GROUND_MIN);
+    expect(b.vertices).toBe(8);
+    const { vertices, indices } = verticesOf(b);
+    expect(indices.length / 3).toBe(8);
+    for (const v of vertices) {
+      expect(v.p.y).toBeCloseTo(0.21, 6);
+      expect(v.n.y).toBeCloseTo(1, 6);
+      const inner = Math.abs(v.p.x) <= 5 + EPS && Math.abs(v.p.z) <= 3 + EPS;
+      const onInnerCorner =
+        Math.abs(Math.abs(v.p.x) - 5) < EPS && Math.abs(Math.abs(v.p.z) - 3) < EPS;
+      if (inner && onInnerCorner && v.c.g < ground.g - EPS) {
+        expect(factor(v, ground)).toBeCloseTo(AO.GROUND_MIN, 6);
+      } else {
+        expect(factor(v, ground)).toBeCloseTo(1, 6);
+      }
+    }
+    const dark = vertices.filter((v) => factor(v, ground) < 1 - EPS);
+    expect(dark).toHaveLength(4);
+    // Внешний контур: +X на 2.5, −X на 2.5, +Z на 1, −Z без выступа.
+    const xs = vertices.map((v) => v.p.x);
+    const zs = vertices.map((v) => v.p.z);
+    expect(Math.max(...xs)).toBeCloseTo(7.5, 6);
+    expect(Math.min(...xs)).toBeCloseTo(-7.5, 6);
+    expect(Math.max(...zs)).toBeCloseTo(4, 6);
+    expect(Math.min(...zs)).toBeCloseTo(-3, 6);
+  });
+
+  it('все треугольники смотрят вверх (CCW при взгляде сверху)', () => {
+    const b = new GeometryBatch();
+    b.halo(3, -2, 8, 5, 0.21, { px: 2, nx: 1, pz: 2.5, nz: 0.5 }, ground, AO.GROUND_MIN);
+    const { vertices, indices } = verticesOf(b);
+    const e1 = new Vector3();
+    const e2 = new Vector3();
+    for (let i = 0; i < indices.length; i += 3) {
+      const va = vertices[indices[i] ?? 0];
+      const vb = vertices[indices[i + 1] ?? 0];
+      const vc = vertices[indices[i + 2] ?? 0];
+      if (va === undefined || vb === undefined || vc === undefined) {
+        throw new Error('индекс вне массива вершин');
+      }
+      e1.subVectors(vb.p, va.p);
+      e2.subVectors(vc.p, va.p);
+      expect(e1.cross(e2).y).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('Buildings.flushHalos (FR-19.2, AC-19.2)', () => {
+  function fresh(): { buildings: Buildings; opaque: GeometryBatch } {
+    const opaque = new GeometryBatch();
+    const buildings = new Buildings(
+      opaque,
+      new GeometryBatch(),
+      materials,
+      mulberry32(1),
+      undefined,
+      new GeometryBatch(),
+    );
+    buildings.groundKey = 'grass';
+    return { buildings, opaque };
+  }
+
+  type Rect = { x0: number; x1: number; z0: number; z1: number };
+  function outer(h: {
+    footprint: { x: number; z: number; w: number; d: number };
+    widths: { px: number; nx: number; pz: number; nz: number };
+  }): Rect {
+    const f = h.footprint;
+    return {
+      x0: f.x - f.w / 2 - h.widths.nx,
+      x1: f.x + f.w / 2 + h.widths.px,
+      z0: f.z - f.d / 2 - h.widths.nz,
+      z1: f.z + f.d / 2 + h.widths.pz,
+    };
+  }
+  function overlap(a: Rect, b: Rect): boolean {
+    return a.x0 < b.x1 - EPS && b.x0 < a.x1 - EPS && a.z0 < b.z1 - EPS && b.z0 < a.z1 - EPS;
+  }
+
+  it('соседи в 4 юнитах по X: обращённые стороны урезаны до 2, дальние — полная ширина', () => {
+    const { buildings } = fresh();
+    buildings.marketHall({ x: -7, z: 0, w: 10, d: 8 });
+    buildings.marketHall({ x: 7, z: 0, w: 10, d: 8 });
+    const halos = buildings.flushHalos(0.21, 23);
+    expect(halos).toHaveLength(2);
+    const [left, right] = halos;
+    expect(left?.widths.px).toBeCloseTo(2, 9);
+    expect(left?.widths.nx).toBeCloseTo(AO.GROUND_WIDTH, 9);
+    expect(right?.widths.nx).toBeCloseTo(2, 9);
+    expect(right?.widths.px).toBeCloseTo(AO.GROUND_WIDTH, 9);
+    expect(overlap(outer(left!), outer(right!))).toBe(false);
+  });
+
+  it('у края покрытия кольцо не выходит за ±limit', () => {
+    const { buildings } = fresh();
+    buildings.marketHall({ x: 17, z: -18, w: 10, d: 8 });
+    const [halo] = buildings.flushHalos(0.21, 23);
+    expect(halo?.widths.px).toBeCloseTo(1, 9);
+    expect(halo?.widths.nz).toBeCloseTo(1, 9);
+    const r = outer(halo!);
+    expect(r.x1).toBeLessThanOrEqual(23 + EPS);
+    expect(r.z0).toBeGreaterThanOrEqual(-23 - EPS);
+  });
+
+  it('соседи по диагонали: кольца касаются, но не перекрываются', () => {
+    const { buildings } = fresh();
+    buildings.marketHall({ x: -6, z: -6, w: 8, d: 8 });
+    buildings.marketHall({ x: 3, z: 5, w: 8, d: 8 });
+    const [a, b] = buildings.flushHalos(0.21, 23);
+    expect(overlap(outer(a!), outer(b!))).toBe(false);
+  });
+
+  it('без цвета покрытия ореолов нет, реестр очищается', () => {
+    const { buildings, opaque } = fresh();
+    buildings.groundKey = null;
+    buildings.marketHall({ x: 0, z: 0, w: 10, d: 8 });
+    const before = opaque.vertices;
+    expect(buildings.flushHalos(0.21, 23)).toHaveLength(0);
+    expect(opaque.vertices).toBe(before);
+  });
+
+  it('жилой квартал: ореолы у домов цвета газона, в пределах покрытия (перебор сидов)', () => {
+    for (const seed of ['astana', 'expo', 'saryarka']) {
+      for (const descriptor of new Generator(seed).describeWindow(0, 0, 9)) {
+        if (descriptor.block !== 'residential-panel') {
+          continue;
+        }
+        const block = buildBlock(descriptor, materials);
+        const { vertices } = verticesOf(block.opaque);
+        const grass = materials.color('grass');
+        const ring = vertices.filter(
+          (v) => Math.abs(v.p.y - (0.2 + AO.GROUND_LIFT)) < 1e-5 && v.n.y > 0.99,
+        );
+        expect(ring.length % 8).toBe(0);
+        expect(ring.length).toBeGreaterThanOrEqual(24);
+        for (const v of ring) {
+          const f = factor(v, grass);
+          expect(Math.abs(f - 1) < 1e-5 || Math.abs(f - AO.GROUND_MIN) < 1e-5).toBe(true);
+          expect(Math.abs(v.p.x)).toBeLessThanOrEqual(23 + 1e-5);
+          expect(Math.abs(v.p.z)).toBeLessThanOrEqual(23 + 1e-5);
+        }
+      }
     }
   });
 });

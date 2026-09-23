@@ -1,4 +1,4 @@
-import { CHUNK_LAYOUT, RIVER } from '@/config';
+import { AO, CHUNK_LAYOUT, RIVER } from '@/config';
 import { buildLandmark } from '@/scene/landmarks';
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
@@ -20,6 +20,8 @@ export interface BlockGeometry {
 const HALF = CHUNK_LAYOUT.BLOCK_SIZE / 2; // 25
 const CURB_Y = 0.15;
 const LAWN_Y = CURB_Y + 0.05;
+/** Полуширина покрытия квартала (`lawn` 46 × 46): ореолы AO не выходят за него (FR-19.2). */
+const GROUND_HALF = 23;
 
 type Rng = () => number;
 
@@ -97,6 +99,8 @@ export function buildBlock(descriptor: ChunkDescriptor, m: Materials): BlockGeom
       }
       break;
   }
+  // Ореолы AO вокруг корпусов — разом, когда известны все соседи (FR-19.2, design D15).
+  buildings.flushHalos(LAWN_Y + AO.GROUND_LIFT, GROUND_HALF);
   return { opaque, glass, detail };
 }
 
@@ -123,6 +127,10 @@ function lawn(
   color: PaletteKey = 'grass',
 ): void {
   ctx.b.plane(x, LAWN_Y, z, w, d, ctx.m.color(color));
+  if (x === 0 && z === 0 && w === 2 * GROUND_HALF && d === 2 * GROUND_HALF) {
+    // Полное покрытие квартала — под ним стоят корпуса, в его цвет красятся ореолы AO.
+    ctx.buildings.groundKey = color;
+  }
 }
 
 function scatterTrees(ctx: Ctx, count: number, avoid: (x: number, z: number) => boolean): void {
