@@ -6,6 +6,7 @@ import {
   buildBlock,
   BUSINESS_LAWNS,
   CAFE_TABLES_X,
+  MARKET_LAWNS,
   COMMERCIAL_HEDGE,
   COMMERCIAL_TREES,
 } from '@/scene/procedural/BlockPrefabs';
@@ -279,5 +280,89 @@ describe('Зелень деловой площади (FR-19.25, AC-19.26)', () =
       }
       vi.restoreAllMocks();
     }
+  });
+});
+
+describe('Зелень рынка (FR-19.26, AC-19.27)', () => {
+  const market = new Generator('astana')
+    .describeWindow(0, 0, 21)
+    .find((d) => d.block === 'market' && d.landmark === null);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  interface Box2 {
+    x0: number;
+    x1: number;
+    z0: number;
+    z1: number;
+  }
+
+  const box = (x: number, z: number, w: number, d: number): Box2 => ({
+    x0: x - w / 2,
+    x1: x + w / 2,
+    z0: z - d / 2,
+    z1: z + d / 2,
+  });
+  const hits = (a: Box2, b: Box2): boolean =>
+    a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  const reach = (scale: number): number => 1.3 * 1.9 * scale;
+  const inside = (x: number, z: number, r: Box2): boolean =>
+    x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1;
+
+  it('рынок есть в окне 21×21 seed astana', () => {
+    expect(market).toBeDefined();
+  });
+
+  it('2 полосы и ≥ 4 дерева на них — мимо павильона, лотков, столбиков и клумбы', () => {
+    if (market === undefined) {
+      return;
+    }
+    const halls = vi.spyOn(Buildings.prototype, 'marketHall');
+    const stalls = vi.spyOn(Buildings.prototype, 'stall');
+    const trees = vi.spyOn(Props.prototype, 'tree');
+    const beds = vi.spyOn(Props.prototype, 'flowerBed');
+    const bollards = vi.spyOn(Props.prototype, 'bollards');
+    const block = buildBlock(market, materials);
+    const obstacles: Box2[] = [
+      ...halls.mock.calls.map(([f]) =>
+        box(f.x, f.z, f.w + 2 * AO.GROUND_WIDTH, f.d + 2 * AO.GROUND_WIDTH),
+      ),
+      ...stalls.mock.calls.map(([x, z]) =>
+        box(x, z, 2.6 + 2 * AO.GROUND_WIDTH, 1.6 + 2 * AO.GROUND_WIDTH),
+      ),
+      ...beds.mock.calls.map(([x, z, r]) => box(x, z, 2 * r, 2 * r)),
+      ...bollards.mock.calls.map(([x1, z1, x2, z2]) =>
+        box((x1 + x2) / 2, (z1 + z2) / 2, Math.abs(x2 - x1) + 0.6, Math.abs(z2 - z1) + 0.6),
+      ),
+    ];
+    expect(MARKET_LAWNS).toHaveLength(2);
+    const strips = MARKET_LAWNS.map((l) => box(l.x, l.z, l.w, l.d));
+    for (const strip of strips) {
+      for (const o of obstacles) {
+        expect(hits(strip, o)).toBe(false);
+      }
+    }
+    const planted = trees.mock.calls.filter(([x, z]) => strips.some((s) => inside(x, z, s)));
+    expect(planted.length).toBeGreaterThanOrEqual(4);
+    // Кроны новых деревьев: в плите, не касаются соседних крон и крыш лотков (3 × 2.2).
+    for (const [x, z, scale] of MARKET_LAWNS.flatMap((l) => l.trees)) {
+      const r = reach(scale);
+      expect(Math.abs(x) + r).toBeLessThanOrEqual(23);
+      expect(Math.abs(z) + r).toBeLessThanOrEqual(23);
+      for (const [tx, tz, ts = 1] of trees.mock.calls) {
+        if (tx === x && tz === z) {
+          continue;
+        }
+        expect(Math.hypot(tx - x, tz - z)).toBeGreaterThanOrEqual(r + reach(ts));
+      }
+      for (const [sx, sz] of stalls.mock.calls) {
+        expect(hits(box(x, z, 2 * r, 2 * r), box(sx, sz, 3, 2.2))).toBe(false);
+      }
+    }
+    expect(
+      block.opaque.vertices + block.glass.vertices + block.detail.vertices,
+    ).toBeLessThanOrEqual(7000);
   });
 });

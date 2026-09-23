@@ -398,6 +398,16 @@ export const BUSINESS_LAWNS: readonly LawnIsland[] = [
   { x: -20.25, z: -4, w: 5.5, d: 16, trees: [[-20, -8, 0.9]] },
 ];
 
+/** Газонные острова с деревьями — на покрытии + 0.06, как вставки (BUG-7), без `rng`. */
+function lawnIslands(ctx: Ctx, islands: readonly LawnIsland[]): void {
+  for (const island of islands) {
+    ctx.b.plane(island.x, LAWN_Y + 0.06, island.z, island.w, island.d, ctx.m.color('grass'));
+    for (const [x, z, scale] of island.trees) {
+      ctx.props.tree(x, z, scale, 0);
+    }
+  }
+}
+
 function businessGlass(ctx: Ctx): void {
   lawn(ctx, 0, 0, 46, 46, 'stone-light');
   const tints: PaletteKey[] = ['glass-blue', 'glass-teal', 'glass-navy'];
@@ -442,13 +452,8 @@ function businessGlass(ctx: Ctx): void {
   for (const x of [-17, -8, 1]) {
     ctx.props.tree(x, -19.5, 1.1, 0);
   }
-  // Газонные острова с деревьями (FR-19.25, design D27) — выше покрытия, как вставка (BUG-7).
-  for (const island of BUSINESS_LAWNS) {
-    ctx.b.plane(island.x, LAWN_Y + 0.06, island.z, island.w, island.d, ctx.m.color('grass'));
-    for (const [x, z, scale] of island.trees) {
-      ctx.props.tree(x, z, scale, 0);
-    }
-  }
+  // Газонные острова с деревьями (FR-19.25, design D27).
+  lawnIslands(ctx, BUSINESS_LAWNS);
   pavingSeams(ctx, 'stone-light', PAVING_LINES, [
     groundRect(main.x, main.z, main.w, main.d, AO.GROUND_WIDTH),
     groundRect(annex.x, annex.z, annex.w, annex.d, AO.GROUND_WIDTH),
@@ -701,6 +706,15 @@ function mall(ctx: Ctx): void {
   ctx.props.bikeRack(0, 7.6 * s, 0);
 }
 
+/**
+ * Газонные полосы по краям рынка (FR-19.26, design D28): восточная — под двумя прежними
+ * деревьями, западная — под кустами; в `trees` — только новые деревья.
+ */
+export const MARKET_LAWNS: readonly LawnIsland[] = [
+  { x: 18.5, z: -9, w: 8, d: 22, trees: [[19.5, -1, 0.9]] },
+  { x: -20.5, z: 12.5, w: 5, d: 19, trees: [[-20.5, 12, 0.9]] },
+];
+
 function market(ctx: Ctx): void {
   lawn(ctx, 0, 0, 46, 46, 'sand');
   const hall = { x: -6, z: -10, w: 26, d: 16 };
@@ -722,18 +736,19 @@ function market(ctx: Ctx): void {
   ctx.props.bush(-21, 8, 1);
   ctx.props.bush(-21, 16, 1.1);
   ctx.props.flowerBed(17, 5, 1.4, 'gold');
+  lawnIslands(ctx, MARKET_LAWNS);
 }
+
+/** Внутренняя грань стенок набережной, |z| (стенка 0.8 с центром на 24.6). */
+export const RIVER_WALL_INNER = 24.2;
+/** Край настила набережной над водой, |z| (настил 3.2 с центром на −23.4). */
+export const RIVER_DECK_EDGE = 21.8;
 
 /**
  * Русло Есиль (FR-14): вода на всю ширину чанка (включая полосу моста N–S), набережная
  * с парапетом, фонарями и скамейками вдоль дороги E–W, берега-стенки, пара лодок.
  * Квартал не поворачивается; локальный (0,0) = чанк (5,5): вода x ∈ [−35, 25], z ∈ [−25, 25].
  */
-/** Внутренняя грань стенок набережной, |z| (стенка 0.8 с центром на 24.6). */
-export const RIVER_WALL_INNER = 24.2;
-/** Край настила набережной над водой, |z| (настил 3.2 с центром на −23.4). */
-export const RIVER_DECK_EDGE = 21.8;
-
 function river(ctx: Ctx): void {
   const water = ctx.m.color('water');
   const concrete = ctx.m.color('concrete');
