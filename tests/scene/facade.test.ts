@@ -807,3 +807,115 @@ describe('Кровля ТЦ: кондиционеры и фонари (FR-19.21,
     }
   });
 });
+
+describe('Кондиционеры на кровлях торговых рядов и учебного корпуса (FR-19.22, AC-19.23)', () => {
+  /** Вентиляторы — единственные вершины цвета `black` в слое деталей этих зданий. */
+  function fans(detail: GeometryBatch): Vector3[] {
+    const geometry = detail.build();
+    const position = geometry.getAttribute('position');
+    const color = geometry.getAttribute('color');
+    const black = materials.color('black');
+    const roof = materials.color('roof').clone().multiplyScalar(AO.GROUND_MIN);
+    const groups: Vector3[][] = [];
+    const inner: Vector3[] = [];
+    for (let i = 0; i < position.count; i++) {
+      const p = new Vector3(position.getX(i), position.getY(i), position.getZ(i));
+      const is = (c: { r: number; g: number; b: number }): boolean =>
+        Math.abs(color.getX(i) - c.r) < 1e-4 &&
+        Math.abs(color.getY(i) - c.g) < 1e-4 &&
+        Math.abs(color.getZ(i) - c.b) < 1e-4;
+      if (is(black)) {
+        const group = groups.find((g) => g.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 1.5));
+        if (group === undefined) {
+          groups.push([p]);
+        } else {
+          group.push(p);
+        }
+      } else if (is(roof)) {
+        inner.push(p);
+      }
+    }
+    // Центр вентилятора — центр габарита его вершин (дубли на шве смещают среднее).
+    const centers = groups.map((g) => {
+      const xs = g.map((q) => q.x);
+      const zs = g.map((q) => q.z);
+      return new Vector3(
+        (Math.min(...xs) + Math.max(...xs)) / 2,
+        g[0]?.y ?? 0,
+        (Math.min(...zs) + Math.max(...zs)) / 2,
+      );
+    });
+    // У каждого вентилятора — 4 внутренних угла ореола кровли (корпус 3 × 1.6…2: углы в 1.8).
+    for (const c of centers) {
+      expect(inner.filter((p) => Math.hypot(p.x - c.x, p.z - c.z) < 2.2).length).toBe(4);
+    }
+    return centers;
+  }
+
+  it.each<[string, HiddenSides]>([
+    ['видимая +Z', CHUNK_HIDDEN],
+    ['видимая −Z', { x: 1, z: 1 }],
+  ])(
+    '%s: торговый ряд — ⌊(L − 8) / 8⌋ + 1 установок за вывеской, мимо полосы деталей',
+    (_, hidden) => {
+      const s = -hidden.z;
+      for (const f of [
+        { x: -8, z: -12, w: 26, d: 11 },
+        { x: 0, z: 15, w: 42, d: 11 },
+      ]) {
+        const { buildings, detail } = freshBuildings(hidden);
+        buildings.shopRow(f, 2, 'sand', 'accent-red');
+        const found = fans(detail);
+        expect(found).toHaveLength(Math.floor((f.w - 8) / 8) + 1);
+        for (const p of found) {
+          const v = (f.z - p.z) * s;
+          // За вывеской (v = −4.9) и за полосой случайных деталей (до v = 0.4), внутри кровли.
+          expect(v).toBeGreaterThan(1.2);
+          expect(v).toBeLessThan(f.d / 2 - 1);
+          expect(Math.abs(p.x - f.x)).toBeLessThan(f.w / 2 - 1);
+        }
+      }
+    },
+  );
+
+  it('торговый ряд: случайные детали — в полосе, rng тратится ровно как один roofDetails', () => {
+    const f: Footprint = { x: 0, z: 15, w: 42, d: 11 };
+    for (const hidden of [CHUNK_HIDDEN, { x: 1, z: 1 } as HiddenSides]) {
+      const s = -hidden.z;
+      const spy = vi.spyOn(Buildings.prototype, 'roofDetails');
+      const a = mulberry32(7);
+      new Buildings(new GeometryBatch(), new GeometryBatch(), materials, a, hidden).shopRow(
+        f,
+        2,
+        'sand',
+        'accent-red',
+      );
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0]?.[0]).toEqual({ x: f.x, z: f.z + s * 1.5, w: f.w - 1, d: 7 });
+      spy.mockRestore();
+      const b = mulberry32(7);
+      new Buildings(new GeometryBatch(), new GeometryBatch(), materials, b, hidden).roofDetails(
+        f,
+        2 * FLOOR + 0.3,
+      );
+      expect(a()).toBe(b());
+    }
+  });
+
+  it.each<[string, HiddenSides]>([
+    ['видимая +Z', CHUNK_HIDDEN],
+    ['видимая −Z', { x: 1, z: 1 }],
+  ])('%s: учебный корпус — 4 установки по бокам купола, у задней кромки', (_, hidden) => {
+    const s = -hidden.z;
+    const f: Footprint = { x: 0, z: -9, w: 36, d: 12 };
+    const { buildings, detail } = freshBuildings(hidden);
+    buildings.campusHall(f, 3);
+    const found = fans(detail);
+    expect(found).toHaveLength(4);
+    for (const p of found) {
+      expect(Math.abs(p.x - f.x)).toBeGreaterThanOrEqual(6.5);
+      expect(Math.abs(p.x - f.x)).toBeLessThan(f.w / 2 - 1);
+      expect((f.z - p.z) * s).toBeGreaterThan(0);
+    }
+  });
+});

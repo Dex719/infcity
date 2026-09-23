@@ -17,6 +17,9 @@ export const AWNING_TILT = 0.35;
 /** Вынос маркизы от стены, юниты (до наклона). */
 export const AWNING_DEPTH = 1.4;
 
+/** Ореол AO вокруг установки на кровле: ширина 1 — по её высоте 1.3 (у домов 2.5, FR-19.21). */
+const ROOF_UNIT_HALO: HaloWidths = { px: 1, nx: 1, pz: 1, nz: 1 };
+
 /** Верх газона футбольного поля стадиона (FR-19.13): поле — цилиндр 6.0…7.1 на цоколе чаши. */
 export const FIELD_TOP = 7.1;
 
@@ -194,7 +197,15 @@ export class Buildings implements GroundAo {
     // Вывеска на крыше.
     b.box(f.x, h + 1.1, front - frontSign * 0.6, f.w * 0.5, 1.4, 0.2, this.m.color('white'));
     b.box(f.x, h + 1.1, front - frontSign * 0.45, f.w * 0.36, 0.5, 0.05, this.m.color(awning));
-    this.roofDetails(f, h + 0.3);
+    // Кровля (FR-19.22, design D24): ряд кондиционеров за вывеской с шагом 8, случайные детали —
+    // в полосе перед ним (`v` от фасада вглубь, `z = f.z − s·v`, ряд глубиной 11). Расход `rng`
+    // прежний: число вызовов `roofDetails` не зависит от габарита.
+    const top = h + 0.3;
+    const units = Math.max(1, Math.floor((f.w - 8) / 8) + 1);
+    for (let i = 0; i < units; i++) {
+      this.hvacUnit(f.x + (i - (units - 1) / 2) * 8, f.z - frontSign * 3, top, 1.6);
+    }
+    this.roofDetails({ x: f.x, z: f.z + frontSign * 1.5, w: f.w - 1, d: 7 }, top);
   }
 
   /**
@@ -285,7 +296,6 @@ export class Buildings implements GroundAo {
     const d = this.detail;
     const roof = this.m.color('roof');
     const haloY = top + AO.GROUND_LIFT;
-    const ring: HaloWidths = { px: 1, nx: 1, pz: 1, nz: 1 };
     const z = (v: number): number => f.z - s * v;
     // Фонари атриума: бортик и стеклянная пирамида, повёрнутая на 45° — стороны вдоль осей.
     for (const x of [-13.5, -4.5, 4.5, 13.5]) {
@@ -301,25 +311,25 @@ export class Buildings implements GroundAo {
         this.m.color('glass-blue'),
         Math.PI / 4,
       );
-      d.halo(f.x + x, z(-3), 4, 4, haloY, ring, roof, AO.GROUND_MIN);
+      d.halo(f.x + x, z(-3), 4, 4, haloY, ROOF_UNIT_HALO, roof, AO.GROUND_MIN);
     }
-    // Кондиционеры: светло-серый корпус и тёмная решётка вентилятора сверху.
     for (const v of [3.5, 8]) {
       for (const x of [-15, -5, 5, 15]) {
-        d.box(f.x + x, top + 0.65, z(v), 3, 1.3, 2, this.m.color('panel-grey'));
-        d.place(
-          Templates.cone8,
-          f.x + x,
-          top + 1.34,
-          z(v),
-          0.55,
-          0.08,
-          0.55,
-          this.m.color('black'),
-        );
-        d.halo(f.x + x, z(v), 3, 2, haloY, ring, roof, AO.GROUND_MIN);
+        this.hvacUnit(f.x + x, z(v), top);
       }
     }
+  }
+
+  /**
+   * Кондиционер на кровле (FR-19.21, FR-19.22, design D24): светло-серый корпус 3 × 1.3 ×
+   * `depth`, тёмная решётка вентилятора сверху и ореол AO цвета кровли. В батч деталей.
+   */
+  private hvacUnit(x: number, z: number, top: number, depth = 2): void {
+    const d = this.detail;
+    d.box(x, top + 0.65, z, 3, 1.3, depth, this.m.color('panel-grey'));
+    d.place(Templates.cone8, x, top + 1.34, z, 0.55, 0.08, 0.55, this.m.color('black'));
+    const roof = this.m.color('roof');
+    d.halo(x, z, 3, depth, top + AO.GROUND_LIFT, ROOF_UNIT_HALO, roof, AO.GROUND_MIN);
   }
 
   /**
@@ -448,6 +458,11 @@ export class Buildings implements GroundAo {
     }
     b.box(f.x, h + 0.7, front, f.w, 0.5, 2.6, this.m.color('white'));
     b.place(Templates.sphereLow, f.x, h + 1.5, f.z, 3.2, 2.4, 3.2, this.m.color('flag-blue'));
+    // Кровля (FR-19.22, design D24): по два кондиционера с каждой стороны от купола, ближе к
+    // задней кромке (корпус 36 × 12 — единственный габарит раскладки `campus`).
+    for (const x of [-14, -8, 8, 14]) {
+      this.hvacUnit(f.x + x, f.z - frontSign * 2.5, h + 0.4);
+    }
   }
 
   /**
