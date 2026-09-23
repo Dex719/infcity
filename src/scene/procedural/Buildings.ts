@@ -129,11 +129,31 @@ export class Buildings implements GroundAo {
     this.cornice(f, h);
     this.windows(f, floors, 0.6, 0, f.d * 0.175);
     this.balconies(f, floors, accent);
+    this.floorSlabs(f, floors);
     // Вертикальная акцентная полоса (лоджии).
     b.boxAo(f.x - f.w / 2 - 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
     b.boxAo(f.x + f.w / 2 + 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
     b.box(f.x, h + 1, f.z, f.w * 0.5, 1.6, f.d * 0.5, this.m.color('stone-light'));
     this.roofDetails(f, h + 0.4);
+  }
+
+  /**
+   * Пояса-плиты новостройки (FR-19.23, AC-19.24, design D25): на каждом междуэтажном уровне —
+   * светлая плита высотой 0.2 с выносом 0.5 на двух видимых сторонах (D13), как балконные пояса
+   * у референса. Плита стороны Z доходит до внешней грани плиты стороны X, а та упирается в
+   * стену Z: объёмы соприкасаются, но не пересекаются. Верх плиты (+0.1) ниже верха балконной
+   * плиты (+0.12), поэтому совпадающих граней с балконами нет.
+   */
+  private floorSlabs(f: Footprint, floors: number): void {
+    const b = this.batch;
+    const white = this.m.color('white');
+    const zSign = -this.hidden.z as 1 | -1;
+    const xSign = -this.hidden.x as 1 | -1;
+    for (let i = 1; i < floors; i++) {
+      const y = i * FLOOR;
+      b.box(f.x + xSign * 0.1, y, f.z + zSign * (f.d / 2 + 0.25), f.w + 0.8, 0.2, 0.5, white);
+      b.box(f.x + xSign * (f.w / 2 + 0.25), y, f.z - zSign * 0.15, 0.5, 0.2, f.d + 0.3, white);
+    }
   }
 
   /** Стеклянная башня делового центра: корпус в стекле, стальные пояса, «корона». */

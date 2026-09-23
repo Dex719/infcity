@@ -5,7 +5,7 @@ import { Materials } from '@/scene/Materials';
 import { parsePalette, type PaletteKey } from '@/scene/palette';
 import { AWNING_TILT, Buildings, FLOOR, type Footprint } from '@/scene/procedural/Buildings';
 import { GeometryBatch } from '@/scene/procedural/GeometryBatch';
-import { CHUNK_HIDDEN, type HiddenSides } from '@/scene/procedural/Visibility';
+import { CHUNK_HIDDEN, hiddenSides, type HiddenSides } from '@/scene/procedural/Visibility';
 import { mulberry32 } from '@/world/Hash';
 import paletteJson from '../../public/assets/palette.json';
 
@@ -918,4 +918,105 @@ describe('Кондиционеры на кровлях торговых рядо
       expect((f.z - p.z) * s).toBeGreaterThan(0);
     }
   });
+});
+
+describe('Пояса-плиты новостроек (FR-19.23, AC-19.24)', () => {
+  const f: Footprint = { x: 0, z: 0, w: 12, d: 12 };
+  const FLOORS = 10;
+
+  interface Aabb {
+    min: Vector3;
+    max: Vector3;
+  }
+
+  /** Вершины цвета `key` в полосе высот уровня `i · FLOOR ± band` (i = 1…FLOORS − 1), по порядку. */
+  function atLevels(geometry: BufferGeometry, key: PaletteKey, band: number): Vector3[] {
+    const position = geometry.getAttribute('position');
+    const color = geometry.getAttribute('color');
+    const wanted = materials.color(key);
+    const found: Vector3[] = [];
+    for (let i = 0; i < position.count; i++) {
+      const y = position.getY(i);
+      const level = Math.round(y / FLOOR);
+      if (
+        level >= 1 &&
+        level < FLOORS &&
+        Math.abs(y - level * FLOOR) <= band + 1e-4 &&
+        Math.abs(color.getX(i) - wanted.r) < 1e-4 &&
+        Math.abs(color.getY(i) - wanted.g) < 1e-4 &&
+        Math.abs(color.getZ(i) - wanted.b) < 1e-4
+      ) {
+        found.push(new Vector3(position.getX(i), y, position.getZ(i)));
+      }
+    }
+    return found;
+  }
+
+  /** Бокс — 24 вершины подряд: габариты по группам. */
+  function boxes(vertices: Vector3[]): Aabb[] {
+    const out: Aabb[] = [];
+    for (let k = 0; k + 24 <= vertices.length; k += 24) {
+      const part = vertices.slice(k, k + 24);
+      out.push({
+        min: new Vector3(
+          Math.min(...part.map((v) => v.x)),
+          Math.min(...part.map((v) => v.y)),
+          Math.min(...part.map((v) => v.z)),
+        ),
+        max: new Vector3(
+          Math.max(...part.map((v) => v.x)),
+          Math.max(...part.map((v) => v.y)),
+          Math.max(...part.map((v) => v.z)),
+        ),
+      });
+    }
+    return out;
+  }
+
+  function overlapVolume(a: Aabb, b: Aabb): number {
+    const dx = Math.min(a.max.x, b.max.x) - Math.max(a.min.x, b.min.x);
+    const dy = Math.min(a.max.y, b.max.y) - Math.max(a.min.y, b.min.y);
+    const dz = Math.min(a.max.z, b.max.z) - Math.max(a.min.z, b.min.z);
+    return dx > 0 && dy > 0 && dz > 0 ? dx * dy * dz : 0;
+  }
+
+  it.each([0, 1, 2, 3] as const)(
+    'поворот %i: 18 плит только на видимых сторонах, без пересечений, ниже балконных плит',
+    (rotation) => {
+      const hidden = hiddenSides(rotation);
+      const xSign = -hidden.x;
+      const zSign = -hidden.z;
+      const { buildings, opaque, detail } = freshBuildings(hidden);
+      buildings.modernTower(f, FLOORS, 'glass-teal');
+      const slabVertices = atLevels(opaque.build(), 'white', 0.1);
+      const slabs = boxes(slabVertices);
+      expect(slabVertices).toHaveLength(slabs.length * 24);
+      expect(slabs).toHaveLength(2 * (FLOORS - 1));
+      // Каждая вершина — снаружи корпуса на видимой стороне.
+      for (const v of slabVertices) {
+        const outX = (v.x - f.x) * xSign >= f.w / 2 - 1e-4;
+        const outZ = (v.z - f.z) * zSign >= f.d / 2 - 1e-4;
+        expect(outX || outZ).toBe(true);
+      }
+      for (let a = 0; a < slabs.length; a++) {
+        for (let b = a + 1; b < slabs.length; b++) {
+          const sa = slabs[a];
+          const sb = slabs[b];
+          if (sa !== undefined && sb !== undefined) {
+            expect(overlapVolume(sa, sb)).toBeLessThan(1e-9);
+          }
+        }
+      }
+      // Балконные плиты (concrete, слой деталей) выше пояса своего уровня на ≥ 0.01.
+      const plates = boxes(atLevels(detail.build(), 'concrete', 0.2));
+      expect(plates.length).toBeGreaterThan(0);
+      for (const plate of plates) {
+        const level = Math.round(plate.min.y / FLOOR);
+        const slabTop = Math.max(
+          ...slabs.filter((s) => Math.round(s.min.y / FLOOR) === level).map((s) => s.max.y),
+        );
+        expect(plate.max.y - slabTop).toBeGreaterThanOrEqual(0.01);
+      }
+    },
+  );
 });
