@@ -196,12 +196,14 @@ export class Buildings implements GroundAo {
   mall(f: Footprint, accent: PaletteKey = 'gold'): void {
     const b = this.batch;
     const h = 12;
-    const front = f.z + f.d / 2;
+    // Фасад — на видимой стороне по `hidden.z` (BUG-13), как витрины и входы (D13).
+    const s = -this.hidden.z as 1 | -1;
+    const front = f.z + (s * f.d) / 2;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
     this.plinth(f);
     b.box(f.x, h + 0.25, f.z, f.w + 0.4, 0.5, f.d + 0.4, this.m.color('roof'));
-    // Спереди (+Z) парапет — волнистый акцентный ниже, поэтому стенки только с трёх сторон.
-    this.parapet(f, 0.4, h + 0.5, 'white', 1);
+    // Спереди парапет — волнистый акцентный ниже, поэтому стенки только с трёх сторон.
+    this.parapet(f, 0.4, h + 0.5, 'white', s);
     this.cornice(f, h);
     const seg = 6;
     let up = true;
@@ -209,7 +211,7 @@ export class Buildings implements GroundAo {
       b.box(
         x,
         h + 0.5 + (up ? 0.9 : 0.4),
-        front - 0.3,
+        front - s * 0.3,
         seg - 0.4,
         up ? 1.8 : 0.8,
         0.5,
@@ -218,17 +220,17 @@ export class Buildings implements GroundAo {
       up = !up;
     }
     // Ленточное остекление второго этажа по фасаду и торцам.
-    this.glass.box(f.x, 8.5, front + 0.06, f.w - 4, 2.4, 0.12, this.m.color('glass-teal'));
+    this.glass.box(f.x, 8.5, front + s * 0.06, f.w - 4, 2.4, 0.12, this.m.color('glass-teal'));
     this.glass.box(f.x - f.w / 2 - 0.06, 8.5, f.z, 0.12, 2.4, f.d - 4, this.m.color('glass-teal'));
     this.glass.box(f.x + f.w / 2 + 0.06, 8.5, f.z, 0.12, 2.4, f.d - 4, this.m.color('glass-teal'));
     // Портал входа.
-    b.boxAo(f.x, 3.5, front + 1.2, 12, 7, 2.4, this.m.color('white'));
-    this.glass.box(f.x, 2.6, front + 2.45, 9, 5, 0.15, this.m.color('glass-blue'));
-    b.box(f.x, 7.2, front + 1.2, 13, 0.5, 3.2, this.m.color(accent));
+    b.boxAo(f.x, 3.5, front + s * 1.2, 12, 7, 2.4, this.m.color('white'));
+    this.glass.box(f.x, 2.6, front + s * 2.45, 9, 5, 0.15, this.m.color('glass-blue'));
+    b.box(f.x, 7.2, front + s * 1.2, 13, 0.5, 3.2, this.m.color(accent));
     // Вывеска с «буквами».
-    b.box(f.x, h + 2.4, front - 0.6, 14, 2.2, 0.4, this.m.color('white'));
+    b.box(f.x, h + 2.4, front - s * 0.6, 14, 2.2, 0.4, this.m.color('white'));
     for (let i = 0; i < 4; i++) {
-      b.box(f.x - 4.5 + i * 3, h + 2.4, front - 0.3, 2.0, 1.3, 0.2, this.m.color(accent));
+      b.box(f.x - 4.5 + i * 3, h + 2.4, front - s * 0.3, 2.0, 1.3, 0.2, this.m.color(accent));
     }
     this.roofDetails(f, h + 0.5);
   }

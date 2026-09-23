@@ -422,6 +422,18 @@ function businessGlass(ctx: Ctx): void {
   ]);
 }
 
+/**
+ * Деревья коммерческого квартала `[x, z, масштаб]` и его изгородь (BUG-12): крона дерева
+ * (с боковыми объёмами — до 1.3 радиуса от ствола) не должна накрывать изгородь. Раньше
+ * дерево стояло на z −14 и его крона уходила в изгородь на z −12 — сверху читалось
+ * «поваленным деревом». Экспортируются для регрессионного теста.
+ */
+export const COMMERCIAL_TREES: readonly (readonly [number, number, number])[] = [
+  [16, -17, 1.1],
+  [20, -8, 0.9],
+];
+export const COMMERCIAL_HEDGE = { x: 12, z: -12, w: 12, d: 0.8 } as const;
+
 function commercial(ctx: Ctx): void {
   lawn(ctx, 0, 0, 46, 46, 'sidewalk');
   const walls: PaletteKey[] = ['sand', 'brick', 'stone-light', 'white'];
@@ -449,8 +461,9 @@ function commercial(ctx: Ctx): void {
   }
   ctx.props.lamp(-20, 3);
   ctx.props.lamp(20, 3);
-  ctx.props.tree(16, -14, 1.1);
-  ctx.props.tree(20, -8, 0.9);
+  for (const [x, z, scale] of COMMERCIAL_TREES) {
+    ctx.props.tree(x, z, scale);
+  }
   // Доп. отмеченные места у правого края парковки (TSK-104, FR-18.5): площадка —
   // x ∈ [-13, 21], z ∈ [-2, 6]; ряд у x = 19 не задевает существующий ряд машин
   // (тот занимает x до ≈ 15,85).
@@ -458,7 +471,7 @@ function commercial(ctx: Ctx): void {
   // Благоустройство (FR-17.5): ограждение парковки, изгородь, кусты.
   ctx.props.bollards(-12, -2.6, 20, -2.6, 4);
   ctx.props.bollards(-12, 6.6, 20, 6.6, 4);
-  ctx.props.hedge(12, -12, 12, 0.8);
+  ctx.props.hedge(COMMERCIAL_HEDGE.x, COMMERCIAL_HEDGE.z, COMMERCIAL_HEDGE.w, COMMERCIAL_HEDGE.d);
   ctx.props.bush(-20, -20, 1);
   ctx.props.bush(20, -20, 1);
 }
@@ -576,37 +589,41 @@ function campus(ctx: Ctx): void {
 /** Торговый центр (FR-15.1): корпус с вывеской и парковка перед входом. */
 function mall(ctx: Ctx): void {
   lawn(ctx, 0, 0, 46, 46, 'sidewalk');
+  // Фасад ТЦ и парковка — на видимой стороне квартала (BUG-13): раскладка зеркалится по z.
+  // Прежде фасад был жёстко на локальной +Z, и при поворотах 2 и 3 камера видела глухую стену.
+  const s = -ctx.hidden.z as 1 | -1;
   const accents: PaletteKey[] = ['gold', 'accent-red', 'flag-blue', 'glass-teal'];
   ctx.buildings.mall(
-    { x: 0, z: -7, w: 40, d: 24 },
+    { x: 0, z: -7 * s, w: 40, d: 24 },
     accents[int(ctx.rng, 0, accents.length - 1)] ?? 'gold',
   );
-  ctx.b.plane(0, LAWN_Y + 0.03, 15, 44, 12, ctx.m.color('asphalt'));
+  ctx.b.plane(0, LAWN_Y + 0.03, 15 * s, 44, 12, ctx.m.color('asphalt'));
   for (let i = 0; i < 9; i++) {
     // Разделители мест — в батч деталей, как и вся остальная разметка парковок.
-    ctx.detail.box(-18 + i * 4.5, LAWN_Y + 0.05, 15, 0.15, 0.02, 9, ctx.m.color('marking'));
+    ctx.detail.box(-18 + i * 4.5, LAWN_Y + 0.05, 15 * s, 0.15, 0.02, 9, ctx.m.color('marking'));
     if (i < 8 && ctx.rng() < 0.7) {
-      ctx.props.parkedCar(-15.75 + i * 4.5, 15, Math.PI / 2, i);
+      // Зеркало по z меняет знак поворота вокруг Y.
+      ctx.props.parkedCar(-15.75 + i * 4.5, 15 * s, (s * Math.PI) / 2, i);
     }
   }
-  ctx.props.flagpole(-20, 2, 9);
-  ctx.props.lamp(20, 2);
-  ctx.props.lamp(-20, 22);
-  ctx.props.lamp(20, 22);
-  ctx.props.tree(-22, -20, 1.0);
-  ctx.props.tree(22, -20, 1.0);
+  ctx.props.flagpole(-20, 2 * s, 9);
+  ctx.props.lamp(20, 2 * s);
+  ctx.props.lamp(-20, 22 * s);
+  ctx.props.lamp(20, 22 * s);
+  ctx.props.tree(-22, -20 * s, 1.0);
+  ctx.props.tree(22, -20 * s, 1.0);
   // Доп. отмеченные места у правого края парковки (TSK-104, FR-18.5): площадка —
-  // x ∈ [-22, 22], z ∈ [9, 21]; ряд у x = 20 не задевает существующие делители (те
-  // доходят до x = 18).
-  parkingMarkings(ctx, 20, 15, 5, LAWN_Y + 0.05);
+  // x ∈ [-22, 22], z ∈ [9, 21] (зеркально при s = −1); ряд у x = 20 не задевает существующие
+  // делители (те доходят до x = 18).
+  parkingMarkings(ctx, 20, 15 * s, 5, LAWN_Y + 0.05);
   // Благоустройство (FR-17.5): изгороди между корпусом и парковкой, клумбы у входа, столбики.
-  ctx.props.hedge(-12.5, 7.6, 13, 0.7);
-  ctx.props.hedge(12.5, 7.6, 13, 0.7);
-  ctx.props.flowerBed(-4, 7.6, 1.3, 'accent-red');
-  ctx.props.flowerBed(4, 7.6, 1.3, 'accent-red');
-  ctx.props.bollards(-6, 22.5, 6, 22.5, 4);
+  ctx.props.hedge(-12.5, 7.6 * s, 13, 0.7);
+  ctx.props.hedge(12.5, 7.6 * s, 13, 0.7);
+  ctx.props.flowerBed(-4, 7.6 * s, 1.3, 'accent-red');
+  ctx.props.flowerBed(4, 7.6 * s, 1.3, 'accent-red');
+  ctx.props.bollards(-6, 22.5 * s, 6, 22.5 * s, 4);
   // Велопарковка у входа (TSK-103): между клумбами (края ±2.7), на одной линии с ними.
-  ctx.props.bikeRack(0, 7.6, 0);
+  ctx.props.bikeRack(0, 7.6 * s, 0);
 }
 
 function market(ctx: Ctx): void {
