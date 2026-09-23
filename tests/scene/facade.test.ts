@@ -584,3 +584,32 @@ describe('BUG-11: свод крытого рынка лежит, а не сто�
     }
   });
 });
+
+describe('Стеклянные башни — навесная стена (FR-19.15, AC-19.16)', () => {
+  const tower: Footprint = { x: 0, z: 0, w: 16, d: 16 };
+  const FLOORS = 10;
+  const H = FLOORS * FLOOR;
+
+  it('≥ 4 вертикальных импоста во всю высоту на каждой видимой стороне, на скрытых — ни одного', () => {
+    const { buildings, opaque } = freshBuildings();
+    buildings.glassTower(tower, FLOORS, 'glass-blue');
+    // Импост — стальной бокс от земли до верха: его нижние вершины — единственные стальные
+    // на высоте 0 (пояса начинаются с первого этажа, антенна — над крышей).
+    const steel = verticesOfColor(opaque, 'steel');
+    const bottoms = steel.filter((v) => Math.abs(v.y) < 1e-4);
+    const tops = steel.filter((v) => Math.abs(v.y - H) < 1e-4);
+    expect(bottoms.length % 12).toBe(0);
+    const count = bottoms.length / 12;
+    expect(tops.length).toBeGreaterThanOrEqual(bottoms.length);
+    expect(count).toBe(12);
+    // При CHUNK_HIDDEN видимы +X и +Z. Внешняя грань импоста — на 0.1 от фасада: у каждого
+    // импоста там ровно 6 нижних вершин, а угловые импосты другой стороны туда не достают.
+    const onZ = bottoms.filter((v) => v.z >= tower.d / 2 + 0.099).length / 6;
+    const onX = bottoms.filter((v) => v.x >= tower.w / 2 + 0.099).length / 6;
+    expect(onZ).toBeGreaterThanOrEqual(4);
+    expect(onX).toBeGreaterThanOrEqual(4);
+    expect(onZ + onX).toBe(count);
+    // На скрытых сторонах импостов нет: дальше угловых импостов видимых сторон ничего.
+    expect(bottoms.some((v) => v.x < -tower.w / 2 - 0.09 || v.z < -tower.d / 2 - 0.09)).toBe(false);
+  });
+});

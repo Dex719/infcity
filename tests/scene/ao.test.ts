@@ -465,7 +465,7 @@ describe('AO контакта у ландмарков (FR-19.14, AC-19.15)', () 
   for (const id of LANDMARK_IDS) {
     const plate = plates[id];
     if (plate === undefined) {
-      it(`${id}: ореола нет — вокруг основания разноцветные кольца`, () => {
+      it(`${id}: на плитке ореола нет — AO лежит на разноцветных кольцах (FR-19.16)`, () => {
         const ground = materials.color('stone-light');
         const { vertices } = verticesOf(landmarkOpaque(id));
         const dark = vertices.filter(
@@ -497,4 +497,66 @@ describe('AO контакта у ландмарков (FR-19.14, AC-19.15)', () 
       }
     });
   }
+});
+
+describe('AO Байтерека по кольцам (FR-19.16, AC-19.17)', () => {
+  // [r0, r1, высота полосы, цвет] — как в `Baiterek.ts`.
+  const rings: readonly (readonly [number, number, number, PaletteKey])[] = [
+    [9, 9.6, 0.3, 'gold'],
+    [9.6, 10.5, 0.28, 'sand'],
+    [10.5, 11.5, 0.26, 'white'],
+  ];
+  const aoAt = (r: number): number =>
+    AO.GROUND_MIN + (1 - AO.GROUND_MIN) * Math.min(1, (r - 9) / AO.GROUND_WIDTH);
+
+  function baiterek(): Vertex[] {
+    const opaque = new GeometryBatch();
+    const glass = new GeometryBatch();
+    const ao = new Buildings(opaque, glass, materials, mulberry32(7));
+    buildLandmark('baiterek', {
+      opaque,
+      glass,
+      props: new Props(opaque, materials),
+      m: materials,
+      rng: mulberry32(7),
+      ao,
+    });
+    ao.flushHalos(0.2 + AO.GROUND_LIFT, 23);
+    return verticesOf(opaque).vertices;
+  }
+
+  it('каждое кольцо затемнено своим цветом: у внутреннего края f(r0), у внешнего f(r1)', () => {
+    const vertices = baiterek();
+    for (const [r0, r1, y, key] of rings) {
+      const color = materials.color(key);
+      // На той же высоте лежат и другие плоские вещи площади — берём только оттенок кольца.
+      const band = vertices.filter(
+        (v) =>
+          Math.abs(v.p.y - y) < 1e-5 &&
+          v.n.y > 0.99 &&
+          Math.abs(v.c.r / color.r - v.c.g / color.g) < 1e-4 &&
+          Math.abs(v.c.g / color.g - v.c.b / color.b) < 1e-4,
+      );
+      expect(band).toHaveLength(32);
+      for (const v of band) {
+        const r = Math.hypot(v.p.x, v.p.z);
+        const expected = Math.abs(r - r0) < 1e-3 ? aoAt(r0) : aoAt(r1);
+        expect(Math.abs(r - r0) < 1e-3 || Math.abs(r - r1) < 1e-3).toBe(true);
+        expect(factor(v, color)).toBeCloseTo(expected, 6);
+      }
+    }
+  });
+
+  it('градиент непрерывен на границах колец и сходит на нет к внешнему краю белого', () => {
+    expect(aoAt(9)).toBeCloseTo(AO.GROUND_MIN, 9);
+    for (let i = 0; i + 1 < rings.length; i++) {
+      const outer = rings[i];
+      const inner = rings[i + 1];
+      if (outer === undefined || inner === undefined) {
+        throw new Error('нет кольца');
+      }
+      expect(outer[1]).toBe(inner[0]);
+    }
+    expect(aoAt(11.5)).toBeCloseTo(1, 9);
+  });
 });

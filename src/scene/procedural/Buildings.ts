@@ -139,6 +139,21 @@ export class Buildings implements GroundAo {
     for (let i = 1; i < floors; i += 2) {
       b.box(f.x, i * FLOOR, f.z, f.w + 0.2, 0.18, f.d + 0.2, band);
     }
+    // Навесная стена (FR-19.15): вертикальные импосты во всю высоту с шагом
+    // `FACADE.MULLION_STEP`, считая угловые, — вместе с поясами фасад читается сеткой окон.
+    // Импост — плоская накладка (вынос 0.05), поэтому только на видимых сторонах (D13).
+    const zSign = -this.hidden.z as 1 | -1;
+    const xSign = -this.hidden.x as 1 | -1;
+    const mullions = (length: number): number[] => {
+      const count = Math.max(2, Math.floor(length / FACADE.MULLION_STEP) + 1);
+      return Array.from({ length: count }, (_, k) => -length / 2 + (k * length) / (count - 1));
+    };
+    for (const dx of mullions(f.w)) {
+      b.box(f.x + dx, h / 2, f.z + zSign * (f.d / 2 + 0.05), 0.14, h, 0.1, band);
+    }
+    for (const dz of mullions(f.d)) {
+      b.box(f.x + xSign * (f.w / 2 + 0.05), h / 2, f.z + dz, 0.1, h, 0.14, band);
+    }
     b.box(f.x, h + 0.3, f.z, f.w + 0.4, 0.6, f.d + 0.4, this.m.color('roof'));
     this.parapet(f, 0.4, h + 0.6, 'white');
     b.box(f.x, h + 0.6 + 2, f.z, f.w * 0.6, 4, f.d * 0.6, this.m.shade(tint, 0.7));

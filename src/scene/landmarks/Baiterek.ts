@@ -1,8 +1,21 @@
-import { LANDMARKS } from '@/config';
+import { Color } from 'three';
+import { AO, LANDMARKS } from '@/config';
+import type { PaletteKey } from '@/scene/palette';
 import { Templates } from '@/scene/procedural/GeometryBatch';
 import type { LandmarkContext } from './index';
 
 const LAWN_Y = 0.2;
+
+/**
+ * Кольца орнамента у постамента (FR-15.3) с запечённым AO (FR-19.16): внутренний и внешний
+ * радиус, высота над газоном квартала и цвет. Внешний край белого кольца — ровно
+ * `9 + AO.GROUND_WIDTH`, где затемнение сходит на нет; дальше лежит песочный диск.
+ */
+const BAITEREK_RINGS: readonly (readonly [number, number, number, PaletteKey])[] = [
+  [9, 9.6, 0.09, 'gold'],
+  [9.6, 10.5, 0.07, 'sand'],
+  [10.5, 11.5, 0.05, 'white'],
+];
 
 /**
  * Байтерек (FR-4.4): белый ствол, расширяющаяся кверху решётчатая «крона» из распорок,
@@ -33,10 +46,9 @@ export function buildBaiterek(ctx: LandmarkContext): void {
     ctx.props.tree(x + 3, z - 3, 0.8);
   }
   b.place(Templates.cylinder16, 0, LAWN_Y + 0.01, 0, 15, 0.04, 15, m.color('sand'));
-  // Орнамент площади: кольца и лучи (FR-15.3).
-  b.place(Templates.cylinder16, 0, LAWN_Y + 0.03, 0, 11.5, 0.04, 11.5, white);
-  b.place(Templates.cylinder16, 0, LAWN_Y + 0.05, 0, 10.5, 0.04, 10.5, m.color('sand'));
-  b.place(Templates.cylinder16, 0, LAWN_Y + 0.07, 0, 9.6, 0.04, 9.6, gold);
+  // Орнамент площади: кольца и лучи (FR-15.3). Золотое, песочное и белое кольца у постамента
+  // рисуют полосы AO ниже (`BAITEREK_RINGS`, FR-19.16) — прежние сплошные диски под ними были
+  // бы целиком закрыты и стоили бы ≈ 300 вершин при потолке ландмарка 9 000.
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     b.box(Math.cos(a) * 12.5, LAWN_Y + 0.03, Math.sin(a) * 12.5, 4.5, 0.04, 0.4, white, -a);
@@ -54,6 +66,18 @@ export function buildBaiterek(ctx: LandmarkContext): void {
 
   // Постамент, вход и ствол с золотыми поясами.
   b.place(Templates.cylinder16, 0, 0.8, 0, 9, 1.6, 9, white);
+  // AO контакта у постамента (FR-19.16, AC-19.17): площадка — стопка разноцветных колец, поэтому
+  // вместо одноцветного ореола — единый радиальный градиент затемнения, в каждом кольце его
+  // собственным цветом, на верх кольца + 0.01. Края полос совпадают с краями 16-угольных колец.
+  const base = 9;
+  const aoAt = (r: number): number =>
+    AO.GROUND_MIN + (1 - AO.GROUND_MIN) * Math.min(1, (r - base) / AO.GROUND_WIDTH);
+  for (const [r0, r1, top, key] of BAITEREK_RINGS) {
+    const inner = new Color().copy(m.color(key)).multiplyScalar(aoAt(r0));
+    const outer = new Color().copy(m.color(key)).multiplyScalar(aoAt(r1));
+    const y = LAWN_Y + top + 0.01;
+    b.ellipseBand(0, 0, { rx: r0, rz: r0, y }, { rx: r1, rz: r1, y }, inner, outer);
+  }
   b.box(0, 2.9, 7.2, 5, 2.6, 3, white);
   g.box(0, 2.8, 8.75, 4, 2.2, 0.15, m.color('glass-blue'));
   for (const y of [8, 15, 22]) {
