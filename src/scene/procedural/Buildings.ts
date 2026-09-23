@@ -287,18 +287,25 @@ export class Buildings implements GroundAo {
     const h = 5;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('sand'));
     this.registerFootprint(f, 0);
-    b.place(
+    // Бочкообразный свод вдоль длинной стороны (BUG-11): цилиндр положен на бок поворотом
+    // вокруг Z — ось идёт вдоль X, над корпусом видна верхняя половина высотой `vault`.
+    // Прежде `place` поворачивал его только вокруг вертикали, и свод стоял башней до 19,4.
+    // Свод на 0.3 короче корпуса: нижняя половина торцевой крышки прячется в корпусе, а не
+    // спорит по глубине с торцевой стеной в одной плоскости.
+    const vault = 3;
+    b.placeRotated(
       Templates.cylinder8,
       f.x,
-      h + 1.4,
+      h,
       f.z,
+      vault,
+      f.w - 0.3,
       f.d / 2,
-      f.w,
-      f.d / 2,
-      this.m.color('roof-red'),
+      0,
+      0,
       Math.PI / 2,
+      this.m.color('roof-red'),
     );
-    b.box(f.x, h + 1.5, f.z, f.w * 0.9, 3.2, f.d * 0.3, this.m.color('roof-red'));
     b.box(f.x, 2.2, f.z + f.d / 2 + 0.3, f.w * 0.8, 0.2, 2, this.m.color('white'));
   }
 

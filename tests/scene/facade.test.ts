@@ -567,3 +567,20 @@ describe('Крыши: тёмная кровля и цветной парапет
     expect(new Set(rims).size).toBe(4);
   });
 });
+
+describe('BUG-11: свод крытого рынка лежит, а не стоит башней', () => {
+  it('красный свод не выше корпуса + 3 и не длиннее павильона', () => {
+    const { buildings, opaque } = freshBuildings();
+    const hall: Footprint = { x: 0, z: 0, w: 26, d: 16 };
+    buildings.marketHall(hall);
+    const vault = verticesOfColor(opaque, 'roof-red');
+    expect(vault.length).toBeGreaterThan(0);
+    const ys = vault.map((v) => v.y);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(5 + 3 + 1e-5);
+    expect(Math.max(...ys)).toBeGreaterThan(5 + 2.5);
+    for (const v of vault) {
+      expect(Math.abs(v.x)).toBeLessThanOrEqual(hall.w / 2 + 1e-5);
+      expect(Math.abs(v.z)).toBeLessThanOrEqual(hall.d / 2 + 1e-5);
+    }
+  });
+});
