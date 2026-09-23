@@ -1,4 +1,4 @@
-import { AO } from '@/config';
+import { AO, FACADE } from '@/config';
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
 import { mulberry32 } from '@/world/Hash';
@@ -62,7 +62,7 @@ export class Buildings {
     const roof = this.m.shade('roof-dark', 1);
     b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, roof);
     this.cornice(f, h);
-    this.windowRows(f, floors, 'glass-navy', 0.55);
+    this.windows(f, floors, 'glass-navy', 0.55);
     this.balconies(f, floors, 'panel-grey');
     this.entrance(f, 'z');
     // Лифтовая надстройка.
@@ -78,7 +78,7 @@ export class Buildings {
     this.plinth(f);
     b.box(f.x, h + 0.2, f.z, f.w + 0.3, 0.4, f.d + 0.3, this.m.color('white'));
     this.cornice(f, h);
-    this.windowRows(f, floors, 'glass-blue', 0.6);
+    this.windows(f, floors, 'glass-blue', 0.6, 0, f.d * 0.175);
     this.balconies(f, floors, accent);
     // Вертикальная акцентная полоса (лоджии).
     b.boxAo(f.x - f.w / 2 - 0.15, h / 2, f.z, 0.3, h, f.d * 0.35, this.m.color(accent));
@@ -127,7 +127,7 @@ export class Buildings {
       b.box(ax, 2.9, front + frontSign * 0.7, step - 0.6, 0.15, 1.4, this.m.color(awning));
     }
     if (floors > 1) {
-      this.windowRows({ ...f, d: f.d }, floors, 'glass-navy', 0.5, 1);
+      this.windows(f, floors, 'glass-navy', 0.5, 1);
     }
     // Вывеска на крыше.
     b.box(f.x, h + 1.1, front - frontSign * 0.6, f.w * 0.5, 1.4, 0.2, this.m.color('white'));
@@ -275,7 +275,7 @@ export class Buildings {
     this.plinth(f);
     b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, this.m.color('glass-teal'));
     this.cornice(f, h);
-    this.windowRows(f, floors, 'glass-navy', 0.5);
+    this.windows(f, floors, 'glass-navy', 0.5);
     this.entrance(f, 'z');
     // Колоннада и портик — на той же стороне, что и вход (`entrance` выбирает её по `hidden`);
     // при жёстком +Z они расходились по разным стенам (рецензия 2026-09-19).
@@ -527,7 +527,7 @@ export class Buildings {
    * Витрина торгового ряда (FR-18.6, AC-18.6, design «C7: фасады», TSK-108): стеклянная лента
    * первого этажа на видимой стороне (`this.hidden`, D13) — раньше стояла жёстко на +Z, что при
    * повороте квартала пряталось за угол. Витрина — плоская накладка (выступ 0.05), поэтому её
-   * сторону выбираем по `hidden.z`, как окна (`windowRows`). Стойки и вывеска с накладкой — мелочь,
+   * сторону выбираем по `hidden.z`, как окна (`windows`). Стойки и вывеска с накладкой — мелочь,
    * уходят в слой деталей LOD (`this.detail`, design D14).
    * Бюджет TSK-108: витрина (24) + 3 стойки (72) + вывеска (24) + накладка (24) = 144.
    */
@@ -554,26 +554,51 @@ export class Buildings {
   }
 
   /**
-   * Ряды окон по этажам (тонкие полосы заподлицо с фасадом). Строятся только на двух видимых
-   * фасадах: полосы на сторонах, смотрящих в мировые −X и −Z, не попадают в кадр ни при какой
-   * позиции камеры (design D13, FR-18.1) — это половина вершин типового дома.
+   * Окна отдельными проёмами (FR-19.6, AC-19.6, design «C7 (дополнение, итерация 5)»): на каждом
+   * этаже — ряд вертикальных четырёхугольников с шагом `FACADE.WINDOW_STEP` и шириной
+   * `WINDOW_STEP × ratio`, по центру фасада, с простенками не меньше `WINDOW_MARGIN` у углов.
+   * Строятся только на двух видимых фасадах (design D13, FR-18.1): проёмы на сторонах,
+   * смотрящих в мировые −X и −Z, не попадают в кадр ни при какой позиции камеры. Проём —
+   * 4 вершины и 2 треугольника против 24 и 12 у прежней ленты-бокса, поэтому отдельные окна
+   * дешевле ленты по треугольникам. `skipCenterX` — полуширина центральной зоны боковой
+   * стороны без окон (за вертикальной полосой лоджий новостройки проёмов не видно).
    */
-  private windowRows(
+  private windows(
     f: Footprint,
     floors: number,
     color: PaletteKey,
     ratio: number,
     fromFloor = 0,
+    skipCenterX = 0,
   ): void {
     const b = this.batch;
     const c = this.m.color(color);
     const zSign = -this.hidden.z as 1 | -1;
     const xSign = -this.hidden.x as 1 | -1;
+    const width = FACADE.WINDOW_STEP * ratio;
+    const height = FLOOR * 0.42;
+    const count = (length: number): number =>
+      Math.max(1, Math.floor((length - 2 * FACADE.WINDOW_MARGIN) / FACADE.WINDOW_STEP));
+    const alongX = count(f.w);
+    const alongZ = count(f.d);
+    const faceZ = f.z + zSign * (f.d / 2 + FACADE.WINDOW_OFFSET);
+    const faceX = f.x + xSign * (f.w / 2 + FACADE.WINDOW_OFFSET);
+    // Нормаль шаблона +Z; поворот вокруг Y разворачивает её на видимую сторону.
+    const rotZ = zSign > 0 ? 0 : Math.PI;
+    const rotX = (xSign * Math.PI) / 2;
     for (let i = fromFloor; i < floors; i++) {
       const y = i * FLOOR + FLOOR * 0.55;
-      const hh = FLOOR * 0.42;
-      b.box(f.x, y, f.z + zSign * (f.d / 2 + 0.06), f.w * ratio, hh, 0.12, c);
-      b.box(f.x + xSign * (f.w / 2 + 0.06), y, f.z, 0.12, hh, f.d * ratio, c);
+      for (let k = 0; k < alongX; k++) {
+        const x = f.x + (k - (alongX - 1) / 2) * FACADE.WINDOW_STEP;
+        b.place(Templates.planeXY, x, y, faceZ, width, height, 1, c, rotZ);
+      }
+      for (let k = 0; k < alongZ; k++) {
+        const dz = (k - (alongZ - 1) / 2) * FACADE.WINDOW_STEP;
+        if (skipCenterX > 0 && Math.abs(dz) < skipCenterX + width / 2) {
+          continue;
+        }
+        b.place(Templates.planeXY, faceX, y, f.z + dz, width, height, 1, c, rotX);
+      }
     }
   }
 }

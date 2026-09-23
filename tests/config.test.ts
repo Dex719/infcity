@@ -263,6 +263,7 @@ describe('CONFIG', () => {
       'RENDER',
       'DETAIL',
       'AO',
+      'FACADE',
       'ASSETS',
       'UI',
     ]);

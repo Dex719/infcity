@@ -106,6 +106,8 @@ export const Templates = {
   sphere16: templateFrom(new SphereGeometry(1, 16, 12)),
   /** Плоскость 1×1 в XZ, нормаль вверх. */
   planeXZ: templateFrom(new PlaneGeometry(1, 1).rotateX(-Math.PI / 2)),
+  /** Вертикальная плоскость 1×1 в XY, нормаль +Z (оконные проёмы, FR-19.6). */
+  planeXY: templateFrom(new PlaneGeometry(1, 1)),
   /** Конус 24 граней (шатёр). */
   cone24: templateFrom(new ConeGeometry(1, 1, 24)),
   /** Усечённый конус, сужающийся кверху (верх 0.6, низ 1), 16 граней. */

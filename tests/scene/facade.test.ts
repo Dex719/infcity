@@ -429,3 +429,60 @@ describe('Витрина торгового ряда (TSK-108, FR-18.6, AC-18.6)
     expect(whenHiddenPosZ.every((sign) => sign < 0)).toBe(true);
   });
 });
+
+describe('Окна отдельными проёмами (FR-19.6, AC-19.6)', () => {
+  const house: Footprint = { x: 0, z: 0, w: 16, d: 10 };
+  const FLOORS = 9;
+
+  /** Центры проёмов цвета `key`: вершины группируются по четвёркам (шаблон `planeXY`). */
+  function windowCenters(batch: GeometryBatch, key: PaletteKey): Vector3[] {
+    const vertices = verticesOfColor(batch, key);
+    const centers: Vector3[] = [];
+    for (let i = 0; i + 3 < vertices.length; i += 4) {
+      const c = new Vector3();
+      for (let j = 0; j < 4; j++) {
+        c.add(vertices[i + j] ?? new Vector3());
+      }
+      centers.push(c.divideScalar(4));
+    }
+    return centers;
+  }
+
+  it('панельный дом 16 × 10, 9 этажей: ≥ 4 проёма на этаж на длинной видимой стороне', () => {
+    const { buildings, opaque } = freshBuildings();
+    buildings.panelHouse(house, FLOORS, 'sand');
+    const centers = windowCenters(opaque, 'glass-navy');
+    // Видимые стороны при CHUNK_HIDDEN (−X, −Z скрыты): +Z (длинная, 16) и +X (короткая, 10).
+    const longSide = centers.filter((c) => c.z > house.d / 2);
+    const shortSide = centers.filter((c) => c.x > house.w / 2);
+    expect(longSide.length + shortSide.length).toBe(centers.length);
+    expect(longSide.length / FLOORS).toBeGreaterThanOrEqual(4);
+    expect(shortSide.length).toBeGreaterThan(0);
+    // Ни одного проёма на скрытых сторонах.
+    expect(centers.some((c) => c.z < -house.d / 2 || c.x < -house.w / 2)).toBe(false);
+  });
+
+  it('проёмы дешевле ленты итерации 4 по треугольникам и не выходят за углы', () => {
+    const { buildings, opaque } = freshBuildings();
+    buildings.panelHouse(house, FLOORS, 'sand');
+    const windows = verticesOfColor(opaque, 'glass-navy');
+    const windowTriangles = (windows.length / 4) * 2;
+    const bandTriangles = 2 * FLOORS * 12;
+    expect(windowTriangles).toBeLessThanOrEqual(bandTriangles);
+    for (const v of windows) {
+      expect(Math.abs(v.x)).toBeLessThanOrEqual(house.w / 2 + 0.05);
+      expect(Math.abs(v.z)).toBeLessThanOrEqual(house.d / 2 + 0.05);
+    }
+  });
+
+  it('новостройка: за вертикальной полосой лоджий боковой стороны проёмов нет', () => {
+    const { buildings, opaque } = freshBuildings();
+    const tower: Footprint = { x: 0, z: 0, w: 14, d: 14 };
+    buildings.modernTower(tower, 10, 'glass-teal');
+    const side = windowCenters(opaque, 'glass-blue').filter((c) => c.x > tower.w / 2);
+    expect(side.length).toBeGreaterThan(0);
+    for (const c of side) {
+      expect(Math.abs(c.z)).toBeGreaterThanOrEqual(tower.d * 0.175);
+    }
+  });
+});

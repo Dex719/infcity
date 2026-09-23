@@ -1,5 +1,6 @@
 import { Matrix4, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import { FACADE } from '@/config';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
 import { Buildings } from '@/scene/procedural/Buildings';
@@ -81,7 +82,7 @@ function panelHouse(rotation: number): GeometryBatch {
   return opaque;
 }
 
-describe('Оконные полосы строятся только на видимых фасадах (FR-18.1)', () => {
+describe('Окна строятся только на видимых фасадах (FR-18.1, FR-19.6)', () => {
   for (const rotation of [0, 1, 2, 3]) {
     it(`rotation ${String(rotation)}: все окна на видимых сторонах`, () => {
       const hidden = hiddenSides(rotation);
@@ -97,12 +98,15 @@ describe('Оконные полосы строятся только на вид�
     });
   }
 
-  it('число вершин не зависит от поворота и вдвое меньше четырёхстороннего варианта', () => {
+  it('число вершин не зависит от поворота; окна только на двух фасадах', () => {
     const counts = [0, 1, 2, 3].map((r) => panelHouse(r).vertices);
     expect(new Set(counts).size).toBe(1);
-    // Раньше окна строились на четырёх фасадах: 4 бокса × 9 этажей × 24 вершины = 864.
-    // Теперь два фасада — 432; экономия видна как разница в общем числе вершин дома.
+    // Итерация 4: лента-бокс на двух видимых фасадах — 2 × 9 этажей × 24 = 432 вершины.
+    // Итерация 5 (FR-19.6): отдельные проёмы по 4 вершины, число — по шагу FACADE.
+    const perSide = (length: number): number =>
+      Math.max(1, Math.floor((length - 2 * FACADE.WINDOW_MARGIN) / FACADE.WINDOW_STEP));
     const windows = verticesOfColor(panelHouse(0), 'glass-navy');
-    expect(windows.length).toBe(2 * FLOORS * 24);
+    expect(windows.length).toBe(FLOORS * (perSide(FOOTPRINT.w) + perSide(FOOTPRINT.d)) * 4);
+    expect(windows.length).toBeLessThan(2 * FLOORS * 24);
   });
 });
