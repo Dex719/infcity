@@ -7,11 +7,14 @@ import type { ChunkDescriptor } from '@/world/types';
 import { Buildings } from './Buildings';
 import { GeometryBatch } from './GeometryBatch';
 import { Props } from './Props';
+import { type HiddenSides, hiddenSides } from './Visibility';
 
 /** Результат сборки квартала в его локальной системе (центр (0,0), ±25). */
 export interface BlockGeometry {
   readonly opaque: GeometryBatch;
   readonly glass: GeometryBatch;
+  /** Мелкие детали квартала (FR-18.9): всё, что строит `Props`, и детали крыш. */
+  readonly detail: GeometryBatch;
 }
 
 const HALF = CHUNK_LAYOUT.BLOCK_SIZE / 2; // 25
@@ -36,10 +39,23 @@ function int(rng: Rng, min: number, max: number): number {
 export function buildBlock(descriptor: ChunkDescriptor, m: Materials): BlockGeometry {
   const opaque = new GeometryBatch();
   const glass = new GeometryBatch();
+  // Мелочь квартала уходит в отдельный батч — слой деталей LOD (D14).
+  const detail = new GeometryBatch();
   const rng = mulberry32(descriptor.variant);
-  const props = new Props(opaque, m);
-  const buildings = new Buildings(opaque, glass, m, rng);
-  const ctx: Ctx = { b: opaque, props, buildings, m, rng };
+  const props = new Props(detail, m);
+  // Квартал поворачивается в чанке на `rotation × 90°`, поэтому скрытые стороны — локальные (D13).
+  const hidden = hiddenSides(descriptor.rotation);
+  const buildings = new Buildings(opaque, glass, m, rng, hidden, detail);
+  const ctx: Ctx = {
+    b: opaque,
+    props,
+    buildings,
+    m,
+    rng,
+    hidden,
+    detail,
+    variant: descriptor.variant,
+  };
 
   switch (descriptor.block) {
     case 'residential-panel':
@@ -81,7 +97,7 @@ export function buildBlock(descriptor: ChunkDescriptor, m: Materials): BlockGeom
       }
       break;
   }
-  return { opaque, glass };
+  return { opaque, glass, detail };
 }
 
 interface Ctx {
@@ -90,6 +106,12 @@ interface Ctx {
   readonly buildings: Buildings;
   readonly m: Materials;
   readonly rng: Rng;
+  /** Скрытые локальные стороны квартала (design D13): плоские накладки на них не строятся. */
+  readonly hidden: HiddenSides;
+  /** Батч мелких деталей квартала (design D14): в него пишет `props`, туда же — мелочь раскладок. */
+  readonly detail: GeometryBatch;
+  /** `descriptor.variant` (TSK-104, FR-18.5): источник вариативности без обращения к `rng`. */
+  readonly variant: number;
 }
 
 function lawn(
@@ -130,6 +152,37 @@ function insideRect(
   pad = 1.5,
 ): boolean {
   return Math.abs(x - cx) < w / 2 + pad && Math.abs(z - cz) < d / 2 + pad;
+}
+
+/**
+ * Разметка мест на парковке (TSK-104, design «C7 (дополнение): улицы», FR-18.5, AC-18.5):
+ * линии `box` 0.12 × 2.4 с шагом 2.6 вдоль края площадки, ряд идёт вдоль Z на фиксированном
+ * `cross` (X); машины смотрят вдоль X (`rotationY = 0`). Линии — в батче деталей (D14), на
+ * уровне покрытия площадки + 0.02 (без z-fighting, `y` — уже с этим отступом).
+ *
+ * Машина ставится на каждое второе место, но не на крайней линии — иначе кузов (глубина
+ * 1.7) вылезает за площадку. Индекс цвета — `descriptor.variant + i` (без `rng`, иначе
+ * изменится раскладка города и упадут снапшоты, design «Контракт исполнителя»).
+ */
+function parkingMarkings(
+  ctx: Ctx,
+  cross: number,
+  along: number,
+  lineCount: number,
+  y: number,
+): void {
+  const spacing = 2.6;
+  const marking = ctx.m.color('marking');
+  const start = along - ((lineCount - 1) * spacing) / 2;
+  for (let i = 0; i < lineCount; i++) {
+    const pos = start + i * spacing;
+    ctx.detail.box(cross, y, pos, 2.4, 0.02, 0.12, marking);
+    if (i > 0 && i < lineCount - 1 && i % 2 === 1) {
+      // Машина стоит МЕЖДУ линиями, а не на линии: в первой версии кузов 3.6×1.7
+      // центрировался на той же координате, что и разделитель (рецензия 2026-09-19).
+      ctx.props.parkedCar(cross, pos + spacing / 2, 0, ctx.variant + i);
+    }
+  }
 }
 
 function residentialPanel(ctx: Ctx): void {
@@ -246,7 +299,10 @@ function businessGlass(ctx: Ctx): void {
     5,
     (x, z) =>
       insideRect(x, z, main.x, main.z, main.w, main.d, 3) ||
-      insideRect(x, z, annex.x, annex.z, annex.w, annex.d, 3),
+      insideRect(x, z, annex.x, annex.z, annex.w, annex.d, 3) ||
+      // Площадка парковки ниже по функции: без этого исключения дерево вырастает прямо
+      // посреди асфальта примерно в каждом третьем варианте (рецензия 2026-09-19).
+      insideRect(x, z, 15, -17, 8, 8, 1.5),
   );
   // Благоустройство (FR-17.5): планеры у входа, ряд столбиков, кусты.
   ctx.props.flowerBed(-5, 9, 1.4, 'accent-red');
@@ -254,6 +310,14 @@ function businessGlass(ctx: Ctx): void {
   ctx.props.bollards(-4, 22.5, 4, 22.5, 5);
   ctx.props.bush(20, 0, 1);
   ctx.props.bush(-20, 0, 1);
+  // Велопарковка у входа (TSK-103, design «Мебель тротуара»): южнее главной башни
+  // (край ≤ z 5.5), севернее клумбы (-5, 9, край 7.6) — запас ≥ 1.5 от обеих.
+  ctx.props.bikeRack(-5, 7, 0);
+  // Парковка (TSK-104, FR-18.5): у этого типа своей площадки раньше не было — добавляем
+  // небольшое покрытие в юго-восточном углу (x ∈ [11, 19], z ∈ [-21, -13]), свободном от
+  // башен (главная — x ≤ 4,5; пристройка — z ≥ 6) и уличной мебели, плюс разметку.
+  ctx.b.plane(15, LAWN_Y + 0.03, -17, 8, 8, ctx.m.color('asphalt'));
+  parkingMarkings(ctx, 15, -17, 4, LAWN_Y + 0.05);
 }
 
 function commercial(ctx: Ctx): void {
@@ -285,6 +349,10 @@ function commercial(ctx: Ctx): void {
   ctx.props.lamp(20, 3);
   ctx.props.tree(16, -14, 1.1);
   ctx.props.tree(20, -8, 0.9);
+  // Доп. отмеченные места у правого края парковки (TSK-104, FR-18.5): площадка —
+  // x ∈ [-13, 21], z ∈ [-2, 6]; ряд у x = 19 не задевает существующий ряд машин
+  // (тот занимает x до ≈ 15,85).
+  parkingMarkings(ctx, 19, 2, 4, LAWN_Y + 0.05);
   // Благоустройство (FR-17.5): ограждение парковки, изгородь, кусты.
   ctx.props.bollards(-12, -2.6, 20, -2.6, 4);
   ctx.props.bollards(-12, 6.6, 20, 6.6, 4);
@@ -387,6 +455,9 @@ function campus(ctx: Ctx): void {
   ctx.props.bush(21, -21, 1);
   ctx.props.bush(-21, -21, 1);
   ctx.props.bush(21, 6, 1.1);
+  // Велопарковка у входа (TSK-103): в проёме между изгородями (x ∈ (-1, 6)), южнее
+  // изгороди (z −1.8, край −1.5) и севернее дорожки (x ∈ [3, 5]) — запас ≥ 0.3.
+  ctx.props.bikeRack(1.5, -0.8, 0);
 }
 
 /** Торговый центр (FR-15.1): корпус с вывеской и парковка перед входом. */
@@ -399,7 +470,10 @@ function mall(ctx: Ctx): void {
   );
   ctx.b.plane(0, LAWN_Y + 0.03, 15, 44, 12, ctx.m.color('asphalt'));
   for (let i = 0; i < 9; i++) {
-    ctx.b.box(-18 + i * 4.5, LAWN_Y + 0.06, 15, 0.15, 0.02, 9, ctx.m.color('marking'));
+    // Разделители мест — в слой деталей, как и вся остальная разметка: иначе на чанках за
+    // границей LOD половина разметки одной парковки гаснет, а половина остаётся
+    // (рецензия 2026-09-19).
+    ctx.detail.box(-18 + i * 4.5, LAWN_Y + 0.05, 15, 0.15, 0.02, 9, ctx.m.color('marking'));
     if (i < 8 && ctx.rng() < 0.7) {
       ctx.props.parkedCar(-15.75 + i * 4.5, 15, Math.PI / 2, i);
     }
@@ -410,12 +484,18 @@ function mall(ctx: Ctx): void {
   ctx.props.lamp(20, 22);
   ctx.props.tree(-22, -20, 1.0);
   ctx.props.tree(22, -20, 1.0);
+  // Доп. отмеченные места у правого края парковки (TSK-104, FR-18.5): площадка —
+  // x ∈ [-22, 22], z ∈ [9, 21]; ряд у x = 20 не задевает существующие делители (те
+  // доходят до x = 18).
+  parkingMarkings(ctx, 20, 15, 5, LAWN_Y + 0.05);
   // Благоустройство (FR-17.5): изгороди между корпусом и парковкой, клумбы у входа, столбики.
   ctx.props.hedge(-12.5, 7.6, 13, 0.7);
   ctx.props.hedge(12.5, 7.6, 13, 0.7);
   ctx.props.flowerBed(-4, 7.6, 1.3, 'accent-red');
   ctx.props.flowerBed(4, 7.6, 1.3, 'accent-red');
   ctx.props.bollards(-6, 22.5, 6, 22.5, 4);
+  // Велопарковка у входа (TSK-103): между клумбами (края ±2.7), на одной линии с ними.
+  ctx.props.bikeRack(0, 7.6, 0);
 }
 
 function market(ctx: Ctx): void {
@@ -479,6 +559,10 @@ function stadium(ctx: Ctx): void {
   }
   ctx.props.lamp(-22, -22);
   ctx.props.lamp(22, -22);
+  // Отмеченные места у парковки (TSK-104, FR-18.5): правее существующего ряда машин
+  // (тот занимает x до ≈ 13,8); своей площадки-покрытия у стадиона нет — линии лежат
+  // прямо на уровне тротуара (`lawn`) + 0.02.
+  parkingMarkings(ctx, 19, 21, 4, LAWN_Y + 0.02);
   // Благоустройство (FR-17.5): изгороди по бокам, столбики, флагштоки у входа.
   ctx.props.hedge(-23.5, 0, 0.7, 14);
   ctx.props.hedge(23.5, 0, 0.7, 14);

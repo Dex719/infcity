@@ -34,6 +34,11 @@ describe('WORLD', () => {
     expect(WORLD.BUILD_PER_FRAME).toBeLessThan(WORLD.WINDOW_SIZE);
   });
 
+  it('бюджет сборки укладывается в 8 мс из NFR-1 (BUG-9)', () => {
+    expect(WORLD.BUILD_BUDGET_MS).toBeGreaterThan(0);
+    expect(WORLD.BUILD_BUDGET_MS).toBeLessThanOrEqual(8);
+  });
+
   it('шаг симуляции ограничен 50 мс (D8)', () => {
     expect(WORLD.MAX_DT).toBeCloseTo(0.05);
   });
@@ -256,6 +261,7 @@ describe('CONFIG', () => {
       'PAN',
       'CHUNK_LAYOUT',
       'RENDER',
+      'DETAIL',
       'ASSETS',
       'UI',
     ]);

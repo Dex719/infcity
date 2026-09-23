@@ -135,3 +135,92 @@ describe('ChunkWindow (FR-1, design C6)', () => {
     expect(dump[80]?.key).toBe('6,6');
   });
 });
+
+/** Сборщик, запоминающий, какие чанки собирались и в каком порядке. */
+class RecordingBuilder extends CountingBuilder {
+  readonly order: ChunkDescriptor[] = [];
+
+  override build(descriptor: ChunkDescriptor): ChunkNode {
+    this.order.push(descriptor);
+    return super.build(descriptor);
+  }
+}
+
+describe('Префетч по направлению движения (BUG-9)', () => {
+  it('после сдвига на юг кольцо готовится впереди, а не позади', () => {
+    const builder = new RecordingBuilder();
+    const cw = new ChunkWindow(new Generator('astana'), builder, WORLD.WINDOW_SIZE);
+    cw.setCenter(0, 0);
+    cw.update(81);
+    builder.order.length = 0;
+    cw.move(0, 1);
+    cw.update(30);
+    const half = (WORLD.WINDOW_SIZE - 1) / 2;
+    const center = cw.gridCoords.y;
+    const prefetched = builder.order.filter((d) => Math.abs(d.gy - center) > half);
+    expect(prefetched.length).toBeGreaterThan(0);
+    // Первые пять префетчей — по курсу (юг, gy больше центра).
+    for (const descriptor of prefetched.slice(0, 5)) {
+      expect(descriptor.gy).toBeGreaterThan(center);
+    }
+  });
+
+  it('без движения порядок прежний — ближние к центру первыми', () => {
+    const builder = new RecordingBuilder();
+    const cw = new ChunkWindow(new Generator('astana'), builder, WORLD.WINDOW_SIZE);
+    cw.setCenter(0, 0);
+    cw.update(81);
+    builder.order.length = 0;
+    cw.update(40);
+    const half = (WORLD.WINDOW_SIZE - 1) / 2;
+    const prefetched = builder.order.filter((d) => Math.max(Math.abs(d.gx), Math.abs(d.gy)) > half);
+    expect(prefetched.length).toBeGreaterThan(0);
+    const first = prefetched[0];
+    expect(first).toBeDefined();
+    expect(Math.max(Math.abs(first?.gx ?? 0), Math.abs(first?.gy ?? 0))).toBe(half + 1);
+  });
+});
+
+/** Сборщик, который тратит на чанк заданное время — для проверки бюджета кадра. */
+class SlowBuilder extends CountingBuilder {
+  constructor(private readonly costMs: number) {
+    super();
+  }
+
+  override build(descriptor: ChunkDescriptor): ChunkNode {
+    const until = performance.now() + this.costMs;
+    while (performance.now() < until) {
+      // Занятое ожидание — имитация стоимости сборки префабов.
+    }
+    return super.build(descriptor);
+  }
+}
+
+describe('Бюджет сборки по времени (BUG-9)', () => {
+  it('update укладывается в бюджет времени и строит меньше потолка штук', () => {
+    const builder = new SlowBuilder(2);
+    const cw = new ChunkWindow(new Generator('astana'), builder, WORLD.WINDOW_SIZE);
+    cw.setCenter(0, 0);
+    const started = performance.now();
+    const built = cw.update(81, 6);
+    const spent = performance.now() - started;
+    expect(built).toBeGreaterThan(0);
+    expect(built).toBeLessThan(81);
+    // Бюджет проверяется после сборки очередного чанка, поэтому допускается перебег на один.
+    expect(spent).toBeLessThan(6 + 2 * 2);
+  });
+
+  it('при нулевом бюджете собирается ровно один чанк — очередь не встаёт', () => {
+    const builder = new SlowBuilder(1);
+    const cw = new ChunkWindow(new Generator('astana'), builder, WORLD.WINDOW_SIZE);
+    cw.setCenter(0, 0);
+    expect(cw.update(81, 0)).toBe(1);
+  });
+
+  it('без бюджета времени поведение прежнее — полная сборка окна', () => {
+    const { cw } = makeWindow();
+    cw.setCenter(0, 0);
+    expect(cw.update(81)).toBe(81);
+    expect(cw.emptySlots()).toBe(0);
+  });
+});

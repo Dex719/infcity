@@ -449,4 +449,128 @@ export class Props {
     b.box(cx - w / 2, 0.6, cz, 0.1, 1.2, d, c);
     b.box(cx + w / 2, 0.6, cz, 0.1, 1.2, d, c);
   }
+
+  /**
+   * Дорожный знак (FR-18.3, AC-18.3): стойка и щит на `facing` (радианы, направление лицом).
+   * `kind` 0 — круглый предупреждающий (два диска «на ребре», ≤ 128 вершин), 1 — квадратный
+   * указатель (72 вершины), 2 — круглый запрещающий с полосой (100 вершин).
+   */
+  roadSign(x: number, z: number, kind: 0 | 1 | 2, facing = 0): void {
+    const b = this.batch;
+    const m = this.m;
+    const fx = Math.sin(facing);
+    const fz = Math.cos(facing);
+    const overlay = 0.04;
+    b.box(x, 1.3, z, 0.12, 2.6, 0.12, m.color('steel'));
+    if (kind === 0) {
+      // Диск ставится «на ребро» и разворачивается на `facing`. Порядок углов важен: Эйлер
+      // 'XYZ' применяет Rz первым, поэтому нужная ориентация Ry(f)·Rx(π/2) записывается как
+      // rx = π/2, rz = −f. В первой версии стоял ry = facing — ось цилиндра инвариантна к Ry,
+      // и щит всегда смотрел в +Z независимо от аргумента (рецензия 2026-09-19).
+      b.placeRotated(
+        Templates.cylinder8,
+        x,
+        2.5,
+        z,
+        0.45,
+        0.06,
+        0.45,
+        Math.PI / 2,
+        0,
+        -facing,
+        m.color('accent-red'),
+      );
+      b.placeRotated(
+        Templates.cylinder8,
+        x + fx * overlay,
+        2.5,
+        z + fz * overlay,
+        0.3,
+        0.06,
+        0.3,
+        Math.PI / 2,
+        0,
+        -facing,
+        m.color('white'),
+      );
+    } else if (kind === 1) {
+      b.box(x, 2.5, z, 0.7, 0.7, 0.06, m.color('flag-blue'), facing);
+      b.box(x + fx * overlay, 2.5, z + fz * overlay, 0.45, 0.45, 0.02, m.color('white'), facing);
+    } else {
+      b.placeRotated(
+        Templates.cylinder8,
+        x,
+        2.5,
+        z,
+        0.45,
+        0.06,
+        0.45,
+        Math.PI / 2,
+        0,
+        -facing,
+        m.color('accent-red'),
+      );
+      b.box(x + fx * overlay, 2.5, z + fz * overlay, 0.5, 0.12, 0.02, m.color('white'), facing);
+    }
+  }
+
+  /** Урна (FR-18.3, AC-18.3): цилиндрический корпус и крышка чуть шире (104 вершины). */
+  trashBin(x: number, z: number): void {
+    const b = this.batch;
+    b.place(Templates.cylinder8, x, 0.45, z, 0.3, 0.9, 0.3, this.m.color('roof-dark'));
+    b.place(Templates.cylinder8, x, 0.96, z, 0.34, 0.12, 0.34, this.m.color('steel'));
+  }
+
+  /** Велопарковка (FR-18.3, AC-18.3): перекладина на четырёх стойках (120 вершин), поворот `rot`. */
+  bikeRack(x: number, z: number, rot = 0): void {
+    const b = this.batch;
+    const steel = this.m.color('steel');
+    b.box(x, 0.75, z, 2.4, 0.08, 0.08, steel, rot);
+    const cos = Math.cos(rot);
+    const sin = Math.sin(rot);
+    for (const [lx, lz] of [
+      [-1.2, -0.3],
+      [-1.2, 0.3],
+      [1.2, -0.3],
+      [1.2, 0.3],
+    ] as const) {
+      b.box(x + lx * cos + lz * sin, 0.375, z - lx * sin + lz * cos, 0.08, 0.75, 0.08, steel, rot);
+    }
+  }
+
+  /**
+   * Пешеходный светофор (FR-18.4, AC-18.3): стойка, корпус и две секции (красная, зелёная)
+   * на видимой стороне `facing` (96 вершин).
+   */
+  pedestrianLight(x: number, z: number, facing = 0): void {
+    const b = this.batch;
+    const m = this.m;
+    const poleH = 2.4;
+    const bodyY = poleH + 0.35;
+    const fx = Math.sin(facing);
+    const fz = Math.cos(facing);
+    const overlay = 0.14;
+    b.box(x, poleH / 2, z, 0.12, poleH, 0.12, m.color('steel'));
+    b.box(x, bodyY, z, 0.34, 0.7, 0.26, m.color('roof-dark'), facing);
+    b.box(
+      x + fx * overlay,
+      bodyY + 0.15,
+      z + fz * overlay,
+      0.2,
+      0.2,
+      0.02,
+      m.color('accent-red'),
+      facing,
+    );
+    b.box(
+      x + fx * overlay,
+      bodyY - 0.15,
+      z + fz * overlay,
+      0.2,
+      0.2,
+      0.02,
+      m.color('grass'),
+      facing,
+    );
+  }
 }

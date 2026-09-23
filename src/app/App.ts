@@ -220,6 +220,9 @@ export class App extends Emitter<AppEvents> {
     this.pan.resetTo(0, 0);
     this.chunkWindow.setCenter(gx, gy);
     this.chunkWindow.update(this.chunkWindow.size * this.chunkWindow.size);
+    // Телепорт: гистерезис сбрасывается, иначе видимость деталей зависела бы от того,
+    // где чанк был до прыжка, и кадр перестал бы быть детерминированным (visual-эталоны).
+    this.chunkWindow.updateDetailVisibility(this.rig.camera.position, true);
   }
 
   stats(): AppStats {
@@ -271,9 +274,13 @@ export class App extends Emitter<AppEvents> {
   /** Шаг симуляции без рендера. */
   private advance(dt: number): void {
     this.pan.update(dt);
-    this.chunkWindow.update();
+    // Сборка чанков ограничена временем кадра, а не числом штук (BUG-9): бюджет
+    // подстраивается под фактическую стоимость чанка и укладывается в 8 мс из NFR-1.
+    this.chunkWindow.update(WORLD.BUILD_PER_FRAME, WORLD.BUILD_BUDGET_MS);
     this.mobs.update(dt);
     this.rig.update(dt);
+    // LOD: детали дальних чанков гаснут в тумане (FR-18.9) — после обновления высоты камеры.
+    this.chunkWindow.updateDetailVisibility(this.rig.camera.position);
     this.mobs.setCloudsVisible(this.rig.currentHeight > CLOUD.ALTITUDE + CLOUD_CLEARANCE);
   }
 

@@ -36,10 +36,14 @@ export class PrefabBuilder implements ChunkBuilder {
     const node = new ChunkNode(descriptor);
     const opaque = new GeometryBatch();
     const glass = new GeometryBatch();
-    const props = new Props(opaque, this.materials);
+    // Мелочь (всё, что строит `Props`, дорожная разметка, детали крыш) — в отдельный батч:
+    // из него получается меш, который гасится по расстоянию без пересборки чанка (D14).
+    const detail = new GeometryBatch();
+    const props = new Props(detail, this.materials);
 
     buildRoads(
       opaque,
+      detail,
       props,
       this.materials,
       descriptor.roads,
@@ -53,8 +57,9 @@ export class PrefabBuilder implements ChunkBuilder {
     this.blockMatrix.setPosition(BLOCK_CENTER, 0, BLOCK_CENTER);
     opaque.append(block.opaque, this.blockMatrix);
     glass.append(block.glass, this.blockMatrix);
+    detail.append(block.detail, this.blockMatrix);
 
-    this.verticesBuilt += opaque.vertices + glass.vertices;
+    this.verticesBuilt += opaque.vertices + glass.vertices + detail.vertices;
 
     const solid = new Mesh(opaque.build(), this.materials.opaque);
     solid.name = 'statics';
@@ -71,6 +76,17 @@ export class PrefabBuilder implements ChunkBuilder {
       pane.matrixAutoUpdate = false;
       pane.updateMatrix();
       node.add(pane);
+    }
+    if (!detail.isEmpty) {
+      const details = new Mesh(detail.build(), this.materials.opaque);
+      details.name = 'details';
+      details.castShadow = node.detailsShadow;
+      details.receiveShadow = true;
+      details.matrixAutoUpdate = false;
+      details.updateMatrix();
+      node.add(details);
+      node.details = details;
+      details.visible = node.detailsVisible;
     }
     node.updateMatrix();
     return node;

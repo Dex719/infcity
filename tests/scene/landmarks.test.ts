@@ -28,27 +28,34 @@ const ITERATION_2_LANDMARK_VERTICES: Readonly<Record<LandmarkId, number>> = {
   kazmunaygas: 3422,
 };
 
-/** Максимум вершин квартала каждого регулярного типа в окне 21×21 seed `astana`, итерация 2. */
-const ITERATION_2_BLOCK_MAX: Readonly<Record<string, number>> = {
-  market: 1656,
-  'residential-panel': 5802,
-  'residential-new': 5485,
-  campus: 2779,
-  park: 2647,
-  square: 2215,
-  commercial: 2128,
-  mall: 2340,
-  'business-glass': 2267,
+/**
+ * Максимум вершин квартала каждого регулярного типа в окне 21×21 seed `astana` — замер
+ * 2026-09-19 сразу после отсечения скрытых сторон (FR-18.1). Заменяет проверку роста
+ * относительно итерации 2 (AC-17.7): та фиксировала появление благоустройства и выполнена,
+ * но с отсечением невидимых оконных полос абсолютные числа стали меньше. Теперь таблица —
+ * нижняя граница: детали итерации 4 только добавляются, падение ниже неё означает, что
+ * благоустройство или окна потеряны.
+ */
+const AFTER_CULLING_BLOCK_MAX: Readonly<Record<string, number>> = {
+  'business-glass': 2875,
+  campus: 3046,
+  commercial: 2362,
+  mall: 2808,
+  market: 2018,
+  park: 3690,
+  'residential-new': 4516,
+  'residential-panel': 4852,
   river: 320,
-  stadium: 1316,
+  square: 2959,
+  stadium: 2668,
 };
 
 /** Абсолютный потолок вершин ландмарка (FR-17.4). */
 const LANDMARK_CAP = 9_000;
 /** Абсолютный потолок вершин регулярного квартала (FR-17.4, уточнение волны 2). */
 const BLOCK_CAP = 7_000;
-/** Минимальный рост регулярного типа после благоустройства (AC-17.7). */
-const BLOCK_GROWTH_FLOOR = 1.05;
+/** Допуск вниз от таблицы после отсечения: детали итерации 4 только добавляются (FR-18.6). */
+const BLOCK_FLOOR_RATIO = 0.98;
 /** Минимальный рост ландмарка после двух волн детализации (AC-17.3). */
 const LANDMARK_GROWTH_FLOOR = 1.35;
 
@@ -81,31 +88,58 @@ describe('Ландмарки — детализация в бюджете (FR-17
   });
 });
 
-describe('Кварталы — благоустройство в бюджете (FR-17.4, FR-17.5, AC-17.7)', () => {
-  it(`каждый регулярный тип (кроме river) вырос ≥ ×${String(BLOCK_GROWTH_FLOOR)} и не превышает ${String(BLOCK_CAP)} вершин`, () => {
+describe('Кварталы — детали в бюджете (FR-17.4, FR-18.1, AC-18.4)', () => {
+  it(`каждый регулярный тип не теряет геометрию и не превышает ${String(BLOCK_CAP)} вершин`, () => {
     const maxByType = new Map<string, number>();
     for (const descriptor of new Generator('astana').describeWindow(0, 0, 21)) {
       if (descriptor.landmark !== null) {
         continue;
       }
       const geometry = buildBlock(descriptor, materials);
-      const vertices = geometry.opaque.vertices + geometry.glass.vertices;
+      // Считаем все три батча: слой деталей (D14) влияет на то, что рисуется, а не на то,
+      // сколько геометрии собрано — потолок 7 000 остаётся потолком всего квартала.
+      const vertices =
+        geometry.opaque.vertices + geometry.glass.vertices + geometry.detail.vertices;
       maxByType.set(descriptor.block, Math.max(maxByType.get(descriptor.block) ?? 0, vertices));
     }
     const violations: string[] = [];
     for (const [type, max] of maxByType) {
-      const base = ITERATION_2_BLOCK_MAX[type];
+      const base = AFTER_CULLING_BLOCK_MAX[type];
       if (base === undefined) {
-        violations.push(`${type}: нет базового значения итерации 2`);
+        violations.push(`${type}: нет базового значения после отсечения`);
       } else if (max > BLOCK_CAP) {
         violations.push(`${type}: ${String(max)} > ${String(BLOCK_CAP)}`);
-      } else if (type !== 'river' && max < base * BLOCK_GROWTH_FLOOR) {
-        violations.push(
-          `${type}: ${String(max)} < ${String(base)} × ${String(BLOCK_GROWTH_FLOOR)}`,
-        );
+      } else if (max < base * BLOCK_FLOOR_RATIO) {
+        violations.push(`${type}: ${String(max)} < ${String(base)} × ${String(BLOCK_FLOOR_RATIO)}`);
       }
     }
     expect(violations).toEqual([]);
     expect(maxByType.size).toBeGreaterThanOrEqual(10);
+  });
+
+  it(`потолок ${String(BLOCK_CAP)} вершин держится и на других сидах`, () => {
+    // Одного сида мало: замер по восьми сидам после детализации фасадов нашёл два квартала
+    // `residential-panel` выше потолка (7 065 у `expo` и 7 031 у `saryarka`) — на `astana`
+    // таких раскладок не встретилось. Эти два окна закреплены как регрессионные.
+    const worstCases: readonly (readonly [string, number, number])[] = [
+      ['expo', 40, -40],
+      ['saryarka', -90, 70],
+      ['nomad', 10, -1],
+    ];
+    const violations: string[] = [];
+    for (const [seed, gx, gy] of worstCases) {
+      for (const descriptor of new Generator(seed).describeWindow(gx, gy, 21)) {
+        if (descriptor.landmark !== null) {
+          continue;
+        }
+        const geometry = buildBlock(descriptor, materials);
+        const vertices =
+          geometry.opaque.vertices + geometry.glass.vertices + geometry.detail.vertices;
+        if (vertices > BLOCK_CAP) {
+          violations.push(`${seed} ${descriptor.key} ${descriptor.block}: ${String(vertices)}`);
+        }
+      }
+    }
+    expect(violations).toEqual([]);
   });
 });
