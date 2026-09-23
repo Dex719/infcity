@@ -1,5 +1,5 @@
 import { Matrix4 } from 'three';
-import { CHUNK_LAYOUT, LRT, WORLD } from '@/config';
+import { AO, CHUNK_LAYOUT, LRT, WORLD } from '@/config';
 import type { Materials } from '@/scene/Materials';
 import type { LrtInfo } from '@/world/types';
 import { GeometryBatch, Templates } from './GeometryBatch';
@@ -7,6 +7,14 @@ import { GeometryBatch, Templates } from './GeometryBatch';
 const HALF = WORLD.CHUNK_SIZE / 2;
 const BEAM_W = 3.6;
 const BEAM_H = 1.2;
+/** Ореол опоры: над полотном (y 0), ниже разметки (низ штрихов на 0.02) — FR-19.12. */
+const PILLAR_HALO_Y = 0.01;
+const PILLAR_HALO = {
+  px: AO.GROUND_WIDTH,
+  nx: AO.GROUND_WIDTH,
+  pz: AO.GROUND_WIDTH,
+  nz: AO.GROUND_WIDTH,
+} as const;
 
 /**
  * Эстакада ЛРТ (FR-5.1, FR-5.2, design C7): балка по оси северной дороги на высоте
@@ -39,6 +47,7 @@ function buildViaduct(
   const concrete = m.color('concrete');
   const steel = m.color('steel');
   const white = m.color('white');
+  const asphalt = m.color('asphalt');
 
   batch.box(0, top - BEAM_H / 2, z, WORLD.CHUNK_SIZE, BEAM_H, BEAM_W, concrete);
   batch.box(0, top + 0.08, z - (BEAM_W / 2 - 0.25), WORLD.CHUNK_SIZE, 0.16, 0.3, white);
@@ -54,7 +63,9 @@ function buildViaduct(
     }
     batch.place(Templates.cylinder8, x, (top - BEAM_H) / 2, z, 0.8, top - BEAM_H, 0.8, concrete);
     batch.box(x, top - BEAM_H - 0.4, z, 2.4, 0.8, BEAM_W + 0.6, concrete);
-    batch.box(x, 0.2, z, 2.2, 0.4, 2.2, concrete);
+    batch.boxAo(x, 0.2, z, 2.2, 0.4, 2.2, concrete);
+    // Ореол AO на полотне вокруг подушки опоры (FR-19.12): цвет асфальта, ниже разметки.
+    batch.halo(x, z, 2.2, 2.2, PILLAR_HALO_Y, PILLAR_HALO, asphalt, AO.GROUND_MIN);
   }
 
   if (!station) {

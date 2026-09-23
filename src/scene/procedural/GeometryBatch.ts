@@ -351,6 +351,52 @@ export class GeometryBatch {
     }
   }
 
+  /**
+   * Эллиптический ореол AO (FR-19.12, design «Волна 2»): кольцо между эллипсами с полуосями
+   * `(rx, rz)` и `(rx + wx, rz + wz)` из `segments` сегментов на высоте `y`, нормаль вверх.
+   * Внутренний край — `color · minFactor`, внешний — `color`: как `halo`, но для круглых форм
+   * (чаша стадиона). `2 · segments` вершин и столько же треугольников.
+   */
+  haloEllipse(
+    cx: number,
+    cz: number,
+    rx: number,
+    rz: number,
+    wx: number,
+    wz: number,
+    y: number,
+    color: Color,
+    minFactor: number,
+    segments = 16,
+  ): void {
+    this.partCount++;
+    const first = this.vertexCount;
+    for (let i = 0; i < segments; i++) {
+      const a = (i / segments) * Math.PI * 2;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      for (const [px, pz, f] of [
+        [cx + rx * c, cz + rz * s, minFactor],
+        [cx + (rx + wx) * c, cz + (rz + wz) * s, 1],
+      ] as const) {
+        this.positions.push(px, y, pz);
+        this.normals.push(0, 1, 0);
+        this.colors.push(color.r * f, color.g * f, color.b * f);
+      }
+    }
+    this.vertexCount += 2 * segments;
+    // Сегмент i: внутренние вершины 2i, 2i+2, внешние 2i+1, 2i+3. Угол растёт от +X к +Z —
+    // при взгляде сверху это по часовой, поэтому гранью вверх смотрит обход
+    // (внутр. i, внешн. i+1, внешн. i) и (внутр. i, внутр. i+1, внешн. i+1).
+    for (let i = 0; i < segments; i++) {
+      const inner = first + 2 * i;
+      const outer = inner + 1;
+      const nextInner = first + 2 * ((i + 1) % segments);
+      const nextOuter = nextInner + 1;
+      this.indices.push(inner, nextOuter, outer, inner, nextInner, nextOuter);
+    }
+  }
+
   /** Перенести содержимое другого батча (в его локальных координатах), применив матрицу. */
   append(other: GeometryBatch, matrix: Matrix4): void {
     const base = this.vertexCount;

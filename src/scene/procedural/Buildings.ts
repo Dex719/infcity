@@ -53,6 +53,8 @@ export class Buildings {
   groundKey: PaletteKey | null = null;
   /** Отпечатки корпусов у земли — основание цоколя или стены, если цоколя нет (FR-19.2). */
   private readonly footprints: Footprint[] = [];
+  /** Круглые основания у земли (чаша стадиона) для эллиптических ореолов (FR-19.12). */
+  private readonly ellipses: { cx: number; cz: number; rx: number; rz: number }[] = [];
 
   constructor(
     private readonly batch: GeometryBatch,
@@ -279,7 +281,11 @@ export class Buildings {
   /** Торговый лоток с цветной крышей. */
   stall(x: number, z: number, roof: PaletteKey, rot = 0): void {
     const b = this.batch;
-    b.box(x, 0.6, z, 2.6, 1.2, 1.6, this.m.color('brick'), rot);
+    b.boxAo(x, 0.6, z, 2.6, 1.2, 1.6, this.m.color('brick'), rot);
+    if (rot === 0) {
+      // Ореол AO у лотка (FR-19.12); повёрнутые лотки раскладки не используют.
+      this.registerFootprint({ x, z, w: 2.6, d: 1.6 }, 0);
+    }
     b.box(x, 2.3, z, 3, 0.15, 2.2, this.m.color(roof), rot);
     b.box(x - 1.3, 1.5, z - 0.9, 0.12, 1.4, 0.12, this.m.color('steel'), rot);
     b.box(x + 1.3, 1.5, z - 0.9, 0.12, 1.4, 0.12, this.m.color('steel'), rot);
@@ -312,6 +318,8 @@ export class Buildings {
   /** Стадион: овальная чаша, трибуны, поле, мачты освещения. */
   stadium(cx: number, cz: number, rx: number, rz: number): void {
     const b = this.batch;
+    // Ореол AO вокруг чаши и её рёбер-опор (FR-19.12): основание — эллипс чуть шире рёбер.
+    this.ellipses.push({ cx, cz, rx: rx * 1.02 + 0.3, rz: rz * 1.02 + 0.3 });
     b.place(Templates.cylinder16, cx, 3, cz, rx, 6, rz, this.m.color('stone-light'));
     b.place(Templates.cylinder16, cx, 6.5, cz, rx * 0.92, 1, rz * 0.92, this.m.color('flag-blue'));
     b.place(Templates.cylinder16, cx, 6.6, cz, rx * 0.72, 1, rz * 0.72, this.m.color('grass'));
@@ -372,10 +380,18 @@ export class Buildings {
     const halos: Halo[] = [];
     if (this.groundKey === null) {
       this.footprints.length = 0;
+      this.ellipses.length = 0;
       return halos;
     }
     const color = this.m.color(this.groundKey);
     const full = AO.GROUND_WIDTH;
+    for (const e of this.ellipses) {
+      // Эллипс не режется по соседям (на квартале он один), только по краю покрытия.
+      const wx = Math.max(0, Math.min(full, limit - (Math.abs(e.cx) + e.rx)));
+      const wz = Math.max(0, Math.min(full, limit - (Math.abs(e.cz) + e.rz)));
+      this.batch.haloEllipse(e.cx, e.cz, e.rx, e.rz, wx, wz, y, color, AO.GROUND_MIN);
+    }
+    this.ellipses.length = 0;
     for (const f of this.footprints) {
       let px = Math.min(full, limit - (f.x + f.w / 2));
       let nx = Math.min(full, f.x - f.w / 2 + limit);

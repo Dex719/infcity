@@ -1,10 +1,11 @@
 import { Color, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { AO } from '@/config';
+import { AO, LRT } from '@/config';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
 import { buildBlock } from '@/scene/procedural/BlockPrefabs';
 import { Buildings } from '@/scene/procedural/Buildings';
+import { buildLrt } from '@/scene/procedural/Lrt';
 import { GeometryBatch, wallAo } from '@/scene/procedural/GeometryBatch';
 import { Generator } from '@/world/Generator';
 import { mulberry32 } from '@/world/Hash';
@@ -323,5 +324,106 @@ describe('Buildings.flushHalos (FR-19.2, AC-19.2)', () => {
         }
       }
     }
+  });
+});
+
+describe('AO малых форм (FR-19.12, AC-19.13)', () => {
+  const ground = materials.color('sidewalk');
+
+  it('haloEllipse: 16 сегментов — 32 вершины и 32 треугольника, все грани смотрят вверх', () => {
+    const b = new GeometryBatch();
+    b.haloEllipse(0, 0, 10, 6, 2.5, 1.5, 0.21, ground, AO.GROUND_MIN);
+    expect(b.vertices).toBe(32);
+    const { vertices, indices } = verticesOf(b);
+    expect(indices.length / 3).toBe(32);
+    const e1 = new Vector3();
+    const e2 = new Vector3();
+    for (let i = 0; i < indices.length; i += 3) {
+      const va = vertices[indices[i] ?? 0];
+      const vb = vertices[indices[i + 1] ?? 0];
+      const vc = vertices[indices[i + 2] ?? 0];
+      if (va === undefined || vb === undefined || vc === undefined) {
+        throw new Error('индекс вне массива вершин');
+      }
+      e1.subVectors(vb.p, va.p);
+      e2.subVectors(vc.p, va.p);
+      expect(e1.cross(e2).y).toBeGreaterThan(0);
+    }
+    const dark = vertices.filter((v) => factor(v, ground) < 1 - EPS);
+    expect(dark).toHaveLength(16);
+    for (const v of dark) {
+      expect(factor(v, ground)).toBeCloseTo(AO.GROUND_MIN, 6);
+      expect((v.p.x / 10) ** 2 + (v.p.z / 6) ** 2).toBeCloseTo(1, 5);
+    }
+  });
+
+  function fresh(groundKey: 'sidewalk' | 'sand'): { buildings: Buildings; opaque: GeometryBatch } {
+    const opaque = new GeometryBatch();
+    const buildings = new Buildings(
+      opaque,
+      new GeometryBatch(),
+      materials,
+      mulberry32(1),
+      undefined,
+      new GeometryBatch(),
+    );
+    buildings.groundKey = groundKey;
+    return { buildings, opaque };
+  }
+
+  it('стадион: эллиптический ореол цвета покрытия, не выходит за ±23', () => {
+    const { buildings, opaque } = fresh('sidewalk');
+    buildings.stadium(0, 0, 21, 16);
+    buildings.flushHalos(0.21, 23);
+    const { vertices } = verticesOf(opaque);
+    const ring = vertices.filter((v) => Math.abs(v.p.y - 0.21) < 1e-5 && v.n.y > 0.99);
+    expect(ring).toHaveLength(32);
+    for (const v of ring) {
+      const f = factor(v, ground);
+      expect(Math.abs(f - 1) < 1e-5 || Math.abs(f - AO.GROUND_MIN) < 1e-5).toBe(true);
+      expect(Math.abs(v.p.x)).toBeLessThanOrEqual(23 + 1e-5);
+      expect(Math.abs(v.p.z)).toBeLessThanOrEqual(23 + 1e-5);
+    }
+  });
+
+  it('рынок: ореол у павильона и у каждого из 12 лотков, стены лотков темнеют к земле', () => {
+    const { buildings, opaque } = fresh('sand');
+    buildings.marketHall({ x: -6, z: -10, w: 26, d: 16 });
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 3; j++) {
+        buildings.stall(-13 + i * 8, 6 + j * 6, 'accent-red');
+      }
+    }
+    const halos = buildings.flushHalos(0.21, 23);
+    expect(halos).toHaveLength(13);
+    const brick = materials.color('brick');
+    const { vertices } = verticesOf(opaque);
+    const stallBase = vertices.filter(
+      (v) =>
+        Math.abs(v.n.y) < EPS &&
+        v.p.y < EPS &&
+        Math.abs(v.c.r / brick.r - v.c.g / brick.g) < 1e-4 &&
+        Math.abs(v.c.g / brick.g - v.c.b / brick.b) < 1e-4,
+    );
+    expect(stallBase.length).toBeGreaterThanOrEqual(12 * 8);
+    for (const v of stallBase) {
+      expect(factor(v, brick)).toBeCloseTo(AO.WALL_MIN, 5);
+    }
+  });
+
+  it('эстакада ЛРТ: ореол цвета асфальта под каждой опорой, ниже разметки', () => {
+    const b = new GeometryBatch();
+    buildLrt(b, materials, { corridor: 'EW', station: false, ns: false, nsStation: false });
+    const asphalt = materials.color('asphalt');
+    const { vertices } = verticesOf(b);
+    const ring = vertices.filter(
+      (v) =>
+        Math.abs(v.p.y - 0.01) < 1e-5 &&
+        v.n.y > 0.99 &&
+        Math.abs(v.c.r / asphalt.r - v.c.g / asphalt.g) < 1e-4,
+    );
+    const pillars = Math.round(60 / LRT.PILLAR_SPACING);
+    expect(ring).toHaveLength(pillars * 8);
+    expect(ring.filter((v) => factor(v, asphalt) < 1 - EPS)).toHaveLength(pillars * 4);
   });
 });
