@@ -4,10 +4,12 @@ import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
 import {
   buildBlock,
+  BUSINESS_LAWNS,
   CAFE_TABLES_X,
   COMMERCIAL_HEDGE,
   COMMERCIAL_TREES,
 } from '@/scene/procedural/BlockPrefabs';
+import { AO, PAVING } from '@/config';
 import { AWNING_DEPTH, Buildings, type Footprint } from '@/scene/procedural/Buildings';
 import { GeometryBatch } from '@/scene/procedural/GeometryBatch';
 import { Props } from '@/scene/procedural/Props';
@@ -176,4 +178,106 @@ describe('Кафе-терраса коммерческого квартала (F
       expect(vertices).toBeLessThanOrEqual(7000);
     },
   );
+});
+
+describe('Зелень деловой площади (FR-19.25, AC-19.26)', () => {
+  const blocks = new Generator('astana')
+    .describeWindow(0, 0, 21)
+    .filter((d) => d.block === 'business-glass' && d.landmark === null);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  interface Box2 {
+    x0: number;
+    x1: number;
+    z0: number;
+    z1: number;
+  }
+
+  const box = (x: number, z: number, w: number, d: number): Box2 => ({
+    x0: x - w / 2,
+    x1: x + w / 2,
+    z0: z - d / 2,
+    z1: z + d / 2,
+  });
+  const hits = (a: Box2, b: Box2): boolean =>
+    a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  /** Вынос кроны лиственного дерева от ствола (боковые объёмы — до 1.3 радиуса). */
+  const reach = (scale: number): number => 1.3 * 1.9 * scale;
+
+  it('деловые кварталы есть в окне 21×21 seed astana', () => {
+    expect(blocks.length).toBeGreaterThan(0);
+  });
+
+  it('3 острова и ≥ 4 дерева на них — мимо башен, мебели и парковки, кроны в плите, без швов', () => {
+    expect(BUSINESS_LAWNS).toHaveLength(3);
+    expect(BUSINESS_LAWNS.flatMap((l) => l.trees).length).toBeGreaterThanOrEqual(4);
+    for (const d of blocks) {
+      const towers = vi.spyOn(Buildings.prototype, 'glassTower');
+      const trees = vi.spyOn(Props.prototype, 'tree');
+      const fountains = vi.spyOn(Props.prototype, 'fountain');
+      const benches = vi.spyOn(Props.prototype, 'bench');
+      const beds = vi.spyOn(Props.prototype, 'flowerBed');
+      const racks = vi.spyOn(Props.prototype, 'bikeRack');
+      const bollards = vi.spyOn(Props.prototype, 'bollards');
+      const planes = vi.spyOn(GeometryBatch.prototype, 'plane');
+      const block = buildBlock(d, materials);
+      const obstacles: Box2[] = [
+        ...towers.mock.calls.map(([f]) =>
+          box(f.x, f.z, f.w + 2 * AO.GROUND_WIDTH, f.d + 2 * AO.GROUND_WIDTH),
+        ),
+        ...fountains.mock.calls.map(([x, z, r = 4]) => box(x, z, 2 * r, 2 * r)),
+        ...benches.mock.calls.map(([x, z]) => box(x, z, 2, 2)),
+        ...beds.mock.calls.map(([x, z, r]) => box(x, z, 2 * r, 2 * r)),
+        ...racks.mock.calls.map(([x, z]) => box(x, z, 3, 3)),
+        ...bollards.mock.calls.map(([x1, z1, x2, z2]) =>
+          box((x1 + x2) / 2, (z1 + z2) / 2, Math.abs(x2 - x1) + 0.6, Math.abs(z2 - z1) + 0.6),
+        ),
+        ...planes.mock.calls
+          .filter(([, , , , , color]) => color.equals(materials.color('asphalt')))
+          .map(([x, , z, w, dd]) => box(x, z, w, dd)),
+      ];
+      const islandTrees = trees.mock.calls.map(([x, z, scale]) => `${x},${z},${scale}`);
+      for (const island of BUSINESS_LAWNS) {
+        const rect = box(island.x, island.z, island.w, island.d);
+        for (const o of obstacles) {
+          expect(hits(rect, o)).toBe(false);
+        }
+        for (const [x, z, scale] of island.trees) {
+          expect(islandTrees).toContain(`${x},${z},${scale}`);
+          expect(Math.abs(x) + reach(scale)).toBeLessThanOrEqual(23);
+          expect(Math.abs(z) + reach(scale)).toBeLessThanOrEqual(23);
+          for (const [f] of towers.mock.calls) {
+            expect(
+              hits(box(x, z, 2 * reach(scale), 2 * reach(scale)), box(f.x, f.z, f.w, f.d)),
+            ).toBe(false);
+          }
+        }
+      }
+      // Швы мощения (цвет площади × SEAM_SHADE) не заходят внутрь островов.
+      const seam = materials.shade('stone-light', PAVING.SEAM_SHADE);
+      for (const batch of [block.opaque, block.detail]) {
+        const geometry = batch.build();
+        const position = geometry.getAttribute('position');
+        const color = geometry.getAttribute('color');
+        for (let i = 0; i < position.count; i++) {
+          if (
+            Math.abs(color.getX(i) - seam.r) < 1e-4 &&
+            Math.abs(color.getY(i) - seam.g) < 1e-4 &&
+            Math.abs(color.getZ(i) - seam.b) < 1e-4
+          ) {
+            for (const island of BUSINESS_LAWNS) {
+              const inside =
+                Math.abs(position.getX(i) - island.x) < island.w / 2 - 1e-3 &&
+                Math.abs(position.getZ(i) - island.z) < island.d / 2 - 1e-3;
+              expect(inside).toBe(false);
+            }
+          }
+        }
+      }
+      vi.restoreAllMocks();
+    }
+  });
 });

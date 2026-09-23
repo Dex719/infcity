@@ -369,6 +369,35 @@ function residentialNew(ctx: Ctx): void {
   ctx.props.flowerBed(-20, 5, 1.5, 'gold');
 }
 
+/** Газонный остров площади: прямоугольник `x, z, w, d` и деревья `[x, z, масштаб]` на нём. */
+export interface LawnIsland {
+  readonly x: number;
+  readonly z: number;
+  readonly w: number;
+  readonly d: number;
+  readonly trees: readonly (readonly [number, number, number])[];
+}
+
+/**
+ * Газонные острова деловой площади (FR-19.25, design D27): восточный — между башнями, южный —
+ * между скамейками и пристройкой, западный — между главной башней и краем плиты. Северная
+ * вставка при повороте 0 закрыта главной башней, эти видны с камеры при любом повороте.
+ */
+export const BUSINESS_LAWNS: readonly LawnIsland[] = [
+  {
+    x: 14.5,
+    z: -4,
+    w: 12,
+    d: 12,
+    trees: [
+      [12, -7, 1.1],
+      [17, 0.5, 1],
+    ],
+  },
+  { x: 0.5, z: 16, w: 7, d: 8, trees: [[0.5, 16, 1]] },
+  { x: -20.25, z: -4, w: 5.5, d: 16, trees: [[-20, -8, 0.9]] },
+];
+
 function businessGlass(ctx: Ctx): void {
   lawn(ctx, 0, 0, 46, 46, 'stone-light');
   const tints: PaletteKey[] = ['glass-blue', 'glass-teal', 'glass-navy'];
@@ -413,12 +442,20 @@ function businessGlass(ctx: Ctx): void {
   for (const x of [-17, -8, 1]) {
     ctx.props.tree(x, -19.5, 1.1, 0);
   }
+  // Газонные острова с деревьями (FR-19.25, design D27) — выше покрытия, как вставка (BUG-7).
+  for (const island of BUSINESS_LAWNS) {
+    ctx.b.plane(island.x, LAWN_Y + 0.06, island.z, island.w, island.d, ctx.m.color('grass'));
+    for (const [x, z, scale] of island.trees) {
+      ctx.props.tree(x, z, scale, 0);
+    }
+  }
   pavingSeams(ctx, 'stone-light', PAVING_LINES, [
     groundRect(main.x, main.z, main.w, main.d, AO.GROUND_WIDTH),
     groundRect(annex.x, annex.z, annex.w, annex.d, AO.GROUND_WIDTH),
     groundRect(15, -17, 8, 8, 0.5),
     groundRect(-13, 15, 6, 6, 0.5),
     insert,
+    ...BUSINESS_LAWNS.map((island) => groundRect(island.x, island.z, island.w, island.d, 0.5)),
   ]);
 }
 
