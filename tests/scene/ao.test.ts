@@ -1,10 +1,10 @@
 import { Color, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { AO, LANDMARK_IDS, LRT, type LandmarkId } from '@/config';
+import { AO, LANDMARK_IDS, LRT, RIVER, type LandmarkId } from '@/config';
 import { buildLandmark } from '@/scene/landmarks';
 import { Materials } from '@/scene/Materials';
 import { parsePalette, type PaletteKey } from '@/scene/palette';
-import { buildBlock } from '@/scene/procedural/BlockPrefabs';
+import { buildBlock, RIVER_DECK_EDGE, RIVER_WALL_INNER } from '@/scene/procedural/BlockPrefabs';
 import { Buildings } from '@/scene/procedural/Buildings';
 import { buildLrt } from '@/scene/procedural/Lrt';
 import { Props } from '@/scene/procedural/Props';
@@ -558,5 +558,69 @@ describe('AO Байтерека по кольцам (FR-19.16, AC-19.17)', () =>
       expect(outer[1]).toBe(inner[0]);
     }
     expect(aoAt(11.5)).toBeCloseTo(1, 9);
+  });
+});
+
+describe('AO русла (FR-19.24, AC-19.25)', () => {
+  const river = new Generator('astana')
+    .describeWindow(0, 0, 21)
+    .find((d) => d.block === 'river' && d.landmark === null);
+
+  it('речной квартал есть в окне 21×21 seed astana', () => {
+    expect(river).toBeDefined();
+  });
+
+  it('стенки темнеют к урезу, на воде вдоль каждой — полоса AO на всю длину', () => {
+    if (river === undefined) {
+      return;
+    }
+    const block = buildBlock(river, materials);
+    const { vertices } = verticesOf(block.opaque);
+    const concrete = materials.color('concrete');
+    const water = materials.color('water');
+    const factorOf = (c: Color, base: Color): number => c.g / base.g;
+    for (const side of [-1, 1] as const) {
+      // Грань стенки к воде: нормаль в сторону русла (−side по z), плоскость z = side · 24.2.
+      const face = vertices.filter(
+        (v) =>
+          Math.abs(v.p.z - side * RIVER_WALL_INNER) < 1e-3 &&
+          Math.abs(v.n.z + side) < 1e-3 &&
+          Math.abs(v.c.r / concrete.r - v.c.g / concrete.g) < 1e-3,
+      );
+      expect(face.length).toBeGreaterThanOrEqual(4);
+      const bottom = face.reduce((a, v) => (v.p.y < a.p.y ? v : a));
+      const top = face.reduce((a, v) => (v.p.y > a.p.y ? v : a));
+      const fb = factorOf(bottom.c, concrete);
+      const ft = factorOf(top.c, concrete);
+      // Множитель у уреза — линейно между рядами грани, как интерполирует растеризатор.
+      const t = (RIVER.WATER_Y - bottom.p.y) / (top.p.y - bottom.p.y);
+      expect(fb + (ft - fb) * t).toBeLessThanOrEqual(0.55);
+      expect(ft).toBeGreaterThanOrEqual(0.85);
+
+      // Полоса на воде: у стенки — water · GROUND_MIN, через GROUND_WIDTH к руслу — water.
+      const band = vertices.filter(
+        (v) => Math.abs(v.p.y - (RIVER.WATER_Y + AO.GROUND_LIFT)) < 1e-4,
+      );
+      const inner = band.filter(
+        (v) =>
+          Math.abs(v.p.z - side * 24.2) < 1e-3 && Math.abs(v.c.g - water.g * AO.GROUND_MIN) < 1e-4,
+      );
+      // Северный берег (side −1): полоса выходит за край настила на ширину ореола.
+      const reach =
+        side < 0 ? RIVER_DECK_EDGE - AO.GROUND_WIDTH : RIVER_WALL_INNER - AO.GROUND_WIDTH;
+      const outer = band.filter(
+        (v) => Math.abs(v.p.z - side * reach) < 1e-3 && Math.abs(v.c.g - water.g) < 1e-4,
+      );
+      expect(inner.length).toBeGreaterThanOrEqual(2);
+      expect(outer.length).toBeGreaterThanOrEqual(2);
+      for (const edge of [inner, outer]) {
+        const xs = edge.map((v) => v.p.x);
+        expect(Math.min(...xs)).toBeCloseTo(-35, 5);
+        expect(Math.max(...xs)).toBeCloseTo(25, 5);
+      }
+    }
+    expect(
+      block.opaque.vertices + block.glass.vertices + block.detail.vertices,
+    ).toBeLessThanOrEqual(7000);
   });
 });

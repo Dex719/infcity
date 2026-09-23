@@ -692,16 +692,42 @@ function market(ctx: Ctx): void {
  * с парапетом, фонарями и скамейками вдоль дороги E–W, берега-стенки, пара лодок.
  * Квартал не поворачивается; локальный (0,0) = чанк (5,5): вода x ∈ [−35, 25], z ∈ [−25, 25].
  */
+/** Внутренняя грань стенок набережной, |z| (стенка 0.8 с центром на 24.6). */
+export const RIVER_WALL_INNER = 24.2;
+/** Край настила набережной над водой, |z| (настил 3.2 с центром на −23.4). */
+export const RIVER_DECK_EDGE = 21.8;
+
 function river(ctx: Ctx): void {
   const water = ctx.m.color('water');
   const concrete = ctx.m.color('concrete');
   const stone = ctx.m.color('stone-light');
   ctx.b.plane(-5, RIVER.WATER_Y, 0, 60, 50, water);
-  // Берега: северная стенка под набережной и южная у следующего ряда.
-  ctx.b.box(-5, RIVER.WATER_Y / 2 - 0.1, -24.6, 60, -RIVER.WATER_Y + 0.35, 0.8, concrete);
-  ctx.b.box(-5, RIVER.WATER_Y / 2 - 0.1, 24.6, 60, -RIVER.WATER_Y + 0.35, 0.8, concrete);
+  // Берега: северная стенка под набережной и южная у следующего ряда. Стенки темнеют к урезу, а
+  // на воде вдоль каждой — полоса AO в сторону русла (FR-19.24, design D26): вода лежит в русле.
+  // Набережная — настил над водой от стенки до парапета (`RIVER_DECK_EDGE`), поэтому северная
+  // полоса идёт от стенки под настилом и выходит за его край ещё на ширину ореола; южную первые
+  // ≈ 1.7 от стенки закрывает сама стенка (квартал реки не поворачивается, камера — с юга).
+  const aoY = RIVER.WATER_Y + AO.GROUND_LIFT;
+  for (const side of [-1, 1] as const) {
+    ctx.b.boxAo(
+      -5,
+      RIVER.WATER_Y / 2 - 0.1,
+      side * (RIVER_WALL_INNER + 0.4),
+      60,
+      -RIVER.WATER_Y + 0.35,
+      0.8,
+      concrete,
+    );
+    const toWater = {
+      px: 0,
+      nx: 0,
+      pz: side < 0 ? RIVER_WALL_INNER - RIVER_DECK_EDGE + AO.GROUND_WIDTH : 0,
+      nz: side > 0 ? AO.GROUND_WIDTH : 0,
+    };
+    ctx.b.halo(-5, side * 24.6, 60, 0.8, aoY, toWater, water, AO.GROUND_MIN);
+  }
   // Набережная: настил, парапет, фонари, скамейки.
-  ctx.b.plane(-5, CURB_Y, -23.4, 60, 3.2, stone);
+  ctx.b.plane(-5, CURB_Y, -(RIVER_DECK_EDGE + 1.6), 60, 3.2, stone);
   ctx.b.box(-5, CURB_Y + 0.5, -21.9, 60, 1, 0.3, ctx.m.color('white'));
   // Фонари набережной ставит Roads (ряд у дороги); здесь — только скамейки у парапета.
   ctx.props.bench(-14, -23.2, 0);
