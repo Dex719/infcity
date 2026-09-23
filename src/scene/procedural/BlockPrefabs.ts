@@ -1,4 +1,4 @@
-import { AO, CHUNK_LAYOUT, RIVER } from '@/config';
+import { AO, CHUNK_LAYOUT, PAVING, RIVER } from '@/config';
 import { buildLandmark } from '@/scene/landmarks';
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
@@ -8,6 +8,54 @@ import { Buildings } from './Buildings';
 import { GeometryBatch } from './GeometryBatch';
 import { Props } from './Props';
 import { type HiddenSides, hiddenSides } from './Visibility';
+
+/** Прямоугольник на покрытии квартала: границы по X и по Z (локальные координаты). */
+export interface GroundRect {
+  readonly x0: number;
+  readonly x1: number;
+  readonly z0: number;
+  readonly z1: number;
+}
+
+/** Прямоугольник с центром `(x, z)` и размерами `w × d`, расширенный на `pad` с каждой стороны. */
+export function groundRect(x: number, z: number, w: number, d: number, pad = 0): GroundRect {
+  return { x0: x - w / 2 - pad, x1: x + w / 2 + pad, z0: z - d / 2 - pad, z1: z + d / 2 + pad };
+}
+
+/**
+ * Отрезки шва мощения на линии (FR-19.7): промежуток `[−half, half]` минус проекции
+ * прямоугольников `avoid`, которые линия пересекает. `alongX` — линия идёт вдоль X на
+ * `z = at`; иначе — вдоль Z на `x = at`. Отрезки короче `PAVING.MIN_SEGMENT` отбрасываются.
+ */
+export function seamSegments(
+  at: number,
+  alongX: boolean,
+  avoid: readonly GroundRect[],
+  half: number,
+): [number, number][] {
+  let intervals: [number, number][] = [[-half, half]];
+  for (const r of avoid) {
+    const [c0, c1, s0, s1] = alongX ? [r.z0, r.z1, r.x0, r.x1] : [r.x0, r.x1, r.z0, r.z1];
+    if (at <= c0 || at >= c1) {
+      continue;
+    }
+    const next: [number, number][] = [];
+    for (const [a, b] of intervals) {
+      if (s1 <= a || s0 >= b) {
+        next.push([a, b]);
+        continue;
+      }
+      if (s0 > a) {
+        next.push([a, s0]);
+      }
+      if (s1 < b) {
+        next.push([s1, b]);
+      }
+    }
+    intervals = next;
+  }
+  return intervals.filter(([a, b]) => b - a >= PAVING.MIN_SEGMENT);
+}
 
 /** Результат сборки квартала в его локальной системе (центр (0,0), ±25). */
 export interface BlockGeometry {
@@ -193,6 +241,38 @@ function parkingMarkings(
   }
 }
 
+/**
+ * Швы мощения (FR-19.7, AC-19.7, design «C7 (дополнение, итерация 5): мощение площадей»):
+ * тонкие плоские полосы цвета `m.shade(ground, PAVING.SEAM_SHADE)` на линиях `lines` по обеим
+ * осям, в слое деталей (D14). Полоса разрезается вокруг `avoid`: здания вместе с ореолами AO
+ * (светлый шов не должен перечёркивать тёмный ореол), парковки, фонтаны, газонные вставки.
+ * Там, где швы пересекаются, лежат две одинаковые плоскости одного цвета — спорить по
+ * глубине им не о чем. Без обращений к `rng` (FR-19.8).
+ */
+function pavingSeams(
+  ctx: Ctx,
+  ground: PaletteKey,
+  lines: readonly number[],
+  avoid: readonly GroundRect[],
+): void {
+  const color = ctx.m.shade(ground, PAVING.SEAM_SHADE);
+  const y = LAWN_Y + PAVING.SEAM_LIFT;
+  for (const at of lines) {
+    for (const [a, b] of seamSegments(at, true, avoid, GROUND_HALF)) {
+      ctx.detail.plane((a + b) / 2, y, at, b - a, PAVING.SEAM_W, color);
+    }
+    for (const [a, b] of seamSegments(at, false, avoid, GROUND_HALF)) {
+      ctx.detail.plane(at, y, (a + b) / 2, PAVING.SEAM_W, b - a, color);
+    }
+  }
+}
+
+/** Линии швов с шагом `PAVING.STEP` внутри покрытия квартала: −20, −16, …, 20. */
+const PAVING_LINES: readonly number[] = Array.from(
+  { length: Math.floor((2 * (GROUND_HALF - 3)) / PAVING.STEP) + 1 },
+  (_, i) => -(GROUND_HALF - 3) + i * PAVING.STEP,
+);
+
 function residentialPanel(ctx: Ctx): void {
   lawn(ctx, 0, 0, 46, 46);
   const walls: PaletteKey[] = ['panel-grey', 'brick', 'sand', 'stone-light'];
@@ -326,6 +406,20 @@ function businessGlass(ctx: Ctx): void {
   // башен (главная — x ≤ 4,5; пристройка — z ≥ 6) и уличной мебели, плюс разметку.
   ctx.b.plane(15, LAWN_Y + 0.03, -17, 8, 8, ctx.m.color('asphalt'));
   parkingMarkings(ctx, 15, -17, 4, LAWN_Y + 0.05);
+  // Мощение и газон (FR-19.7): северная полоса z ∈ [−22, −17] свободна при любом варианте
+  // (главная башня кончается на z ≥ −13.5, её ореол — на −16), парковка — с x ≥ 11.
+  const insert = groundRect(-8, -19.5, 26, 5);
+  ctx.b.plane(-8, LAWN_Y + 0.06, -19.5, 26, 5, ctx.m.color('grass'));
+  for (const x of [-17, -8, 1]) {
+    ctx.props.tree(x, -19.5, 1.1, 0);
+  }
+  pavingSeams(ctx, 'stone-light', PAVING_LINES, [
+    groundRect(main.x, main.z, main.w, main.d, AO.GROUND_WIDTH),
+    groundRect(annex.x, annex.z, annex.w, annex.d, AO.GROUND_WIDTH),
+    groundRect(15, -17, 8, 8, 0.5),
+    groundRect(-13, 15, 6, 6, 0.5),
+    insert,
+  ]);
 }
 
 function commercial(ctx: Ctx): void {
@@ -433,6 +527,17 @@ function square(ctx: Ctx): void {
   ctx.props.flowerBed(0, -10, 1.4, 'gold');
   ctx.props.bollards(-6, 22.5, 6, 22.5, 4);
   ctx.props.bollards(-6, -22.5, 6, -22.5, 4);
+  // Мощение (FR-19.7): швы посередине между полосами плит (шаг полос 8) — клетка 4 × 4;
+  // под памятником и газонными вставками углов швы не нужны.
+  pavingSeams(
+    ctx,
+    'stone-light',
+    [-16, -8, 0, 8, 16],
+    [
+      groundRect(0, 0, 5, 5, 0.5),
+      ...[-18, 18].flatMap((x) => [-18, 18].map((z) => groundRect(x, z, 8, 8))),
+    ],
+  );
 }
 
 function campus(ctx: Ctx): void {

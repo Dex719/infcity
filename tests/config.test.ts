@@ -265,6 +265,7 @@ describe('CONFIG', () => {
       'AO',
       'FACADE',
       'ROOF',
+      'PAVING',
       'ASSETS',
       'UI',
     ]);
