@@ -25,6 +25,7 @@ export const PALETTE_KEYS = [
   'brick',
   'roof-red',
   'roof-dark',
+  'roof',
   'glass-blue',
   'glass-teal',
   'glass-navy',

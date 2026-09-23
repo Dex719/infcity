@@ -231,7 +231,9 @@ describe('Палитра', () => {
   });
 
   it('в палитре не больше 26 цветов и ключи уникальны (FR-9.4, итерация 2: +чёрный, +жёлтый)', () => {
-    expect(PALETTE_KEYS.length).toBeLessThanOrEqual(26);
+    // 27-й ключ `roof` (FR-19.11): кровле нужен свой сезонный цвет — летом серый, зимой снег;
+    // `roof-dark` занят полутора десятками тёмных деталей (урны, светофоры, машины, UI).
+    expect(PALETTE_KEYS.length).toBeLessThanOrEqual(27);
     expect(new Set(PALETTE_KEYS).size).toBe(PALETTE_KEYS.length);
   });
 

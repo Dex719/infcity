@@ -106,3 +106,40 @@ describe('Тон кадра — оракул Ламберта (FR-19.4, AC-19.4,
     expect(snow).toBeGreaterThan(brightness(radiance(summer, SUMMER, 'sidewalk', UP, false)));
   });
 });
+
+describe('Кровля (FR-19.11, AC-19.12)', () => {
+  /** Цвет на свету в sRGB 0…255 по каналам. */
+  function srgb(c: Color): [number, number, number] {
+    return [toSrgb(c.r) * 255, toSrgb(c.g) * 255, toSrgb(c.b) * 255];
+  }
+
+  it('кровля на свету 110…140 — как серые крыши референса (≈ 134)', () => {
+    const roof = brightness(radiance(summer, SUMMER, 'roof', UP, true));
+    expect(roof).toBeGreaterThanOrEqual(110);
+    expect(roof).toBeLessThanOrEqual(140);
+  });
+
+  it('каждый цвет парапета отличается от кровли на ≥ 60 в sRGB', () => {
+    const roof = srgb(radiance(summer, SUMMER, 'roof', UP, true));
+    const rims: PaletteKey[] = [
+      'glass-teal',
+      'white',
+      'roof-red',
+      'flag-blue',
+      'gold',
+      'accent-red',
+    ];
+    for (const key of rims) {
+      const rim = srgb(radiance(summer, SUMMER, key, UP, true));
+      expect(
+        Math.hypot(rim[0] - roof[0], rim[1] - roof[1], rim[2] - roof[2]),
+      ).toBeGreaterThanOrEqual(60);
+    }
+  });
+
+  it('зимой кровля под снегом — светлее летней', () => {
+    expect(brightness(radiance(winter, WINTER, 'roof', UP, true))).toBeGreaterThan(
+      brightness(radiance(summer, SUMMER, 'roof', UP, true)),
+    );
+  });
+});

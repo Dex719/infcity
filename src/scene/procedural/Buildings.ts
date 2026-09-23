@@ -38,9 +38,9 @@ export interface Halo {
 }
 
 /**
- * Процедурные здания low-poly (FR-3.4, D2/D3): корпус, оконные полосы по этажам,
- * крыша, вход. Стеклянные части идут в отдельный батч (`glass`), чтобы рендериться
- * полупрозрачными вторым draw call'ом.
+ * Процедурные здания low-poly (FR-3.4, D2/D3): корпус с AO у основания, окна проёмами по
+ * этажам, кровля с цветным парапетом, вход (FR-19). Стеклянные части идут в отдельный батч
+ * (`glass`), чтобы рендериться полупрозрачными вторым draw call'ом.
  */
 export class Buildings {
   /** Счётчики покрытия деталями крыш (AC-15.4). */
@@ -65,13 +65,13 @@ export class Buildings {
     private readonly detail: GeometryBatch = batch,
   ) {}
 
-  /** Панельная/кирпичная жилая коробка с рядами окон на всех фасадах. */
+  /** Панельная/кирпичная жилая коробка: окна на видимых фасадах, кровля с парапетом. */
   panelHouse(f: Footprint, floors: number, wall: PaletteKey = 'panel-grey'): void {
     const b = this.batch;
     const h = floors * FLOOR;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(wall));
     this.plinth(f);
-    const roof = this.m.shade('roof-dark', 1);
+    const roof = this.m.color('roof');
     b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, roof);
     this.parapet(f, 0.4, h + 0.4, PANEL_RIM[wall] ?? 'white');
     this.cornice(f, h);
@@ -89,7 +89,7 @@ export class Buildings {
     const h = floors * FLOOR;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
     this.plinth(f);
-    b.box(f.x, h + 0.2, f.z, f.w + 0.3, 0.4, f.d + 0.3, this.m.color('roof-dark'));
+    b.box(f.x, h + 0.2, f.z, f.w + 0.3, 0.4, f.d + 0.3, this.m.color('roof'));
     this.parapet(f, 0.3, h + 0.4, accent);
     this.cornice(f, h);
     this.windows(f, floors, 'glass-blue', 0.6, 0, f.d * 0.175);
@@ -113,7 +113,7 @@ export class Buildings {
     for (let i = 1; i < floors; i += 2) {
       b.box(f.x, i * FLOOR, f.z, f.w + 0.2, 0.18, f.d + 0.2, band);
     }
-    b.box(f.x, h + 0.3, f.z, f.w + 0.4, 0.6, f.d + 0.4, this.m.color('roof-dark'));
+    b.box(f.x, h + 0.3, f.z, f.w + 0.4, 0.6, f.d + 0.4, this.m.color('roof'));
     this.parapet(f, 0.4, h + 0.6, 'white');
     b.box(f.x, h + 0.6 + 2, f.z, f.w * 0.6, 4, f.d * 0.6, this.m.shade(tint, 0.7));
     b.box(f.x, h + 4.6 + 2.5, f.z, 0.4, 5, 0.4, this.m.color('steel'));
@@ -126,7 +126,7 @@ export class Buildings {
     const h = floors * FLOOR;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(wall));
     this.plinth(f);
-    b.box(f.x, h + 0.15, f.z, f.w + 0.3, 0.3, f.d + 0.3, this.m.color('roof-dark'));
+    b.box(f.x, h + 0.15, f.z, f.w + 0.3, 0.3, f.d + 0.3, this.m.color('roof'));
     this.parapet(f, 0.3, h + 0.3, awning);
     this.cornice(f, h);
     // Витрина первого этажа со стойками и вывеской — вынесена в storefront (TSK-108).
@@ -158,7 +158,7 @@ export class Buildings {
     const front = f.z + f.d / 2;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
     this.plinth(f);
-    b.box(f.x, h + 0.25, f.z, f.w + 0.4, 0.5, f.d + 0.4, this.m.color('roof-dark'));
+    b.box(f.x, h + 0.25, f.z, f.w + 0.4, 0.5, f.d + 0.4, this.m.color('roof'));
     // Спереди (+Z) парапет — волнистый акцентный ниже, поэтому стенки только с трёх сторон.
     this.parapet(f, 0.4, h + 0.5, 'white', 1);
     this.cornice(f, h);
@@ -291,7 +291,7 @@ export class Buildings {
     const h = floors * FLOOR;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('white'));
     this.plinth(f);
-    b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, this.m.color('roof-dark'));
+    b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, this.m.color('roof'));
     this.parapet(f, 0.4, h + 0.4, 'glass-teal');
     this.cornice(f, h);
     this.windows(f, floors, 'glass-navy', 0.5);

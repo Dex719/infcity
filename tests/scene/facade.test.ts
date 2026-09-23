@@ -530,7 +530,7 @@ describe('Крыши: тёмная кровля и цветной парапет
   ];
 
   for (const [name, build, top, rim, walls] of cases) {
-    it(`${name}: ${String(walls)} стенки парапета цвета ${rim}, кровля roof-dark`, () => {
+    it(`${name}: ${String(walls)} стенки парапета цвета ${rim}, кровля roof`, () => {
       const { buildings, opaque } = freshBuildings();
       build(buildings);
       const rimVertices = verticesOfHue(opaque, rim).filter(
@@ -542,9 +542,9 @@ describe('Крыши: тёмная кровля и цветной парапет
         build(fresh.buildings);
         return fresh;
       })();
-      const roofTop = verticesOfColor(again, 'roof-dark').filter((v) => Math.abs(v.y - top) < 1e-4);
+      const roofTop = verticesOfColor(again, 'roof').filter((v) => Math.abs(v.y - top) < 1e-4);
       expect(roofTop.length).toBeGreaterThanOrEqual(4);
-      expect(materials.color(rim).equals(materials.color('roof-dark'))).toBe(false);
+      expect(materials.color(rim).equals(materials.color('roof'))).toBe(false);
     });
   }
 
