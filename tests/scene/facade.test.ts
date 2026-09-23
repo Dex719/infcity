@@ -1,9 +1,9 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { AO } from '@/config';
+import { AO, ROOF } from '@/config';
 import { Materials } from '@/scene/Materials';
 import { parsePalette, type PaletteKey } from '@/scene/palette';
-import { Buildings, type Footprint } from '@/scene/procedural/Buildings';
+import { Buildings, FLOOR, type Footprint } from '@/scene/procedural/Buildings';
 import { GeometryBatch } from '@/scene/procedural/GeometryBatch';
 import { CHUNK_HIDDEN, type HiddenSides } from '@/scene/procedural/Visibility';
 import { mulberry32 } from '@/world/Hash';
@@ -484,5 +484,86 @@ describe('Окна отдельными проёмами (FR-19.6, AC-19.6)', ()
     for (const c of side) {
       expect(Math.abs(c.z)).toBeGreaterThanOrEqual(tower.d * 0.175);
     }
+  });
+});
+
+describe('Крыши: тёмная кровля и цветной парапет (FR-19.5, AC-19.5)', () => {
+  type Build = (b: Buildings) => void;
+  // [тип, сборка, высота плиты крыши (верх), цвет парапета, число стенок]
+  const cases: readonly (readonly [string, Build, number, PaletteKey, number])[] = [
+    [
+      'panelHouse',
+      (b) => b.panelHouse({ x: 0, z: 0, w: 16, d: 10 }, 9, 'sand'),
+      9 * FLOOR + 0.4,
+      'roof-red',
+      4,
+    ],
+    [
+      'modernTower',
+      (b) => b.modernTower({ x: 0, z: 0, w: 14, d: 14 }, 10, 'gold'),
+      10 * FLOOR + 0.4,
+      'gold',
+      4,
+    ],
+    [
+      'glassTower',
+      (b) => b.glassTower({ x: 0, z: 0, w: 16, d: 16 }, 10, 'glass-blue'),
+      10 * FLOOR + 0.6,
+      'white',
+      4,
+    ],
+    [
+      'shopRow',
+      (b) => b.shopRow({ x: 0, z: 0, w: 20, d: 10 }, 2, 'brick', 'glass-teal'),
+      2 * FLOOR + 0.3,
+      'glass-teal',
+      4,
+    ],
+    [
+      'campusHall',
+      (b) => b.campusHall({ x: 0, z: 0, w: 36, d: 12 }, 3),
+      3 * FLOOR + 0.4,
+      'glass-teal',
+      4,
+    ],
+    ['mall', (b) => b.mall({ x: 0, z: 0, w: 40, d: 24 }, 'gold'), 12.5, 'white', 3],
+  ];
+
+  for (const [name, build, top, rim, walls] of cases) {
+    it(`${name}: ${String(walls)} стенки парапета цвета ${rim}, кровля roof-dark`, () => {
+      const { buildings, opaque } = freshBuildings();
+      build(buildings);
+      const rimVertices = verticesOfHue(opaque, rim).filter(
+        (v) => Math.abs(v.y - top) < 1e-4 || Math.abs(v.y - (top + ROOF.PARAPET_HEIGHT)) < 1e-4,
+      );
+      expect(rimVertices).toHaveLength(walls * 24);
+      const { opaque: again } = (() => {
+        const fresh = freshBuildings();
+        build(fresh.buildings);
+        return fresh;
+      })();
+      const roofTop = verticesOfColor(again, 'roof-dark').filter((v) => Math.abs(v.y - top) < 1e-4);
+      expect(roofTop.length).toBeGreaterThanOrEqual(4);
+      expect(materials.color(rim).equals(materials.color('roof-dark'))).toBe(false);
+    });
+  }
+
+  it('панельный дом: цвет парапета выбирается по цвету стен без rng', () => {
+    const rims = (['panel-grey', 'brick', 'sand', 'stone-light'] as const).map((wall) => {
+      const { buildings, opaque } = freshBuildings();
+      buildings.panelHouse({ x: 0, z: 0, w: 16, d: 10 }, 5, wall);
+      const top = 5 * FLOOR + 0.4 + ROOF.PARAPET_HEIGHT;
+      const geometry = opaque.build();
+      const position = geometry.getAttribute('position');
+      const color = geometry.getAttribute('color');
+      for (let i = 0; i < position.count; i++) {
+        if (Math.abs(position.getY(i) - top) < 1e-4) {
+          return `${color.getX(i).toFixed(3)},${color.getY(i).toFixed(3)},${color.getZ(i).toFixed(3)}`;
+        }
+      }
+      return '';
+    });
+    expect(rims.every((r) => r !== '')).toBe(true);
+    expect(new Set(rims).size).toBe(4);
   });
 });

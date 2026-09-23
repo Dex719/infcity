@@ -1,4 +1,4 @@
-import { AO, FACADE } from '@/config';
+import { AO, FACADE, ROOF } from '@/config';
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
 import { mulberry32 } from '@/world/Hash';
@@ -10,6 +10,18 @@ export const ROOF_DETAIL_PROBABILITY = 0.65;
 
 /** Высота этажа, юниты. */
 export const FLOOR = 2.7;
+
+/**
+ * Цвет парапета панельного дома по цвету стен (FR-19.5): акцент без `rng`, как цветные
+ * бортики крыш у референса; кирпичу — белый, светлым стенам — цвета флага и бирюза.
+ */
+const PANEL_RIM: Readonly<Partial<Record<PaletteKey, PaletteKey>>> = {
+  'panel-grey': 'glass-teal',
+  brick: 'white',
+  sand: 'roof-red',
+  'stone-light': 'flag-blue',
+  white: 'glass-teal',
+};
 
 /** Прямоугольник на земле: центр и размеры. */
 export interface Footprint {
@@ -61,6 +73,7 @@ export class Buildings {
     this.plinth(f);
     const roof = this.m.shade('roof-dark', 1);
     b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, roof);
+    this.parapet(f, 0.4, h + 0.4, PANEL_RIM[wall] ?? 'white');
     this.cornice(f, h);
     this.windows(f, floors, 'glass-navy', 0.55);
     this.balconies(f, floors, 'panel-grey');
@@ -76,7 +89,8 @@ export class Buildings {
     const h = floors * FLOOR;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
     this.plinth(f);
-    b.box(f.x, h + 0.2, f.z, f.w + 0.3, 0.4, f.d + 0.3, this.m.color('white'));
+    b.box(f.x, h + 0.2, f.z, f.w + 0.3, 0.4, f.d + 0.3, this.m.color('roof-dark'));
+    this.parapet(f, 0.3, h + 0.4, accent);
     this.cornice(f, h);
     this.windows(f, floors, 'glass-blue', 0.6, 0, f.d * 0.175);
     this.balconies(f, floors, accent);
@@ -99,7 +113,8 @@ export class Buildings {
     for (let i = 1; i < floors; i += 2) {
       b.box(f.x, i * FLOOR, f.z, f.w + 0.2, 0.18, f.d + 0.2, band);
     }
-    b.box(f.x, h + 0.3, f.z, f.w + 0.4, 0.6, f.d + 0.4, this.m.color('white'));
+    b.box(f.x, h + 0.3, f.z, f.w + 0.4, 0.6, f.d + 0.4, this.m.color('roof-dark'));
+    this.parapet(f, 0.4, h + 0.6, 'white');
     b.box(f.x, h + 0.6 + 2, f.z, f.w * 0.6, 4, f.d * 0.6, this.m.shade(tint, 0.7));
     b.box(f.x, h + 4.6 + 2.5, f.z, 0.4, 5, 0.4, this.m.color('steel'));
     this.roofDetails(f, h + 0.6);
@@ -112,6 +127,7 @@ export class Buildings {
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color(wall));
     this.plinth(f);
     b.box(f.x, h + 0.15, f.z, f.w + 0.3, 0.3, f.d + 0.3, this.m.color('roof-dark'));
+    this.parapet(f, 0.3, h + 0.3, awning);
     this.cornice(f, h);
     // Витрина первого этажа со стойками и вывеской — вынесена в storefront (TSK-108).
     this.storefront(f);
@@ -142,7 +158,9 @@ export class Buildings {
     const front = f.z + f.d / 2;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('stone-light'));
     this.plinth(f);
-    b.box(f.x, h + 0.25, f.z, f.w + 0.4, 0.5, f.d + 0.4, this.m.color('white'));
+    b.box(f.x, h + 0.25, f.z, f.w + 0.4, 0.5, f.d + 0.4, this.m.color('roof-dark'));
+    // Спереди (+Z) парапет — волнистый акцентный ниже, поэтому стенки только с трёх сторон.
+    this.parapet(f, 0.4, h + 0.5, 'white', 1);
     this.cornice(f, h);
     const seg = 6;
     let up = true;
@@ -273,7 +291,8 @@ export class Buildings {
     const h = floors * FLOOR;
     b.boxAo(f.x, h / 2, f.z, f.w, h, f.d, this.m.color('white'));
     this.plinth(f);
-    b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, this.m.color('glass-teal'));
+    b.box(f.x, h + 0.2, f.z, f.w + 0.4, 0.4, f.d + 0.4, this.m.color('roof-dark'));
+    this.parapet(f, 0.4, h + 0.4, 'glass-teal');
     this.cornice(f, h);
     this.windows(f, floors, 'glass-navy', 0.5);
     this.entrance(f, 'z');
@@ -396,6 +415,36 @@ export class Buildings {
     }
     this.footprints.length = 0;
     return halos;
+  }
+
+  /**
+   * Парапет плоской крыши (FR-19.5, AC-19.5): четыре стенки `boxAo` высотой
+   * `ROOF.PARAPET_HEIGHT` и толщиной `ROOF.PARAPET_T` по краю плиты крыши размером
+   * `(w + overhang) × (d + overhang)`, внешняя грань заподлицо с краем плиты. Стенки — объём,
+   * поэтому строятся на всех сторонах (D13: сверху видна внутренняя грань дальней стенки);
+   * низ стенок темнеет у плиты — AO на стыке с кровлей. `skipZ` — сторона по Z, где стенку
+   * не ставим (у ТЦ спереди свой волнистый парапет). Бюджет: 4 × 24 = 96 вершин на дом.
+   */
+  private parapet(
+    f: Footprint,
+    overhang: number,
+    top: number,
+    color: PaletteKey,
+    skipZ: 1 | -1 | 0 = 0,
+  ): void {
+    const b = this.batch;
+    const c = this.m.color(color);
+    const t = ROOF.PARAPET_T;
+    const hgt = ROOF.PARAPET_HEIGHT;
+    const w = f.w + overhang;
+    const d = f.d + overhang;
+    const y = top + hgt / 2;
+    for (const side of [1, -1] as const) {
+      if (side !== skipZ) {
+        b.boxAo(f.x, y, f.z + side * (d / 2 - t / 2), w, hgt, t, c);
+      }
+      b.boxAo(f.x + side * (w / 2 - t / 2), y, f.z, t, hgt, d - 2 * t, c);
+    }
   }
 
   /**
