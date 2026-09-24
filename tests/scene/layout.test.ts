@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { type Color, Vector3 } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
@@ -7,10 +7,11 @@ import {
   BUSINESS_LAWNS,
   CAFE_TABLES_X,
   MARKET_LAWNS,
+  NURZHOL,
   COMMERCIAL_HEDGE,
   COMMERCIAL_TREES,
 } from '@/scene/procedural/BlockPrefabs';
-import { AO, PAVING } from '@/config';
+import { AO, LANDMARKS, PAVING } from '@/config';
 import { AWNING_DEPTH, Buildings, type Footprint } from '@/scene/procedural/Buildings';
 import { GeometryBatch } from '@/scene/procedural/GeometryBatch';
 import { Props } from '@/scene/procedural/Props';
@@ -364,5 +365,151 @@ describe('Зелень рынка (FR-19.26, AC-19.27)', () => {
     expect(
       block.opaque.vertices + block.glass.vertices + block.detail.vertices,
     ).toBeLessThanOrEqual(7000);
+  });
+});
+
+describe('Бульвар Нуржол (FR-20.4, AC-20.3)', () => {
+  const start = new Generator('astana').describe(LANDMARKS.START_PARK.gx, LANDMARKS.START_PARK.gy);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const reach = (scale: number): number => 1.3 * 1.9 * scale;
+  const same = (a: Color, b: Color): boolean =>
+    Math.abs(a.r - b.r) < 1e-6 && Math.abs(a.g - b.g) < 1e-6 && Math.abs(a.b - b.b) < 1e-6;
+
+  it.each([0, 1, 2, 3] as const)(
+    'поворот %i: дорожки вдоль мировой оси Байтерек — Хан Шатыр, фонтаны с каналами, ряды деревьев',
+    (rotation) => {
+      expect(start.block).toBe('park');
+      const fountains = vi.spyOn(Props.prototype, 'fountain');
+      const trees = vi.spyOn(Props.prototype, 'tree');
+      const boxes = vi.spyOn(GeometryBatch.prototype, 'box');
+      const planes = vi.spyOn(GeometryBatch.prototype, 'plane');
+      const lamps = vi.spyOn(Props.prototype, 'lamp');
+      const block = buildBlock({ ...start, rotation }, materials);
+      const axisZ = rotation % 2 === 0;
+      const along = (x: number, z: number): number => (axisZ ? z : x);
+      const across = (x: number, z: number): number => (axisZ ? x : z);
+      const { MEDIAN_HALF, WALK_HALF, PLAZA_R, CHANNEL_W } = NURZHOL;
+
+      // Две мощёные дорожки длиной 46 вдоль оси, по обе стороны срединной полосы.
+      const stone = materials.color('stone-light');
+      const walks = boxes.mock.calls.filter(
+        ([, , , w, , d, color]) => same(color, stone) && (axisZ ? d : w) === 46,
+      );
+      expect(walks).toHaveLength(2);
+      for (const [x, , z, w, , d] of walks) {
+        const width = axisZ ? w : d;
+        expect(Math.abs(across(x, z)) - width / 2).toBeCloseTo(MEDIAN_HALF, 6);
+        expect(Math.abs(across(x, z)) + width / 2).toBeCloseTo(WALK_HALF, 6);
+      }
+      // После поворота квартала ось `along` — мировая Z.
+      const world = new Vector3(axisZ ? 0 : 1, 0, axisZ ? 1 : 0).applyAxisAngle(
+        new Vector3(0, 1, 0),
+        (rotation * Math.PI) / 2,
+      );
+      expect(Math.abs(world.z)).toBeCloseTo(1, 9);
+
+      // Фонтаны на оси, ≥ 3; боковые — в срединной полосе, центральный — на площади.
+      const onAxis = fountains.mock.calls.map(([x, z, r = 4]) => ({
+        a: along(x, z),
+        c: across(x, z),
+        r,
+      }));
+      expect(onAxis.length).toBeGreaterThanOrEqual(3);
+      for (const f of onAxis) {
+        expect(Math.abs(f.c)).toBeLessThan(1e-9);
+        expect(f.r).toBeLessThanOrEqual(Math.abs(f.a) < 1e-9 ? PLAZA_R : MEDIAN_HALF);
+      }
+      // Между соседними фонтанами — водный канал на оси от чаши до чаши.
+      const water = materials.color('water');
+      const channels = boxes.mock.calls
+        .filter(([, , , , , , color]) => same(color, water))
+        .map(([x, , z, w, , d]) => ({ a: along(x, z), len: axisZ ? d : w, c: across(x, z) }));
+      const sorted = [...onAxis].sort((p, q) => p.a - q.a);
+      for (let i = 0; i + 1 < sorted.length; i++) {
+        const [p, q] = [sorted[i], sorted[i + 1]];
+        if (p === undefined || q === undefined) {
+          continue;
+        }
+        const channel = channels.find((ch) => ch.a > p.a && ch.a < q.a);
+        expect(channel).toBeDefined();
+        if (channel !== undefined) {
+          expect(Math.abs(channel.c)).toBeLessThan(1e-9);
+          expect(channel.a - channel.len / 2).toBeCloseTo(p.a + p.r, 6);
+          expect(channel.a + channel.len / 2).toBeCloseTo(q.a - q.r, 6);
+        }
+      }
+
+      // Ряды деревьев по обе стороны: ≥ 6 в ряду; кроны нависают над дорожками (тенистая
+      // аллея), но не над срединной полосой с фонтанами, в плите и не касаются друг друга.
+      const planted = trees.mock.calls.map(([x, z, scale = 1]) => ({
+        a: along(x, z),
+        c: across(x, z),
+        s: scale,
+      }));
+      for (const sideSign of [-1, 1]) {
+        const row = planted.filter((t) => Math.sign(t.c) === sideSign);
+        expect(row.length).toBeGreaterThanOrEqual(6);
+        for (const t of row) {
+          expect(Math.abs(t.c) - reach(t.s)).toBeGreaterThanOrEqual(MEDIAN_HALF);
+          expect(Math.abs(t.c) - reach(t.s)).toBeLessThan(WALK_HALF);
+          expect(Math.abs(t.a) + reach(t.s)).toBeLessThanOrEqual(23);
+        }
+      }
+      for (let i = 0; i < planted.length; i++) {
+        for (let j = i + 1; j < planted.length; j++) {
+          const [p, q] = [planted[i], planted[j]];
+          if (p !== undefined && q !== undefined) {
+            expect(Math.hypot(p.a - q.a, p.c - q.c)).toBeGreaterThanOrEqual(
+              reach(p.s) + reach(q.s),
+            );
+          }
+        }
+      }
+
+      // Фонари — в просветах между деревьями, не под кронами.
+      expect(lamps.mock.calls.length).toBeGreaterThan(0);
+      for (const [x, z] of lamps.mock.calls) {
+        for (const t of planted) {
+          expect(Math.hypot(along(x, z) - t.a, across(x, z) - t.c)).toBeGreaterThan(reach(t.s));
+        }
+      }
+
+      // Швы мощения — только на дорожках и вне площади.
+      const seam = materials.shade('stone-light', PAVING.SEAM_SHADE);
+      const seams = planes.mock.calls.filter(([, , , , , color]) => same(color, seam));
+      expect(seams.length).toBeGreaterThan(0);
+      for (const [x, , z, w, d] of seams) {
+        const halfAcross = (axisZ ? w : d) / 2;
+        const halfAlong = (axisZ ? d : w) / 2;
+        expect(Math.abs(across(x, z)) + halfAcross).toBeLessThanOrEqual(WALK_HALF + 1e-6);
+        expect(Math.abs(across(x, z)) - halfAcross).toBeGreaterThanOrEqual(MEDIAN_HALF - 1e-6);
+        expect(Math.abs(along(x, z)) - halfAlong).toBeGreaterThanOrEqual(PLAZA_R - 1e-6);
+      }
+      expect(CHANNEL_W).toBeLessThan(2 * MEDIAN_HALF);
+      expect(
+        block.opaque.vertices + block.glass.vertices + block.detail.vertices,
+      ).toBeLessThanOrEqual(7000);
+    },
+  );
+
+  it('обычный парк вне центра старта — прежняя раскладка с одним фонтаном', () => {
+    const other = new Generator('astana')
+      .describeWindow(0, 0, 21)
+      .find(
+        (d) =>
+          d.block === 'park' &&
+          (d.gx !== LANDMARKS.START_PARK.gx || d.gy !== LANDMARKS.START_PARK.gy),
+      );
+    expect(other).toBeDefined();
+    if (other === undefined) {
+      return;
+    }
+    const fountains = vi.spyOn(Props.prototype, 'fountain');
+    buildBlock(other, materials);
+    expect(fountains).toHaveBeenCalledTimes(1);
   });
 });

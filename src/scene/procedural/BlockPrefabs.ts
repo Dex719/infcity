@@ -1,11 +1,12 @@
-import { AO, CHUNK_LAYOUT, PAVING, RIVER } from '@/config';
+import type { Color } from 'three';
+import { AO, CHUNK_LAYOUT, LANDMARKS, PAVING, RIVER } from '@/config';
 import { buildLandmark } from '@/scene/landmarks';
 import type { Materials } from '@/scene/Materials';
 import type { PaletteKey } from '@/scene/palette';
 import { mulberry32 } from '@/world/Hash';
 import type { ChunkDescriptor } from '@/world/types';
 import { Buildings } from './Buildings';
-import { GeometryBatch } from './GeometryBatch';
+import { GeometryBatch, Templates } from './GeometryBatch';
 import { Props } from './Props';
 import { type HiddenSides, hiddenSides } from './Visibility';
 
@@ -121,7 +122,12 @@ export function buildBlock(descriptor: ChunkDescriptor, m: Materials): BlockGeom
       commercial(ctx);
       break;
     case 'park':
-      park(ctx);
+      // Парк центра старта — бульвар Нуржол (FR-20.4, design D30); ось — по повороту квартала.
+      if (descriptor.gx === LANDMARKS.START_PARK.gx && descriptor.gy === LANDMARKS.START_PARK.gy) {
+        boulevard(ctx, descriptor.rotation % 2 === 0);
+      } else {
+        park(ctx);
+      }
       break;
     case 'square':
       square(ctx);
@@ -586,6 +592,139 @@ function park(ctx: Ctx): void {
   for (const s of [-1, 1]) {
     ctx.props.bollards(s * 22.5, -2.4, s * 22.5, 2.4, 2);
     ctx.props.bollards(-2.4, s * 22.5, 2.4, s * 22.5, 2);
+  }
+}
+
+/**
+ * Бульвар Нуржол (FR-20.4, AC-20.3, design D30). Оси: `along` — вдоль оси Байтерек ↔ Хан Шатыр
+ * (мировая Z), `across` — поперёк. По оси — зелёная срединная полоса с фонтанами и водными
+ * каналами, по бокам — мощёные дорожки, у центрального фонтана — круглая площадь.
+ */
+export const NURZHOL = {
+  /** Полуширина зелёной срединной полосы с фонтанами и каналами. */
+  MEDIAN_HALF: 2.5,
+  /** Внешняя полуширина мощёных дорожек: дорожки — от `MEDIAN_HALF` до неё. */
+  WALK_HALF: 5,
+  /** Радиус мощёной площади вокруг центрального фонтана. */
+  PLAZA_R: 5.5,
+  /** Фонтаны на оси: `[along, радиус]`; центральный — на площади, боковые — на срединной полосе. */
+  FOUNTAINS: [
+    [0, 3.5],
+    [-14, 2.2],
+    [14, 2.2],
+  ],
+  /** Ширина водного канала между фонтанами. */
+  CHANNEL_W: 1.2,
+  /** Ряды деревьев: `across` ряда, `along` деревьев, масштаб; кроны нависают над дорожками. */
+  TREE_ACROSS: 6.8,
+  TREE_ALONG: [-19.5, -13, -6.5, 0, 6.5, 13, 19.5],
+  TREE_SCALE: 1.1,
+} as const;
+
+/**
+ * Бульвар Нуржол — парк центра старта между Байтереком и Хан Шатыром (FR-20.4, AC-20.3,
+ * design D30). При чётном повороте квартала `along` — локальная Z, при нечётном — локальная X:
+ * поворот `rotation × 90°` переводит её в мировую Z. Раскладка симметрична по `along` и без `rng`.
+ */
+function boulevard(ctx: Ctx, axisZ: boolean): void {
+  lawn(ctx, 0, 0, 46, 46);
+  const at = (along: number, across: number): [number, number] =>
+    axisZ ? [across, along] : [along, across];
+  const rect = (along: number, across: number, length: number, width: number): GroundRect => {
+    const [x, z] = at(along, across);
+    return axisZ ? groundRect(x, z, width, length) : groundRect(x, z, length, width);
+  };
+  const box = (
+    along: number,
+    across: number,
+    y: number,
+    length: number,
+    height: number,
+    width: number,
+    color: Color,
+  ): void => {
+    const [x, z] = at(along, across);
+    if (axisZ) {
+      ctx.b.box(x, y, z, width, height, length, color);
+    } else {
+      ctx.b.box(x, y, z, length, height, width, color);
+    }
+  };
+  const stone = ctx.m.color('stone-light');
+  const white = ctx.m.color('white');
+  const water = ctx.m.color('water');
+  const { MEDIAN_HALF, WALK_HALF, PLAZA_R, CHANNEL_W } = NURZHOL;
+  // Мощёные дорожки по обе стороны срединной полосы и круглая площадь в центре.
+  const walkWidth = WALK_HALF - MEDIAN_HALF;
+  const walkAcross = (WALK_HALF + MEDIAN_HALF) / 2;
+  for (const s of [-1, 1]) {
+    box(0, s * walkAcross, LAWN_Y + 0.02, 46, 0.04, walkWidth, stone);
+  }
+  const [cx, cz] = at(0, 0);
+  ctx.b.place(Templates.cylinder16, cx, LAWN_Y + 0.03, cz, PLAZA_R, 0.02, PLAZA_R, stone);
+  // Швы мощения — только на дорожках: обходят газоны, срединную полосу и площадь.
+  const lawnWidth = 23 - WALK_HALF;
+  const avoid: GroundRect[] = [
+    rect(0, WALK_HALF + lawnWidth / 2, 46, lawnWidth),
+    rect(0, -(WALK_HALF + lawnWidth / 2), 46, lawnWidth),
+    rect(0, 0, 46, 2 * MEDIAN_HALF),
+    rect(0, 0, 2 * PLAZA_R, 2 * PLAZA_R),
+  ];
+  pavingSeams(ctx, 'stone-light', PAVING_LINES, avoid);
+  // Фонтаны на оси, между соседними — водные каналы с белыми бортиками («водно-зелёный»).
+  for (const [along, radius] of NURZHOL.FOUNTAINS) {
+    const [x, z] = at(along, 0);
+    ctx.props.fountain(x, z, radius);
+  }
+  const [center, side] = [NURZHOL.FOUNTAINS[0], NURZHOL.FOUNTAINS[2]];
+  const from = center[1];
+  const to = side[0] - side[1];
+  for (const s of [-1, 1]) {
+    const mid = (s * (from + to)) / 2;
+    box(mid, 0, LAWN_Y + 0.06, to - from, 0.04, CHANNEL_W, water);
+    for (const edge of [-1, 1]) {
+      box(mid, edge * (CHANNEL_W / 2 + 0.15), LAWN_Y + 0.1, to - from, 0.12, 0.3, white);
+    }
+  }
+  // Ряды деревьев вдоль дорожек: кроны нависают над ними, как тенистая аллея, но не над
+  // срединной полосой с фонтанами.
+  for (const across of [-NURZHOL.TREE_ACROSS, NURZHOL.TREE_ACROSS]) {
+    for (const along of NURZHOL.TREE_ALONG) {
+      const [x, z] = at(along, across);
+      ctx.props.tree(x, z, NURZHOL.TREE_SCALE, 0);
+    }
+  }
+  // Скамейки у дорожек и фонари у площади — в просветах между деревьями, не под кронами.
+  const benchRot = axisZ ? Math.PI / 2 : 0;
+  for (const s of [-1, 1]) {
+    for (const along of [-16.25, -9.75, 9.75, 16.25]) {
+      const [x, z] = at(along, s * (WALK_HALF + 0.6));
+      ctx.props.bench(x, z, benchRot);
+    }
+    for (const along of [-3.25, 3.25]) {
+      const [x, z] = at(along, s * (WALK_HALF + 0.4));
+      ctx.props.lamp(x, z);
+    }
+  }
+  // Боковые газоны: клумбы и кусты по углам.
+  const flowers: PaletteKey[] = ['accent-red', 'gold'];
+  for (const s of [-1, 1]) {
+    [-12, 12].forEach((along, i) => {
+      const [x, z] = at(along, s * 15);
+      ctx.props.flowerBed(x, z, 1.6, flowers[i] ?? 'gold');
+    });
+    for (const along of [-20, 20]) {
+      const [x, z] = at(along, s * 20);
+      ctx.props.bush(x, z, 1.1);
+    }
+  }
+  // Столбики поперёк дорожек на концах бульвара.
+  for (const along of [-22.5, 22.5]) {
+    for (const s of [-1, 1]) {
+      const [x1, z1] = at(along, s * (MEDIAN_HALF + 0.6));
+      const [x2, z2] = at(along, s * (WALK_HALF - 0.6));
+      ctx.props.bollards(x1, z1, x2, z2, 2);
+    }
   }
 }
 
