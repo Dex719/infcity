@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLOCKS, CLOUD, TRAFFIC, WORLD } from '@/config';
+import { BLOCKS, CLOUD, GEN, LANDMARKS, TRAFFIC, WORLD } from '@/config';
 import { Generator } from '@/world/Generator';
 import { hash32 } from '@/world/Hash';
 import { chebyshev } from '@/world/math';
@@ -193,5 +193,27 @@ describe('Generator — машины, облака, дороги, ЛРТ', () =>
   it('никогда не бросает и не использует fallback на 10 000 чанков (NFR-7)', () => {
     expect(chunks.some((c) => c.fallback === true)).toBe(false);
     expect(gen.errors).toBe(0);
+  });
+});
+
+describe('Зелёный старт — сквер между Байтереком и Хан Шатыром (FR-20, AC-20.1)', () => {
+  it('на 1 000 seed центр старта — парк, ландмарки на местах, соседи центра — не парки', () => {
+    const { gx, gy } = LANDMARKS.START_PARK;
+    for (let i = 0; i < 1000; i++) {
+      const generator = new Generator(`green${String(i)}`);
+      const center = generator.describe(gx, gy);
+      expect(center.block).toBe('park');
+      expect(center.landmark).toBeNull();
+      for (const fixed of LANDMARKS.FIXED) {
+        expect(generator.describe(fixed.gx, fixed.gy).landmark).toBe(fixed.id);
+      }
+      for (const [dx, dy] of NEIGHBOUR_OFFSETS) {
+        expect(generator.describe(gx + dx, gy + dy).block).not.toBe('park');
+      }
+    }
+  });
+
+  it('правило поменяло города — версия генератора 4 (ссылки с v=3 получат «Город обновился»)', () => {
+    expect(GEN.VERSION).toBe(4);
   });
 });

@@ -1,4 +1,4 @@
-import { BLOCKS, CLOUD, RIVER, TRAFFIC, WORLD, type LandmarkId } from '@/config';
+import { BLOCKS, CLOUD, LANDMARKS, RIVER, TRAFFIC, WORLD, type LandmarkId } from '@/config';
 import { hash32, hashUnit, rng, seedToInt } from './Hash';
 import { LandmarkPlanner } from './LandmarkPlanner';
 import { describeLrt } from './LrtPlanner';
@@ -165,6 +165,11 @@ export class Generator {
     }
     if (this.landmarks.pick(gx, gy) !== null) {
       return 'landmark';
+    }
+    // Центр старта между Байтереком и Хан Шатыром — всегда сквер (FR-20, design D29). Соседи
+    // исключат парк сами: правило чётности ниже видит этот тип у клетки класса 0.
+    if (gx === LANDMARKS.START_PARK.gx && gy === LANDMARKS.START_PARK.gy) {
+      return 'park';
     }
     if (isRareWinner(this.seed, gx, gy, STADIUM_RULE)) {
       return 'stadium';

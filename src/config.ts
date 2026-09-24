@@ -55,8 +55,8 @@ export const WORLD = {
 
 /** Seed и версионирование генератора (FR-2, NFR-3). */
 export const GEN = {
-  /** Версия правил генерации; попадает в share-ссылку как `?v=` (Migration and Compatibility). v2 — итерация 2 (пул моделей 12, ТЦ вместо завода, река, берега); v3 — три модели облаков (FR-17.2). */
-  VERSION: 3,
+  /** Версия правил генерации; попадает в share-ссылку как `?v=` (Migration and Compatibility). v2 — итерация 2 (пул моделей 12, ТЦ вместо завода, река, берега); v3 — три модели облаков (FR-17.2); v4 — сквер в центре старта (FR-20). */
+  VERSION: 4,
   /** Допустимый формат seed в URL (FR-2.1). */
   SEED_PATTERN: /^[a-z0-9_-]{1,64}$/,
   /** Длина автоматически сгенерированного seed (FR-2.4). */
@@ -96,6 +96,12 @@ export const LANDMARKS = {
     { id: 'baiterek', gx: 0, gy: -1 },
     { id: 'khan-shatyr', gx: 0, gy: 1 },
   ],
+  /**
+   * Чанк между стартовыми ландмарками — всегда парк (FR-20, design D29): центр стартового
+   * кадра, как бульвар Нуржол между Байтереком и Хан Шатыром. Доля зелени стартового кадра по
+   * 12 seed — 10,4 → 15,2 % при 15,7 % у референса.
+   */
+  START_PARK: { gx: 0, gy: 0 },
   /** Высоты доминант в юнитах; типовой жилой дом — 12–20 (design C8). */
   HEIGHT: {
     baiterek: 50,
@@ -117,6 +123,7 @@ export const LANDMARKS = {
   ADJACENCY_RADIUS: number;
   ENABLED: readonly LandmarkId[];
   FIXED: readonly { id: LandmarkId; gx: number; gy: number }[];
+  START_PARK: { gx: number; gy: number };
   HEIGHT: Record<LandmarkId, number>;
 };
 
