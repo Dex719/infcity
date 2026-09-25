@@ -797,6 +797,20 @@
   - Acceptance: unit и e2e зелёные; пик ≤ 400 000 треугольников, ≤ 300 draw calls
   - Факт: крупные кадры перекрёстков (светофоры, площадь на углу, река, ЛРТ) — зебры с четырёх сторон, стоп-линии отдельно; машина в браузере ждёт передом в 3,99 от зоны; эталоны — изменились все 20 кадров только в разметке (1,6…3,3 % пикселей); e2e 36/36, perf 327 624 / 125, FPS 45…49 у старого и нового кода (A/B, окружение); unit 399/399
 
+#### Волна 16 (2026-09-25): карточка ссылки и значок
+
+- [x] **TSK-163**: Open Graph, значки и `theme-color`
+  - Requirement: FR-19.28, AC-19.29
+  - Deliverables: мета-теги и ссылки на значки в `index.html`; `public/favicon.svg`; `tools/share-assets.js` и сгенерированные им `public/og.jpg`, `public/favicon-32.png`, `public/apple-touch-icon.png`; `theme-color` в `applyPalette` (`src/ui/theme.ts`); тест `tests/ui/head.test.ts`; проверка в `e2e/ui.spec.ts`; README
+  - Acceptance: AC-19.29; экранных кнопок нет
+  - Факт: в `index.html` — Open Graph (`og:type`, `og:site_name`, `og:locale`, `og:title`, `og:description`, `og:url`, `og:image` с абсолютным адресом, размером, типом и `alt`) и `twitter:card`; значки — `favicon.svg` (Байтерек в цветах палитры), `favicon-32.png` и `apple-touch-icon.png`; `/favicon.ico` до этого отдавал 404 и на dev-сервере, и на Pages. `tools/share-assets.js` поднимает `vite preview`, снимает карточку 1200 × 630 и рендерит PNG из SVG. Кадр карточки — стартовый вид, сдвинутый на 290 px вниз: в стартовом кадре шар Байтерека срезан, со сдвигом Байтерек виден целиком, под ним — бульвар Нуржол. `theme-color` ставит `applyPalette` из неба палитры (зимой — `#cfd8e3`). ESLint: для `tools/**/*.js` — глобалы браузера (колбэки `page.evaluate`), в JS отключено правило типов возврата. Тест `tests/ui/head.test.ts` (4): мета-теги, размеры JPEG и PNG по заголовкам файлов, цвета SVG — из палитры, `theme-color` летом и зимой; e2e `ui.spec.ts` AC-19.29 — `theme-color` равен небу отданной палитры, значки и `og.jpg` отдаются с кодом 200 и верным типом; unit 403/403, e2e UI 8/8
+
+- [ ] **TSK-164**: QA волны 16
+  - Requirement: FR-19.8
+  - Depends on: TSK-163
+  - Deliverables: вид значка во вкладке встроенного браузера, `og.jpg` глазами, e2e, qa-evidence
+  - Acceptance: unit и e2e зелёные; эталоны кадра без изменений
+
 #### BUG-10 (2026-09-23): «убери оптимизацию — тени и объекты появляются»
 
 - [x] **TSK-129**: Снять LOD слоя деталей и тень деталей только вблизи
@@ -1060,5 +1074,7 @@ graph TD
 | TSK-160 | Complete | 2026-09-24: QA бульвара — зелень 14,9 %, e2e 36/36, perf 337 226 / 126 / 104,5 FPS |
 | TSK-161 | Complete | 2026-09-25: зебры вне зоны, стоп-линии, остановка перед стоп-линией; unit 399/399 |
 | TSK-162 | Complete | 2026-09-25: QA волны 15 — e2e 36/36, perf 327 624 / 125, эталоны перезаписаны |
+| TSK-163 | Complete | 2026-09-25: Open Graph, значки, `theme-color`; unit 403/403 |
+| TSK-164 | Pending | |
 
 **Статусы:** Pending / In Progress / Complete. Обновлять вместе с чекбоксами.

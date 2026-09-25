@@ -98,4 +98,25 @@ test.describe('UI-оболочка (FR-2, FR-10)', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('#about')).toBeHidden();
   });
+
+  test('AC-19.29: theme-color — небо палитры, значки и картинка карточки отдаются', async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    // Палитра — та, что отдаёт сервер и грузит демо.
+    const palette = (await (await page.request.get('assets/palette.json')).json()) as {
+      sky: string;
+    };
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', palette.sky);
+    for (const [path, type] of [
+      ['favicon.svg', 'image/svg+xml'],
+      ['favicon-32.png', 'image/png'],
+      ['apple-touch-icon.png', 'image/png'],
+      ['og.jpg', 'image/jpeg'],
+    ] as const) {
+      const response = await page.request.get(path);
+      expect(response.status(), path).toBe(200);
+      expect(response.headers()['content-type'], path).toContain(type);
+    }
+  });
 });

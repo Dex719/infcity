@@ -47,7 +47,7 @@ npm run preview    # раздача собранного dist/
 ## Проверки
 
 ```bash
-npm run test       # Vitest, один прогон (399 тестов)
+npm run test       # Vitest, один прогон (403 теста)
 npm run test:watch # Vitest в watch-режиме
 npm run lint       # ESLint + Prettier --check
 npm run format     # Prettier --write
@@ -57,6 +57,14 @@ npm run e2e        # Playwright: e2e + visual regression на prod-сборке
 E2E локально едет на системном Chrome (`channel: 'chrome'`), в CI — на Chromium Playwright;
 WebKit включается `PW_WEBKIT=1` (нужен `npx playwright install webkit`). Эталоны скриншотов —
 `e2e/__screenshots__/*.png`, обновление: `npx playwright test --update-snapshots`.
+
+Ссылка на демо разворачивается в мессенджерах в карточку с кадром города (Open Graph), у вкладки
+— значок-Байтерек. Картинку карточки `public/og.jpg` и PNG-значки собирает один скрипт, после
+изменений кадра их пересобирают и коммитят, как эталоны:
+
+```bash
+npm run build && node tools/share-assets.js
+```
 
 ## URL-параметры
 

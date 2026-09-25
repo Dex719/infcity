@@ -23,6 +23,16 @@ export function applyPalette(palette: Palette, root: HTMLElement = document.docu
   for (const [variable, key] of UI_PALETTE_VARS) {
     root.style.setProperty(variable, palette[key]);
   }
+  // Цвет интерфейса мобильного браузера — небо палитры (FR-19.28, design D32): не зашит в
+  // HTML, поэтому в зимнем режиме он зимний.
+  const doc = root.ownerDocument;
+  let themeColor = doc.head.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (themeColor === null) {
+    themeColor = doc.createElement('meta');
+    themeColor.name = 'theme-color';
+    doc.head.appendChild(themeColor);
+  }
+  themeColor.content = palette.sky;
 }
 
 /** Пользователь просил меньше анимаций (NFR-6); в средах без `matchMedia` — `false`. */

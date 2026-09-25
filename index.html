@@ -12,6 +12,27 @@
       content="Бесконечный low-poly город Астаны: детерминированная генерация по seed, ЛРТ, трафик и облака."
     />
     <meta name="color-scheme" content="light" />
+    <!-- Карточка ссылки и значок (FR-19.28, design D32): адреса картинок — абсолютные, как
+         требуют краулеры; og.jpg и PNG-значки собирает tools/share-assets.js. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Astana Infinite" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="Astana Infinite" />
+    <meta
+      property="og:description"
+      content="Бесконечный low-poly город Астаны: детерминированная генерация по seed, ЛРТ, трафик и облака."
+    />
+    <meta property="og:url" content="https://dex719.github.io/infcity/" />
+    <meta property="og:image" content="https://dex719.github.io/infcity/og.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Low-poly город Астаны: Байтерек и бульвар Нуржол" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- PNG с sizes — запасной (Safari до 26): браузер с поддержкой SVG берёт SVG. -->
+    <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <title>Astana Infinite</title>
     <style>
       /* Цвет фона выставляется из palette.json в main.ts — хардкод цветов вне палитры запрещён. */

@@ -37,6 +37,13 @@ export default tseslint.config(
     files: ['**/*.js'],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
+    // В JS нет аннотаций типов — правило только для TypeScript.
+    rules: { '@typescript-eslint/explicit-function-return-type': 'off' },
+  },
+  {
+    // Скрипты `tools/` — Node, но колбэки `page.evaluate` выполняются в браузере.
+    files: ['tools/**/*.js'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   prettier,
 );
