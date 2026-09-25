@@ -1,5 +1,5 @@
 import type { Color } from 'three';
-import { CHUNK_LAYOUT, WORLD } from '@/config';
+import { CHUNK_LAYOUT, CROSSWALK, WORLD } from '@/config';
 import type { Materials } from '@/scene/Materials';
 import type { LrtInfo, RoadsInfo } from '@/world/types';
 import type { GeometryBatch } from './GeometryBatch';
@@ -12,10 +12,23 @@ const CURB_Y = 0.15;
 const MARK_Y = 0.03;
 const DASH_LEN = 3;
 const DASH_GAP = 3;
-// Разметка TSK-102 (design «C7 (дополнение): улицы» → «Разметка», FR-18.2).
-const STOP_LEN = 4.4; // половина полотна ROAD_W (10)
-const STOP_WIDTH = 0.5;
-const STOP_GAP = 1.5; // отступ центра стоп-линии от центра зебры — не задевает её полосы (±0.8)
+// Переходы и стоп-линии (FR-19.27, design D31); вдоль дороги — от края зоны перекрёстка.
+/** Проезжая часть обеих дорог поперёк — от внешней полосы тротуара до плиты квартала. */
+const CARRIAGE_MIN = -HALF + CHUNK_LAYOUT.SIDEWALK_WIDTH; // −28.5
+const CARRIAGE_MAX = AXIS + ROAD_W / 2; // −20
+/** Начало зебры у своей зоны (на восток и юг от −20) и у дальнего конца дороги (зона соседа — с +30). */
+const ZEBRA_NEAR = CARRIAGE_MAX + CROSSWALK.OFFSET; // −19.7
+const ZEBRA_FAR = HALF - CROSSWALK.OFFSET - CROSSWALK.LENGTH; // 27.5
+/** Полосы зебры — плоскости чуть ниже верха штрихов (MARK_Y + 0.01): без общих граней с ними. */
+const ZEBRA_Y = MARK_Y + 0.005;
+/** Начало стоп-линии: у своей зоны — за зеброй, у дальнего конца — перед ней. */
+const STOP_NEAR = ZEBRA_NEAR + CROSSWALK.LENGTH + CROSSWALK.STOP_GAP; // −16.7
+const STOP_FAR = ZEBRA_FAR - CROSSWALK.STOP_GAP - CROSSWALK.STOP_WIDTH; // 26.2
+/** Стоп-линия идёт от оси дороги до этого отступа от бордюра: краевая линия кончается в 0.375. */
+const STOP_CURB_CLEARANCE = 0.45;
+/** Зазоры осевого пунктира до стоп-линий и краевых линий до зебр. */
+const DASH_CLEARANCE = 0.5;
+const EDGE_CLEARANCE = 0.3;
 const ARROW_STEM_W = 0.25;
 const ARROW_STEM_LEN = 2.0;
 const ARROW_FEATHER_W = 0.22;
@@ -84,9 +97,13 @@ export function buildRoads(
   batch.box(-HALF + sw / 2, CURB_Y / 2, -HALF + sw / 2, sw, CURB_Y, sw, sidewalk);
 
   // Разметка — в батч деталей.
-  // Осевые прерывистые линии (не в зоне перекрёстка).
-  const from = blockMin + 2;
-  for (let t = from; t < HALF - DASH_LEN; t += DASH_LEN + DASH_GAP) {
+  // Осевые прерывистые линии — между стоп-линиями, не заходят на переходы (FR-19.27).
+  const dashTo = STOP_FAR - DASH_CLEARANCE;
+  for (
+    let t = STOP_NEAR + CROSSWALK.STOP_WIDTH + DASH_CLEARANCE;
+    t + DASH_LEN <= dashTo;
+    t += DASH_LEN + DASH_GAP
+  ) {
     const c = t + DASH_LEN / 2;
     if (!hasLrt) {
       detail.box(c, MARK_Y, AXIS, DASH_LEN, 0.02, 0.25, marking); // вдоль E–W
@@ -95,21 +112,22 @@ export function buildRoads(
       detail.box(AXIS, MARK_Y, c, 0.25, 0.02, DASH_LEN, marking); // вдоль N–S
     }
   }
-  // Сплошные краевые линии.
-  detail.box(blockCenter, MARK_Y, AXIS - ROAD_W / 2 + 0.3, blockSize, 0.02, 0.15, marking);
-  detail.box(blockCenter, MARK_Y, AXIS + ROAD_W / 2 - 0.3, blockSize, 0.02, 0.15, marking);
-  detail.box(AXIS - ROAD_W / 2 + 0.3, MARK_Y, blockCenter, 0.15, 0.02, blockSize, marking);
-  detail.box(AXIS + ROAD_W / 2 - 0.3, MARK_Y, blockCenter, 0.15, 0.02, blockSize, marking);
+  // Сплошные краевые линии — между зебрами.
+  const edgeFrom = ZEBRA_NEAR + CROSSWALK.LENGTH + EDGE_CLEARANCE;
+  const edgeTo = ZEBRA_FAR - EDGE_CLEARANCE;
+  const edgeCenter = (edgeFrom + edgeTo) / 2;
+  const edgeLength = edgeTo - edgeFrom;
+  detail.box(edgeCenter, MARK_Y, AXIS - ROAD_W / 2 + 0.3, edgeLength, 0.02, 0.15, marking);
+  detail.box(edgeCenter, MARK_Y, AXIS + ROAD_W / 2 - 0.3, edgeLength, 0.02, 0.15, marking);
+  detail.box(AXIS - ROAD_W / 2 + 0.3, MARK_Y, edgeCenter, 0.15, 0.02, edgeLength, marking);
+  detail.box(AXIS + ROAD_W / 2 - 0.3, MARK_Y, edgeCenter, 0.15, 0.02, edgeLength, marking);
 
-  // Зебры на въездах в перекрёсток (со стороны квартала и со стороны соседей).
-  zebra(detail, marking, blockMin + 1.2, AXIS, true);
-  zebra(detail, marking, AXIS, blockMin + 1.2, false);
-  zebra(detail, marking, -HALF + 1.2, AXIS, true);
-  zebra(detail, marking, AXIS, -HALF + 1.2, false);
+  // Зебры с четырёх сторон перекрёстков, вне их зон (FR-19.27, design D31).
+  crosswalks(detail, marking);
 
-  // Стоп-линии перед каждой зеброй, стрелки направления на подъездах, кромка бордюра
-  // квартала (TSK-102, FR-18.2, design «C7 (дополнение): улицы» → «Разметка»).
-  stopLines(detail, marking, blockMin);
+  // Стоп-линии перед каждой зеброй, стрелки направления на подъездах (TSK-102, FR-18.2,
+  // design «C7 (дополнение): улицы» → «Разметка»; места — FR-19.27, design D31).
+  stopLines(detail, marking);
   if (!river) {
     // На русле — мост и набережная, полос с направлением движения к перекрёстку нет.
     laneArrows(detail, marking, blockMin);
@@ -184,14 +202,30 @@ export function buildRoads(
   }
 }
 
-/** Пешеходная зебра поперёк дороги: `alongX` — полосы тянутся вдоль X (true) или Z. */
-function zebra(batch: GeometryBatch, color: Color, cx: number, cz: number, alongX: boolean): void {
-  for (let i = -2; i <= 2; i++) {
-    const offset = i * 1.6;
+/**
+ * Пешеходные переходы (FR-19.27, design D31): 4 зебры по `CROSSWALK.BARS` полос поперёк всей
+ * проезжей части. Две лежат у своей зоны перекрёстка — восточная на дороге E–W и южная на N–S.
+ * Две — у дальних концов своих дорог: это западная и северная зебры зон соседей, чья зона
+ * начинается на +30. Так все зебры любой зоны лежат вне её и внутри своего чанка.
+ */
+export function crosswalks(batch: GeometryBatch, color: Color): void {
+  for (const start of [ZEBRA_NEAR, ZEBRA_FAR]) {
+    zebra(batch, color, start + CROSSWALK.LENGTH / 2, true);
+    zebra(batch, color, start + CROSSWALK.LENGTH / 2, false);
+  }
+}
+
+/** Одна зебра с центром `along` вдоль дороги: `alongX` — дорога E–W (полосы вдоль X) или N–S. */
+function zebra(batch: GeometryBatch, color: Color, along: number, alongX: boolean): void {
+  const { BARS, BAR_WIDTH, BAR_GAP, LENGTH } = CROSSWALK;
+  const span = BARS * BAR_WIDTH + (BARS - 1) * BAR_GAP;
+  const first = (CARRIAGE_MIN + CARRIAGE_MAX) / 2 - span / 2 + BAR_WIDTH / 2;
+  for (let i = 0; i < BARS; i++) {
+    const across = first + i * (BAR_WIDTH + BAR_GAP);
     if (alongX) {
-      batch.box(cx, MARK_Y, cz + offset, 1.6, 0.02, 0.8, color);
+      batch.plane(along, ZEBRA_Y, across, LENGTH, BAR_WIDTH, color);
     } else {
-      batch.box(cx + offset, MARK_Y, cz, 0.8, 0.02, 1.6, color);
+      batch.plane(across, ZEBRA_Y, along, BAR_WIDTH, LENGTH, color);
     }
   }
 }
@@ -205,45 +239,49 @@ function trafficLight(batch: GeometryBatch, m: Materials, x: number, z: number):
 }
 
 /**
- * Стоп-линии перед зебрами перекрёстка (FR-18.2, design «Разметка»). Линия перекрывает
- * ОДНУ полосу — ту, что подъезжает к переходу, — и лежит с той стороны зебры, откуда идёт
- * машина. Полосы берутся из `CHUNK_LAYOUT.LANE_OFFSETS` и правил `mobs/Lanes.ts`
- * (правостороннее движение): E–W дорога — южная полоса `z = −22.5` едет на восток,
- * северная `z = −27.5` на запад; N–S дорога — восточная `x = −22.5` едет на север,
- * западная `x = −27.5` на юг.
+ * Стоп-линии перед зебрами (FR-18.2, FR-19.27, design D31): брус на полосе, которая подъезжает
+ * к переходу, от оси дороги до `STOP_CURB_CLEARANCE` от бордюра, с зазором `CROSSWALK.STOP_GAP`
+ * до зебры. Полосы — `CHUNK_LAYOUT.LANE_OFFSETS` и правила `mobs/Lanes.ts` (правостороннее
+ * движение): E–W дорога — южная полоса `z = −22.5` едет на восток, северная `z = −27.5` на
+ * запад; N–S дорога — восточная `x = −22.5` едет на север, западная `x = −27.5` на юг. К своей
+ * зоне подъезжают северная полоса E–W (с востока) и восточная N–S (с юга), к зонам соседей на
+ * +30 — южная E–W и западная N–S.
  *
  * Первая версия (рецензия 2026-09-19) центрировала брус по оси дороги: он накрывал по
- * половине каждой полосы и читался как брус посреди проезжей части, а две линии из четырёх
- * вообще уезжали за границу чанка (x ≈ −30.3 при границе −30).
+ * половине каждой полосы и читался как брус посреди проезжей части.
  */
-export function stopLines(batch: GeometryBatch, color: Color, blockMin: number): void {
-  const west = CHUNK_LAYOUT.LANE_OFFSETS[0];
-  const east = CHUNK_LAYOUT.LANE_OFFSETS[1];
-  // Подъезд с востока по северной полосе (едет на запад): линия восточнее зебры квартала.
-  stopLine(batch, color, blockMin + 1.2 + STOP_GAP, west, true);
-  // Подъезд с юга по восточной полосе (едет на север): линия южнее зебры квартала.
-  stopLine(batch, color, east, blockMin + 1.2 + STOP_GAP, false);
-  // Подъезды с запада и с севера: зебры стоят у самой кромки чанка, поэтому линии
-  // прижимаются к границе изнутри (иначе геометрия уходит на территорию соседа).
-  stopLine(batch, color, -HALF + STOP_WIDTH / 2 + 0.05, east, true);
-  stopLine(batch, color, west, -HALF + STOP_WIDTH / 2 + 0.05, false);
+export function stopLines(batch: GeometryBatch, color: Color): void {
+  const near = STOP_NEAR + CROSSWALK.STOP_WIDTH / 2;
+  const far = STOP_FAR + CROSSWALK.STOP_WIDTH / 2;
+  // Со стороны внешнего тротуара (−28.5) — до оси дороги; со стороны квартала — от оси до −20.
+  const outer: Span = [CARRIAGE_MIN + STOP_CURB_CLEARANCE, AXIS];
+  const inner: Span = [AXIS, CARRIAGE_MAX - STOP_CURB_CLEARANCE];
+  stopLine(batch, color, near, outer, true); // E–W, северная полоса — на запад
+  stopLine(batch, color, far, inner, true); // E–W, южная полоса — на восток
+  stopLine(batch, color, near, inner, false); // N–S, восточная полоса — на север
+  stopLine(batch, color, far, outer, false); // N–S, западная полоса — на юг
 }
 
+/** Отрезок поперёк дороги `[from, to]`. */
+type Span = readonly [number, number];
+
 /**
- * Один брус стоп-линии длиной в полосу (`STOP_LEN` = половина полотна), центр — на оси той
- * полосы, которая перед ним останавливается. `alongX` — дорога тянется вдоль X (true) или Z.
+ * Один брус стоп-линии: `along` — его центр вдоль дороги, `across` — отрезок поперёк неё;
+ * `alongX` — дорога тянется вдоль X (true) или Z.
  */
 function stopLine(
   batch: GeometryBatch,
   color: Color,
-  cx: number,
-  cz: number,
+  along: number,
+  across: Span,
   alongX: boolean,
 ): void {
+  const center = (across[0] + across[1]) / 2;
+  const length = across[1] - across[0];
   if (alongX) {
-    batch.box(cx, MARK_Y, cz, STOP_WIDTH, 0.02, STOP_LEN, color);
+    batch.box(along, MARK_Y, center, CROSSWALK.STOP_WIDTH, 0.02, length, color);
   } else {
-    batch.box(cx, MARK_Y, cz, STOP_LEN, 0.02, STOP_WIDTH, color);
+    batch.box(center, MARK_Y, along, length, 0.02, CROSSWALK.STOP_WIDTH, color);
   }
 }
 
@@ -256,9 +294,10 @@ export function laneArrows(batch: GeometryBatch, color: Color, blockMin: number)
   const east = CHUNK_LAYOUT.LANE_OFFSETS[1];
   // Южная полоса E–W дороги (`z = −22.5`) по `mobs/Lanes.ts` едет на ВОСТОК: остриё на +X.
   // Первая версия (рецензия 2026-09-19) направляла эту стрелку на −X, то есть против движения.
-  laneArrow(batch, color, blockMin + 5, east, Math.PI / 2);
+  // Центр — в 7.5 от зоны: остриё стрелки северного подъезда — в 2.7 от стоп-линии (D31).
+  laneArrow(batch, color, blockMin + 7.5, east, Math.PI / 2);
   // Восточная полоса N–S дороги (`x = −22.5`) едет на север: остриё на −Z.
-  laneArrow(batch, color, east, blockMin + 5, Math.PI);
+  laneArrow(batch, color, east, blockMin + 7.5, Math.PI);
 }
 
 /** Одна стрелка: `rotationY` — направление остриём вперёд (0 — вдоль +Z, design box()). */

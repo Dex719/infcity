@@ -264,6 +264,7 @@ describe('CONFIG', () => {
       'CAMERA',
       'PAN',
       'CHUNK_LAYOUT',
+      'CROSSWALK',
       'RENDER',
       'AO',
       'FACADE',

@@ -2,11 +2,11 @@ import type { BufferGeometry, Color } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
-import { CHUNK_LAYOUT } from '@/config';
+import { CHUNK_LAYOUT, CROSSWALK } from '@/config';
 import { buildBlock } from '@/scene/procedural/BlockPrefabs';
 import { GeometryBatch } from '@/scene/procedural/GeometryBatch';
 import { Props } from '@/scene/procedural/Props';
-import { buildRoads, laneArrow, laneArrows, stopLines } from '@/scene/procedural/Roads';
+import { buildRoads, crosswalks, laneArrow, laneArrows, stopLines } from '@/scene/procedural/Roads';
 import { Generator } from '@/world/Generator';
 import type { ChunkDescriptor, LrtInfo, RoadsInfo } from '@/world/types';
 import paletteJson from '../../public/assets/palette.json';
@@ -186,7 +186,7 @@ function bounds(batch: GeometryBatch): {
 describe('Roads.stopLines — стоп-линии перед зебрами (TSK-102, FR-18.2)', () => {
   it('4 бруса по 24 вершины (96 всего), все на MARK_Y', () => {
     const batch = new GeometryBatch();
-    stopLines(batch, materials.color('marking'), BLOCK_MIN);
+    stopLines(batch, materials.color('marking'));
     expect(batch.parts).toBe(4);
     expect(batch.vertices).toBe(96);
     expectAllAtMarkY(batch.build());
@@ -194,31 +194,194 @@ describe('Roads.stopLines — стоп-линии перед зебрами (TSK
 
   it('вся геометрия внутри чанка [−30, 30] (рецензия: две линии уезжали к соседу)', () => {
     const batch = new GeometryBatch();
-    stopLines(batch, materials.color('marking'), BLOCK_MIN);
+    stopLines(batch, materials.color('marking'));
     const box = bounds(batch);
     expect(box.min.x).toBeGreaterThanOrEqual(-30);
     expect(box.min.z).toBeGreaterThanOrEqual(-30);
     expect(box.max.x).toBeLessThanOrEqual(30);
     expect(box.max.z).toBeLessThanOrEqual(30);
   });
+});
 
-  it('каждая линия центрирована на своей полосе, а не на оси дороги', () => {
-    // Полосы — CHUNK_LAYOUT.LANE_OFFSETS (−27.5 и −22.5). Линия длиной 4.4 поперёк полосы
-    // должна лежать в её коридоре ±2.5, то есть не пересекать ось дороги (−25).
-    const lanes = CHUNK_LAYOUT.LANE_OFFSETS;
-    for (const [index, lane] of lanes.entries()) {
-      const batch = new GeometryBatch();
-      stopLines(batch, materials.color('marking'), BLOCK_MIN);
-      const position = batch.build().getAttribute('position');
-      let onLane = 0;
-      for (let i = 0; i < position.count; i++) {
-        const across = index === 0 ? position.getZ(i) : position.getX(i);
-        if (Math.abs(across - lane) <= 2.5) {
-          onLane++;
+/** Прямоугольник разметки на плоскости XZ. */
+interface Rect {
+  readonly minX: number;
+  readonly maxX: number;
+  readonly minZ: number;
+  readonly maxZ: number;
+}
+
+/** Описанный прямоугольник бруса `w × d` с центром `(x, z)`, повёрнутого на `rotationY`. */
+function rectOf(x: number, z: number, w: number, d: number, rotationY = 0): Rect {
+  const c = Math.abs(Math.cos(rotationY));
+  const s = Math.abs(Math.sin(rotationY));
+  const hx = (w * c + d * s) / 2;
+  const hz = (w * s + d * c) / 2;
+  return { minX: x - hx, maxX: x + hx, minZ: z - hz, maxZ: z + hz };
+}
+
+/** Равенство размеров с допуском на округление (центр ± половина). */
+const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-6;
+
+/** Зазор между прямоугольниками по более далёкой оси; ≤ 0 — они перекрываются. */
+function gap(a: Rect, b: Rect): number {
+  return Math.max(a.minX - b.maxX, b.minX - a.maxX, a.minZ - b.maxZ, b.minZ - a.maxZ);
+}
+
+/** Разметка дорог чанка: брусы на `MARK_Y` (вызовы `box`) и полосы зебр (вызовы `plane`). */
+function roadMarkings(
+  roads: RoadsInfo,
+  lrt: LrtInfo,
+  river: boolean,
+): { bars: Rect[]; zebra: Rect[] } {
+  const boxes = vi.spyOn(GeometryBatch.prototype, 'box');
+  const planes = vi.spyOn(GeometryBatch.prototype, 'plane');
+  const detail = new GeometryBatch();
+  const props = new Props(detail, materials);
+  buildRoads(new GeometryBatch(), detail, props, materials, roads, lrt, river);
+  const bars = boxes.mock.calls
+    .filter(([, y, , , h]) => y === MARK_Y && h === 0.02)
+    .map(([x, , z, w, , d, , rotationY]) => rectOf(x, z, w, d, rotationY));
+  const zebra = planes.mock.calls
+    .filter(([, y]) => y > MARK_Y && y <= MARK_Y + MARK_HALF_THICKNESS)
+    .map(([x, , z, w, d]) => rectOf(x, z, w, d));
+  boxes.mockRestore();
+  planes.mockRestore();
+  return { bars, zebra };
+}
+
+// FR-19.27, AC-19.28, design D31: зебры как у референса — вне зоны перекрёстка и поперёк всей
+// проезжей части, стоп-линия перед зеброй, у которой машина встаёт передом.
+describe('Переходы и стоп-линии — FR-19.27, AC-19.28 (design D31)', () => {
+  const ZONE: Rect = { minX: -30, maxX: -20, minZ: -30, maxZ: -20 };
+  /** Проезжая часть поперёк обеих дорог: от внешней полосы тротуара до плиты квартала. */
+  const CARRIAGE = { min: -30 + CHUNK_LAYOUT.SIDEWALK_WIDTH, max: BLOCK_MIN };
+  const roads: RoadsInfo = { ns: 'a', ew: 'a', corner: 'lights' };
+  const noLrt: LrtInfo = { corridor: null, station: false, ns: false, nsStation: false };
+  const variants = [
+    ['обычный', roads, noLrt, false],
+    ['речной', roads, noLrt, true],
+    ['под ЛРТ', roads, { corridor: 'EW', station: true, ns: true, nsStation: false }, false],
+    ['площадь на углу', { ns: 'b', ew: 'b', corner: 'plaza' }, noLrt, false],
+  ] as const satisfies readonly (readonly [string, RoadsInfo, LrtInfo, boolean])[];
+
+  /**
+   * Подъезды к зонам (правостороннее движение, `mobs/Lanes.ts`): полоса поперёк дороги, дорога
+   * вдоль X или Z, направление движения и край зоны, к которой едут: своей (−20) или соседа (+30).
+   */
+  const approaches = [
+    { name: 'E–W на запад к своей зоне', lane: -27.5, alongX: true, dir: -1, edge: BLOCK_MIN },
+    { name: 'E–W на восток к зоне соседа', lane: -22.5, alongX: true, dir: 1, edge: 30 },
+    { name: 'N–S на север к своей зоне', lane: -22.5, alongX: false, dir: -1, edge: BLOCK_MIN },
+    { name: 'N–S на юг к зоне соседа', lane: -27.5, alongX: false, dir: 1, edge: 30 },
+  ] as const;
+
+  const along = (r: Rect, alongX: boolean): [number, number] =>
+    alongX ? [r.minX, r.maxX] : [r.minZ, r.maxZ];
+  const across = (r: Rect, alongX: boolean): [number, number] =>
+    alongX ? [r.minZ, r.maxZ] : [r.minX, r.maxX];
+
+  it('crosswalks: 4 зебры по 8 полос — 32 плоскости по 4 вершины в слое разметки', () => {
+    const batch = new GeometryBatch();
+    crosswalks(batch, materials.color('marking'));
+    expect(batch.parts).toBe(4 * CROSSWALK.BARS);
+    expect(batch.vertices).toBe(4 * CROSSWALK.BARS * 4);
+    expectAllAtMarkY(batch.build());
+  });
+
+  it.each(variants)(
+    '%s: 4 зебры вне зоны перекрёстка и внутри чанка, поперёк — не меньше 90 процентов проезжей части',
+    (_name, roadsInfo, lrt, river) => {
+      const { zebra } = roadMarkings(roadsInfo, lrt, river);
+      expect(zebra).toHaveLength(4 * CROSSWALK.BARS);
+      for (const bar of zebra) {
+        expect(gap(bar, ZONE)).toBeGreaterThan(0);
+        expect(bar.minX).toBeGreaterThanOrEqual(-30);
+        expect(bar.maxX).toBeLessThanOrEqual(30);
+        expect(bar.minZ).toBeGreaterThanOrEqual(-30);
+        expect(bar.maxZ).toBeLessThanOrEqual(30);
+      }
+      // Две зебры на дороге E–W (полосы вытянуты вдоль X) и две на N–S — у своей зоны и у
+      // зоны соседа; полосы каждой — на асфальте и поперёк почти всей проезжей части.
+      for (const alongX of [true, false]) {
+        for (const edge of [BLOCK_MIN, 30]) {
+          const bars = zebra.filter((r) => {
+            const [a0, a1] = along(r, alongX);
+            return near(a1 - a0, CROSSWALK.LENGTH) && Math.abs((a0 + a1) / 2 - edge) < 3;
+          });
+          expect(bars).toHaveLength(CROSSWALK.BARS);
+          const from = Math.min(...bars.map((r) => across(r, alongX)[0]));
+          const to = Math.max(...bars.map((r) => across(r, alongX)[1]));
+          expect(from).toBeGreaterThanOrEqual(CARRIAGE.min);
+          expect(to).toBeLessThanOrEqual(CARRIAGE.max);
+          expect(to - from).toBeGreaterThanOrEqual(0.9 * (CARRIAGE.max - CARRIAGE.min));
         }
       }
-      expect(onLane).toBeGreaterThan(0);
-    }
+    },
+  );
+
+  it.each(variants)(
+    '%s: стоп-линия на подъезжающей полосе между зеброй (зазор ≥ 0,5) и передом стоящей машины',
+    (_name, roadsInfo, lrt, river) => {
+      const { bars, zebra } = roadMarkings(roadsInfo, lrt, river);
+      const stops = bars.filter(
+        (r) =>
+          near(r.maxX - r.minX, CROSSWALK.STOP_WIDTH) ||
+          near(r.maxZ - r.minZ, CROSSWALK.STOP_WIDTH),
+      );
+      expect(stops).toHaveLength(4);
+      for (const a of approaches) {
+        const line = stops.find((r) => {
+          const [c0, c1] = across(r, a.alongX);
+          const [a0, a1] = along(r, a.alongX);
+          return near(a1 - a0, CROSSWALK.STOP_WIDTH) && c0 <= a.lane && a.lane <= c1;
+        });
+        expect(line, a.name).toBeDefined();
+        const crossing = zebra.filter((r) => {
+          const [a0, a1] = along(r, a.alongX);
+          return near(a1 - a0, CROSSWALK.LENGTH) && Math.abs((a0 + a1) / 2 - a.edge) < 3;
+        });
+        const [z0, z1] = [
+          Math.min(...crossing.map((r) => along(r, a.alongX)[0])),
+          Math.max(...crossing.map((r) => along(r, a.alongX)[1])),
+        ];
+        const [l0, l1] = along(line!, a.alongX);
+        // Перед машины, уступающей на перекрёстке, — в STOP_SETBACK от края зоны.
+        const front = a.edge - a.dir * CROSSWALK.STOP_SETBACK;
+        if (a.dir < 0) {
+          // Едем к меньшим координатам: линия — за зеброй, перед — за линией.
+          expect(l0 - z1, a.name).toBeGreaterThanOrEqual(0.5);
+          expect(front, a.name).toBeGreaterThanOrEqual(l1);
+        } else {
+          expect(z0 - l1, a.name).toBeGreaterThanOrEqual(0.5);
+          expect(front, a.name).toBeLessThanOrEqual(l0);
+        }
+      }
+    },
+  );
+
+  it.each(variants)(
+    '%s: пунктир, краевые линии и стрелки не касаются зебр и стоп-линий',
+    (_name, roadsInfo, lrt, river) => {
+      const { bars, zebra } = roadMarkings(roadsInfo, lrt, river);
+      const isStop = (r: Rect): boolean =>
+        near(r.maxX - r.minX, CROSSWALK.STOP_WIDTH) || near(r.maxZ - r.minZ, CROSSWALK.STOP_WIDTH);
+      const stops = bars.filter(isStop);
+      const others = bars.filter((r) => !isStop(r));
+      expect(others.length).toBeGreaterThan(0);
+      for (const other of others) {
+        for (const target of [...zebra, ...stops]) {
+          expect(gap(other, target)).toBeGreaterThan(0.01);
+        }
+      }
+    },
+  );
+
+  it('разметка обычного чанка дешевле прежней: было 1 200 вершин (зебры — боксы 5 × 24)', () => {
+    const detail = new GeometryBatch();
+    const props = new Props(detail, materials);
+    buildRoads(new GeometryBatch(), detail, props, materials, roads, noLrt, false);
+    expect(countColor(detail.build(), materials.color('marking'))).toBeLessThanOrEqual(1200);
   });
 });
 
@@ -262,7 +425,7 @@ describe('Roads.laneArrows — стрелки направления на под
 describe('Разметка TSK-102 — бюджет (AC-18.3, design «C7 (дополнение): улицы»)', () => {
   it('суммарный прирост вершин чанка (стоп-линии + стрелки) ≤ 300', () => {
     const batch = new GeometryBatch();
-    stopLines(batch, materials.color('marking'), BLOCK_MIN);
+    stopLines(batch, materials.color('marking'));
     laneArrows(batch, materials.color('marking'), BLOCK_MIN);
     expect(batch.vertices).toBe(96 + 144);
     expect(batch.vertices).toBeLessThanOrEqual(300);

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { TRAFFIC } from '@/config';
+import { CROSSWALK, TRAFFIC } from '@/config';
 import { Car } from '@/mobs/Car';
-import { detects, type RadarCar } from '@/mobs/Traffic';
+import {
+  detects,
+  STOP_LINE_TOLERANCE,
+  STOP_MARGIN,
+  stopMargin,
+  type RadarCar,
+} from '@/mobs/Traffic';
 
 function radarCar(
   wx: number,
@@ -120,5 +126,71 @@ describe('Car.sense — торможение, разгон, anti-deadlock (AC-6.
       car.sense([car], 1 / 60);
     }
     expect(car.speed).toBe(TRAFFIC.MAX_SPEED);
+  });
+});
+
+// FR-19.27, AC-19.28, design D31: уступающая машина встаёт передом перед стоп-линией, а не
+// на зебре; машина, уже проехавшая линию, как раньше встаёт у края зоны.
+describe('Стоп-линия — где встаёт уступающая машина (FR-19.27, AC-19.28)', () => {
+  /** Край стоп-линии со стороны подъезда — от края зоны. */
+  const LINE_FAR = CROSSWALK.OFFSET + CROSSWALK.LENGTH + CROSSWALK.STOP_GAP + CROSSWALK.STOP_WIDTH;
+  const HALF_LENGTH = 2.2;
+
+  /** Машина на северной полосе E–W едет на запад к своей зоне (край на x = −20). */
+  function approaching(x: number, speed: number): Car {
+    const car = new Car(0, 0, { lane: 2, model: 0, dir: -1, roll: 0.1 }, HALF_LENGTH);
+    car.x = x;
+    car.speed = speed;
+    return car;
+  }
+
+  /** Поперечная машина стоит в зоне у её южного края — слева от подъезжающей, радару не цель. */
+  function blocker(): Car {
+    const car = new Car(0, 0, { lane: 1, model: 0, dir: -1, roll: 0.1 }, HALF_LENGTH);
+    car.z = -21;
+    car.speed = 0;
+    return car;
+  }
+
+  function drive(car: Car, other: Car, seconds: number): void {
+    for (let i = 0; i < 60 * seconds; i++) {
+      for (const c of [car, other]) {
+        c.wx = c.worldX(0);
+        c.wz = c.worldZ(0);
+      }
+      car.sense([car, other], 1 / 60);
+      car.update(1 / 60);
+    }
+  }
+
+  /** Расстояние от переда машины до края зоны. */
+  const toZone = (car: Car): number => car.x - HALF_LENGTH - -20;
+
+  it('запас торможения: до стоп-линии, пока машина её не проехала, иначе — край зоны', () => {
+    expect(CROSSWALK.STOP_SETBACK).toBeGreaterThanOrEqual(LINE_FAR);
+    expect(CROSSWALK.STOP_SETBACK - STOP_LINE_TOLERANCE).toBeGreaterThan(
+      CROSSWALK.OFFSET + CROSSWALK.LENGTH,
+    );
+    expect(stopMargin(10)).toBe(CROSSWALK.STOP_SETBACK);
+    expect(stopMargin(CROSSWALK.STOP_SETBACK - STOP_LINE_TOLERANCE + 0.01)).toBe(
+      CROSSWALK.STOP_SETBACK,
+    );
+    expect(stopMargin(CROSSWALK.STOP_SETBACK - STOP_LINE_TOLERANCE - 0.01)).toBe(STOP_MARGIN);
+  });
+
+  it('с полной скорости встаёт передом перед стоп-линией, не на зебре', () => {
+    const car = approaching(10, TRAFFIC.MAX_SPEED);
+    drive(car, blocker(), 3);
+    expect(car.speed).toBe(0);
+    expect(toZone(car)).toBeGreaterThanOrEqual(LINE_FAR);
+    expect(toZone(car)).toBeLessThanOrEqual(CROSSWALK.STOP_SETBACK + 0.05);
+  });
+
+  it('проехавшая стоп-линию встаёт у края зоны, не заезжая в неё', () => {
+    const car = approaching(-20 + HALF_LENGTH + 2.5, 3);
+    drive(car, blocker(), 3);
+    expect(car.speed).toBe(0);
+    expect(toZone(car)).toBeGreaterThan(0);
+    expect(toZone(car)).toBeLessThanOrEqual(STOP_MARGIN + 0.05);
   });
 });

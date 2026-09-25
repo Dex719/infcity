@@ -8,7 +8,7 @@ import {
   GAP_MARGIN,
   INTERSECTION_LOOKAHEAD,
   PHASE_SECONDS,
-  STOP_MARGIN,
+  stopMargin,
   yieldDistance,
   ZONE,
   zoneAhead,
@@ -104,7 +104,8 @@ export class Car extends MobileObject implements RadarCar {
       stop = zone.distance;
     }
     if (stop !== null) {
-      const allowed = Math.sqrt(2 * TRAFFIC.ACCELERATION * Math.max(0, stop - STOP_MARGIN));
+      // Встаём перед стоп-линией, а проехавшая её машина — у края зоны (FR-19.27, D31).
+      const allowed = Math.sqrt(2 * TRAFFIC.ACCELERATION * Math.max(0, stop - stopMargin(stop)));
       target = Math.min(target, allowed);
       if (allowed < 0.05) {
         this.waitingFor += dt;

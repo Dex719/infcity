@@ -1,4 +1,4 @@
-import { CHUNK_LAYOUT, TRAFFIC } from '@/config';
+import { CHUNK_LAYOUT, CROSSWALK, TRAFFIC } from '@/config';
 import { CAR_HALF_WIDTH } from './Collisions';
 import { isOnIntersection } from './Lanes';
 
@@ -12,14 +12,30 @@ const ZONE_MIN = CHUNK_LAYOUT.ROAD_AXIS - ZONE / 2; // −30
 const ZONE_MAX = CHUNK_LAYOUT.ROAD_AXIS + ZONE / 2; // −20
 const HALF_CHUNK = 30;
 
-/** С какого расстояния до стоп-линии машина начинает учитывать перекрёсток, юниты. */
+/** С какого расстояния до зоны перекрёстка машина начинает его учитывать, юниты. */
 export const INTERSECTION_LOOKAHEAD = 14;
-/** Запас до стоп-линии, юниты. */
+/** Запас до края зоны у машины, уже проехавшей стоп-линию, юниты. */
 export const STOP_MARGIN = 0.6;
+/**
+ * Допуск «ещё до стоп-линии», юниты: больше шага кадра на ползучей скорости — машина,
+ * подползшая к линии вплотную, не перескакивает на запас края зоны и не рвётся к ней.
+ */
+export const STOP_LINE_TOLERANCE = 0.5;
 /** Минимальный зазор между bbox машин, юниты (AC-6.1). */
 export const GAP_MARGIN = 0.35;
 /** Длительность фазы приоритета одной оси на перекрёстке, секунды («светофор»). */
 export const PHASE_SECONDS = 5;
+
+/**
+ * Запас торможения до зоны перекрёстка (FR-19.27, design D31): пока машина не проехала
+ * стоп-линию, она встаёт передом перед ней (`CROSSWALK.STOP_SETBACK` от зоны), а не на зебре;
+ * проехавшая — как раньше, у края зоны, чтобы не встать на перекрёстке.
+ */
+export function stopMargin(distance: number): number {
+  return distance > CROSSWALK.STOP_SETBACK - STOP_LINE_TOLERANCE
+    ? CROSSWALK.STOP_SETBACK
+    : STOP_MARGIN;
+}
 
 /** Минимум состояния машины, нужный радару (чистая логика для тестов). */
 export interface RadarCar {
@@ -101,9 +117,12 @@ export function hasPassedCrossing(self: RadarCar, other: RadarCar): boolean {
   );
 }
 
-/** Ближайшая зона перекрёстка впереди по полосе: расстояние от переда до стоп-линии и её мировой прямоугольник. */
+/** Ближайшая зона перекрёстка впереди по полосе: расстояние от переда до её края и её мировой прямоугольник. */
 export interface ZoneAhead {
-  /** Расстояние от переда машины до стоп-линии; ≤ 0 — машина уже в зоне или на линии. */
+  /**
+   * Расстояние от переда машины до края зоны; ≤ 0 — машина уже в зоне. Стоп-линия лежит
+   * перед краем, машина встаёт в `CROSSWALK.STOP_SETBACK` от него (`stopMargin`).
+   */
   readonly distance: number;
   /** Мировые координаты угла зоны (квадрат `ZONE × ZONE`). */
   readonly x0: number;
@@ -171,7 +190,8 @@ export function greenAxisIsX(zone: ZoneAhead, time: number): boolean {
 /**
  * Нужно ли `self` остановиться у стоп-линии перед зоной впереди (FR-6.5): зона занята
  * машиной пересекающего направления, либо у `self` не приоритетная фаза и к зоне подъезжает
- * пересекающая машина. Возвращает расстояние до стоп-линии или `null`.
+ * пересекающая машина. Возвращает расстояние до края зоны или `null` — запас до стоп-линии
+ * добавляет `stopMargin`.
  */
 export function yieldDistance(
   self: RadarCar,
