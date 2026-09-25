@@ -835,6 +835,14 @@
   - Acceptance: тесты зелёные на программном WebGL при 2–3 FPS и на видеокарте; CI и деплой зелёные
   - Факт: программный WebGL при 2560 × 1440 (3 FPS) воспроизвёл падение `AC-8.2` (60,65); после перевода на `simulate` оба теста зелёные при 3 и 2 FPS и на видеокарте (13 с). CI и деплой после пуша `494a4e2` зелёные без повторов; на https://dex719.github.io/infcity/ — og-теги, `og.jpg` и значки с кодом 200, в кадре бульвар, зебры и двор с площадкой, ошибок в консоли нет
 
+#### Обслуживание CI (2026-09-25)
+
+- [x] **TSK-168**: Версии GitHub Actions — с Node 20 на Node 24
+  - Requirement: NFR-4 (CI), предупреждение раннера 2026-09-25: «Node.js 20 is deprecated… actions/checkout@v4, actions/setup-node@v4, actions/deploy-pages@v4»
+  - Deliverables: `.github/workflows/ci.yml` и `deploy.yml` — `checkout` v4 → v7, `setup-node` v4 → v7, `upload-artifact` v4 → v7, `upload-pages-artifact` v3 → v5, `deploy-pages` v4 → v5 (последние релизы по `gh api …/releases/latest`)
+  - Acceptance: CI и деплой зелёные без предупреждения о Node 20
+  - Факт: по заметкам релизов ломающих изменений для нас нет. Все пять переходят на Node 24 и требуют раннер ≥ 2.327.1 — у GitHub-hosted он свежий. `setup-node` v5 и v6 включают кэш npm сами, у нас `cache: npm` задан явно. `upload-pages-artifact` v4 перестал брать dot-файлы, а в `dist/` их нет (`find dist -name '.*'` — 0). Переход `ubuntu-latest` на Ubuntu 26 с 2026-10-19 не мешает: Playwright поддерживает 26.04 с 1.61, у нас 1.63
+
 #### BUG-10 (2026-09-23): «убери оптимизацию — тени и объекты появляются»
 
 - [x] **TSK-129**: Снять LOD слоя деталей и тень деталей только вблизи
@@ -1103,5 +1111,6 @@ graph TD
 | TSK-165 | Complete | 2026-09-25: детская площадка и газон двора новостройки; unit 408/408 |
 | TSK-166 | Complete | 2026-09-25: QA волны 17 — зелень 15,2 %, e2e 37/37, perf 324 415 / 126 / 105 FPS |
 | TSK-167 | Complete | 2026-09-25: e2e управления на времени приложения; CI и деплой зелёные |
+| TSK-168 | Complete | 2026-09-25: actions на Node 24 (checkout 7, setup-node 7, upload-artifact 7, upload-pages-artifact 5, deploy-pages 5) |
 
 **Статусы:** Pending / In Progress / Complete. Обновлять вместе с чекбоксами.
