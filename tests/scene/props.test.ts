@@ -1,5 +1,5 @@
-import type { BufferGeometry } from 'three';
-import { describe, expect, it } from 'vitest';
+import type { BufferGeometry, Color } from 'three';
+import { describe, expect, it, vi } from 'vitest';
 import { Materials } from '@/scene/Materials';
 import { parsePalette } from '@/scene/palette';
 import { GeometryBatch, Templates } from '@/scene/procedural/GeometryBatch';
@@ -154,5 +154,77 @@ describe('Props — помощники деталей ландмарков (FR-1
     });
     // 2 + 2 + 5 + 6 + 4
     expect(parts).toBe(19);
+  });
+});
+
+// FR-19.29, AC-19.30, design D33: детская площадка двора — домик с крышей и горкой, качели,
+// карусель на песке 7 × 7.
+describe('Props.playground — детская площадка двора (FR-19.29, AC-19.30)', () => {
+  it('песок 7 × 7, вся геометрия в пределах площадки и не выше 2,6; ≤ 350 вершин', () => {
+    const { batch, geometry } = build((p) => p.playground(10, -4));
+    expect(batch.vertices).toBeLessThanOrEqual(350);
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox;
+    expect(box).not.toBeNull();
+    expect(box!.min.x).toBeGreaterThanOrEqual(10 - 3.5 - 1e-6);
+    expect(box!.max.x).toBeLessThanOrEqual(10 + 3.5 + 1e-6);
+    expect(box!.min.z).toBeGreaterThanOrEqual(-4 - 3.5 - 1e-6);
+    expect(box!.max.z).toBeLessThanOrEqual(-4 + 3.5 + 1e-6);
+    expect(box!.max.y).toBeLessThanOrEqual(2.6);
+  });
+
+  it('домик с крышей, горка до земли, качели (2 стойки, перекладина, 2 сиденья), карусель', () => {
+    const boxes = vi.spyOn(GeometryBatch.prototype, 'box');
+    const places = vi.spyOn(GeometryBatch.prototype, 'place');
+    const rotated = vi.spyOn(GeometryBatch.prototype, 'placeRotated');
+    const { geometry } = build((p) => p.playground(0, 0));
+    const color = (key: Parameters<Materials['color']>[0]): Color => materials.color(key);
+    // Песок, домик, крыша-пирамида, карусель — через `place`.
+    const sand = places.mock.calls.filter(
+      ([t, , , , w, , d, c]) =>
+        t === Templates.planeXZ && w === 7 && d === 7 && c.equals(color('sand')),
+    );
+    expect(sand).toHaveLength(1);
+    expect(
+      places.mock.calls.some(
+        ([t, , , , , , , c]) => t === Templates.pyramid4 && c.equals(color('accent-red')),
+      ),
+    ).toBe(true);
+    expect(
+      places.mock.calls.some(
+        ([t, , , , , , , c]) => t === Templates.cylinder8 && c.equals(color('yellow')),
+      ),
+    ).toBe(true);
+    // Горка — наклонная плита: верх у домика, низ у земли.
+    expect(rotated.mock.calls).toHaveLength(1);
+    const [, , sy, , , , length, angle] = rotated.mock.calls[0]!;
+    expect(angle).toBeGreaterThan(0.2);
+    expect(sy - (Math.sin(angle) * length) / 2).toBeLessThan(0.4);
+    // Качели: стойки высотой 2, перекладина и 2 сиденья.
+    const posts = boxes.mock.calls.filter(([, , , w, h]) => w === 0.12 && h === 2);
+    const seats = boxes.mock.calls.filter(([, , , , , , c]) => c.equals(color('accent-red')));
+    expect(posts).toHaveLength(2);
+    expect(seats).toHaveLength(2);
+    expect(boxes.mock.calls.some(([, y, , w]) => w > 2.5 && y > 2)).toBe(true);
+    expect(distinctColors(geometry)).toBeGreaterThanOrEqual(6);
+    vi.restoreAllMocks();
+  });
+
+  it('facing −1 — горка съезжает к −Z: площадка зеркальна по Z, пределы те же', () => {
+    const rotated = vi.spyOn(GeometryBatch.prototype, 'placeRotated');
+    const places = vi.spyOn(GeometryBatch.prototype, 'place');
+    const { batch, geometry } = build((p) => p.playground(0, 0, -1));
+    const house = places.mock.calls.find(([t]) => t === Templates.pyramid4);
+    const [, , sy, sz, , , length, angle] = rotated.mock.calls[0]!;
+    // Домик — на +Z, горка — между ним и −Z, её нижний конец — дальше от домика по −Z.
+    expect(house?.[3]).toBeGreaterThan(0);
+    expect(sz).toBeLessThan(house?.[3] ?? 0);
+    expect(angle).toBeLessThan(-0.2);
+    expect(sy - (Math.sin(-angle) * length) / 2).toBeLessThan(0.4);
+    geometry.computeBoundingBox();
+    expect(geometry.boundingBox!.min.z).toBeGreaterThanOrEqual(-3.5 - 1e-6);
+    expect(geometry.boundingBox!.max.z).toBeLessThanOrEqual(3.5 + 1e-6);
+    expect(batch.vertices).toBeLessThanOrEqual(350);
+    vi.restoreAllMocks();
   });
 });

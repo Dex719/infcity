@@ -7,6 +7,7 @@ import {
   BUSINESS_LAWNS,
   CAFE_TABLES_X,
   MARKET_LAWNS,
+  NEW_BUILD_YARD,
   NURZHOL,
   COMMERCIAL_HEDGE,
   COMMERCIAL_TREES,
@@ -511,5 +512,92 @@ describe('Бульвар Нуржол (FR-20.4, AC-20.3)', () => {
     const fountains = vi.spyOn(Props.prototype, 'fountain');
     buildBlock(other, materials);
     expect(fountains).toHaveBeenCalledTimes(1);
+  });
+});
+
+// FR-19.29, AC-19.30, design D33: двор новостройки — газон у юго-западного края и детская
+// площадка на нём; случайные деревья площадку обходят.
+describe('Двор новостройки (FR-19.29, AC-19.30)', () => {
+  const blocks = new Generator('astana')
+    .describeWindow(0, 0, 21)
+    .filter((d) => d.block === 'residential-new' && d.landmark === null);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  interface Box2 {
+    x0: number;
+    x1: number;
+    z0: number;
+    z1: number;
+  }
+
+  const box = (x: number, z: number, w: number, d: number): Box2 => ({
+    x0: x - w / 2,
+    x1: x + w / 2,
+    z0: z - d / 2,
+    z1: z + d / 2,
+  });
+  const hits = (a: Box2, b: Box2): boolean =>
+    a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
+  const reach = (scale: number): number => 1.3 * 1.9 * scale;
+
+  it('новостройки есть в окне 21×21 seed astana', () => {
+    expect(blocks.length).toBeGreaterThan(0);
+  });
+
+  it('газон с площадкой — мимо башен с ореолами, клумбы, фонарей и машин; деревья не на площадке', () => {
+    const { lawn, playground } = NEW_BUILD_YARD;
+    const area = box(playground.x, playground.z, 7, 7);
+    expect(area.x0).toBeGreaterThanOrEqual(lawn.x0);
+    expect(area.x1).toBeLessThanOrEqual(lawn.x1);
+    expect(area.z0).toBeGreaterThanOrEqual(lawn.z0);
+    expect(area.z1).toBeLessThanOrEqual(lawn.z1);
+    const lawnBox: Box2 = { x0: lawn.x0, x1: lawn.x1, z0: lawn.z0, z1: lawn.z1 };
+    for (const d of blocks) {
+      const towers = vi.spyOn(Buildings.prototype, 'modernTower');
+      const trees = vi.spyOn(Props.prototype, 'tree');
+      const grounds = vi.spyOn(Props.prototype, 'playground');
+      const beds = vi.spyOn(Props.prototype, 'flowerBed');
+      const lamps = vi.spyOn(Props.prototype, 'lamp');
+      const cars = vi.spyOn(Props.prototype, 'parkedCar');
+      const planes = vi.spyOn(GeometryBatch.prototype, 'plane');
+      const block = buildBlock(d, materials);
+      // Горка — к видимой стороне квартала по Z (D13).
+      expect(grounds.mock.calls).toEqual([
+        [playground.x, playground.z, hiddenSides(d.rotation).z === 1 ? -1 : 1],
+      ]);
+      const grass = materials.color('grass');
+      expect(
+        planes.mock.calls.some(
+          ([x, , z, w, dd, color]) =>
+            color.equals(grass) &&
+            x === (lawn.x0 + lawn.x1) / 2 &&
+            z === (lawn.z0 + lawn.z1) / 2 &&
+            w === lawn.x1 - lawn.x0 &&
+            dd === lawn.z1 - lawn.z0,
+        ),
+      ).toBe(true);
+      for (const [f] of towers.mock.calls) {
+        const halo = box(f.x, f.z, f.w + 2 * AO.GROUND_WIDTH, f.d + 2 * AO.GROUND_WIDTH);
+        expect(hits(lawnBox, halo)).toBe(false);
+      }
+      for (const [x, z, r] of beds.mock.calls) {
+        expect(hits(area, box(x, z, 2 * r, 2 * r))).toBe(false);
+      }
+      for (const [x, z] of lamps.mock.calls) {
+        expect(hits(area, box(x, z, 1, 1))).toBe(false);
+      }
+      for (const [x, z] of cars.mock.calls) {
+        expect(hits(lawnBox, box(x, z, 3.6, 1.7))).toBe(false);
+      }
+      for (const [x, z, scale = 1] of trees.mock.calls) {
+        expect(hits(area, box(x, z, 2 * reach(scale), 2 * reach(scale)))).toBe(false);
+      }
+      const vertices = block.opaque.vertices + block.glass.vertices + block.detail.vertices;
+      expect(vertices).toBeLessThanOrEqual(7000);
+      vi.restoreAllMocks();
+    }
   });
 });

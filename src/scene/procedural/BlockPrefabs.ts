@@ -310,7 +310,8 @@ function residentialPanel(ctx: Ctx): void {
       walls[int(ctx.rng, 0, walls.length - 1)] ?? 'panel-grey',
     );
   }
-  ctx.props.playground(0, layout === 0 ? 0 : -1);
+  // Горка — к видимой стороне квартала (FR-19.29, design D33).
+  ctx.props.playground(0, layout === 0 ? 0 : -1, visibleZ(ctx.hidden));
   scatterTrees(
     ctx,
     8,
@@ -336,6 +337,29 @@ function residentialPanel(ctx: Ctx): void {
   ctx.props.bollards(-3, 22.5, 3, 22.5, 4);
 }
 
+/**
+ * Двор новостройки (FR-19.29, design D33): газон у юго-западного края, где двор был пустым
+ * мощением, на нём детская площадка 7 × 7 и скамейка у её восточного края. Газон кончается
+ * на x −11: третья башня (−1; 12) шириной до 14 начинается с −8, её ореол AO — с −10,5.
+ */
+export const NEW_BUILD_YARD = {
+  lawn: { x0: -GROUND_HALF, x1: -11, z0: 3.5, z1: 19.5 },
+  playground: { x: -17, z: 12 },
+  bench: { x: -12.2, z: 12 },
+} as const satisfies {
+  lawn: GroundRect;
+  playground: { x: number; z: number };
+  bench: { x: number; z: number };
+};
+
+/** Видимая сторона квартала по локальной Z (design D13): туда разворачивают горку площадки. */
+function visibleZ(hidden: HiddenSides): 1 | -1 {
+  return hidden.z === 1 ? -1 : 1;
+}
+
+/** Отступ случайных деревьев от площадки двора: наибольший вынос кроны (1.3 × 1.9 × 1.3). */
+const YARD_TREE_CLEARANCE = 3.3;
+
 function residentialNew(ctx: Ctx): void {
   lawn(ctx, 0, 0, 46, 46, 'sidewalk');
   const accents: PaletteKey[] = ['glass-teal', 'flag-blue', 'accent-red', 'gold'];
@@ -353,13 +377,28 @@ function residentialNew(ctx: Ctx): void {
   }
   // Газонная вставка выше покрытия двора (bugfix BUG-7: одна плоскость → z-fighting).
   ctx.b.plane(14, LAWN_Y + 0.06, 12, 14, 14, ctx.m.color('grass'));
+  // Двор (FR-19.29, design D33): газон у юго-западного края, на нём детская площадка и скамейка.
+  const yard = NEW_BUILD_YARD;
+  const { lawn: yardLawn, playground } = yard;
+  ctx.b.plane(
+    (yardLawn.x0 + yardLawn.x1) / 2,
+    LAWN_Y + 0.06,
+    (yardLawn.z0 + yardLawn.z1) / 2,
+    yardLawn.x1 - yardLawn.x0,
+    yardLawn.z1 - yardLawn.z0,
+    ctx.m.color('grass'),
+  );
+  ctx.props.playground(playground.x, playground.z, visibleZ(ctx.hidden));
+  ctx.props.bench(yard.bench.x, yard.bench.z, Math.PI / 2);
   scatterTrees(
     ctx,
     7,
     (x, z) =>
       towers.some((t) => insideRect(x, z, t.x, t.z, t.w, t.d)) ||
       Math.hypot(x, z) < 3 ||
-      Math.hypot(x + 20, z - 20) < 3,
+      Math.hypot(x + 20, z - 20) < 3 ||
+      // Крона лиственного дерева выносится до 1.3 × 1.9 × масштаб (≤ 3.2) — мимо площадки.
+      insideRect(x, z, playground.x, playground.z, 7, 7, YARD_TREE_CLEARANCE),
   );
   for (let i = 0; i < 4; i++) {
     ctx.props.parkedCar(-18 + i * 4.5, 22, 0, i);

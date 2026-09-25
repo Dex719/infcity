@@ -6,6 +6,8 @@ import { type GeometryBatch, Templates } from './GeometryBatch';
 const PIT_Y = 0.28;
 /** Основание изгородей, клумб и столбиков — уровень газона квартала. */
 const HEDGE_BASE_Y = 0.2;
+/** Песок детской площадки — на покрытии двора + 0.06, как вставки (BUG-7); ниже приствольных кругов. */
+const PLAYGROUND_Y = 0.26;
 
 /** Детерминированный угол раскладки кроны от позиции дерева (без rng префабов). */
 function treeAngle(x: number, z: number): number {
@@ -437,13 +439,67 @@ export class Props {
     b.box(x, 1.3, z - 0.7, 3.8, 2.4, 0.08, this.m.color('glass-blue'), rot);
   }
 
-  /** Детская площадка: пара цветных модулей. */
-  playground(x: number, z: number): void {
+  /**
+   * Детская площадка двора (FR-19.29, design D33): песок 7 × 7, игровой домик с крышей и
+   * горкой, качели на раме и карусель — всё в пределах площадки, не выше 2.6; 339 вершин.
+   * `facing` — знак локальной оси Z, куда съезжает горка: раскладка передаёт видимую сторону
+   * квартала (`−hidden.z`, D13), иначе горку от камеры закрывает домик. При −1 площадка
+   * зеркальна по Z.
+   */
+  playground(x: number, z: number, facing: 1 | -1 = 1): void {
     const b = this.batch;
-    b.plane(x, 0.26, z, 7, 7, this.m.color('sand'));
-    b.box(x - 1.5, 1.2, z, 1.2, 2, 1.2, this.m.color('accent-red'));
-    b.box(x + 1.5, 0.9, z + 1, 2.4, 0.2, 0.6, this.m.color('flag-blue'));
-    b.box(x + 0.5, 0.5, z - 1.5, 0.3, 1, 0.3, this.m.color('gold'));
+    const m = this.m;
+    const ground = PLAYGROUND_Y;
+    b.plane(x, ground, z, 7, 7, m.color('sand'));
+    // Домик с крышей-пирамидой (повёрнута на 45° — стороны вдоль осей) и горка от его верха.
+    const hx = x - 2;
+    const hz = z - 2 * facing;
+    const top = ground + 1.3;
+    b.box(hx, ground + 0.65, hz, 1.4, 1.3, 1.4, m.color('gold'));
+    b.place(
+      Templates.pyramid4,
+      hx,
+      top + 0.45,
+      hz,
+      1.42,
+      0.9,
+      1.42,
+      m.color('accent-red'),
+      Math.PI / 4,
+    );
+    const slide = { z0: hz + 0.7 * facing, y0: top, z1: hz + 3 * facing, y1: ground + 0.05 };
+    b.placeRotated(
+      Templates.box,
+      hx,
+      (slide.y0 + slide.y1) / 2,
+      (slide.z0 + slide.z1) / 2,
+      0.8,
+      0.1,
+      Math.hypot(slide.z1 - slide.z0, slide.y0 - slide.y1),
+      facing * Math.atan2(slide.y0 - slide.y1, Math.abs(slide.z1 - slide.z0)),
+      0,
+      0,
+      m.color('flag-blue'),
+    );
+    // Качели: две стойки, перекладина, два сиденья на подвесах.
+    const steel = m.color('steel');
+    const sx = x + 0.6;
+    const sz = z + 2.2 * facing;
+    const bar = ground + 2;
+    for (const px of [sx - 1.3, sx + 1.3]) {
+      b.box(px, ground + 1, sz, 0.12, 2, 0.12, steel);
+    }
+    b.box(sx, bar, sz, 2.72, 0.12, 0.12, steel);
+    for (const seat of [sx - 0.6, sx + 0.6]) {
+      b.box(seat, ground + 0.5, sz, 0.5, 0.08, 0.35, m.color('accent-red'));
+      b.box(seat, (bar + ground + 0.5) / 2, sz, 0.04, bar - ground - 0.5, 0.04, steel);
+    }
+    // Карусель: диск на оси с поручнем.
+    const cx = x + 1.8;
+    const cz = z - 1.8 * facing;
+    b.place(Templates.cylinder8, cx, ground + 0.3, cz, 1.1, 0.14, 1.1, m.color('yellow'));
+    b.box(cx, ground + 0.7, cz, 0.14, 0.8, 0.14, steel);
+    b.box(cx, ground + 1.05, cz, 1.6, 0.08, 0.08, steel);
   }
 
   /** Припаркованная машина-заглушка (низкий бокс), для парковок. */
